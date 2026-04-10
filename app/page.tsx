@@ -1,5 +1,6 @@
 import { Hero } from "@/components/home/hero";
 import { HallOfFame } from "@/components/home/hall-of-fame";
+import { HomeGearStrip } from "@/components/home/home-gear-strip";
 import { TwitchSection } from "@/components/home/twitch-section";
 import { HomeAboutSection } from "@/components/home/home-about-section";
 import { getPageContent } from "@/lib/get-cms-page";
@@ -17,6 +18,7 @@ export default async function Home() {
         heroPoweredBy={cms.heroPoweredBy}
       />
       <HomeAboutSection cards={cms.aboutCards} />
+      <HomeGearStrip />
       <HallOfFame />
       <TwitchSection />
     </>
