@@ -47,6 +47,7 @@ export default function AdminPage() {
   const [teams, setTeams] = useState<TeamRow[]>([]);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const [lfgSeedMsg, setLfgSeedMsg] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -124,6 +125,26 @@ export default function AdminPage() {
     }
   }
 
+  async function seedLfgDemos() {
+    if (!user) return;
+    setLfgSeedMsg(null);
+    try {
+      const token = await user.getIdToken();
+      const res = await fetch("/api/admin/seed-lfg", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const j = await res.json();
+      if (!res.ok) {
+        setLfgSeedMsg(j.error ?? "Selhalo.");
+        return;
+      }
+      setLfgSeedMsg(j.message ?? "OK");
+    } catch (e) {
+      setLfgSeedMsg(e instanceof Error ? e.message : "Chyba sítě");
+    }
+  }
+
   if (loading || !user) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center text-slate-500">
@@ -154,6 +175,28 @@ export default function AdminPage() {
       </p>
 
       <AdminAnnouncementsPanel />
+
+      <GlassCard className="mb-10">
+        <h2 className="font-[family-name:var(--font-bebas)] text-2xl text-[#39FF14]">
+          LFG — ukázkové inzeráty
+        </h2>
+        <p className="mt-2 text-sm text-slate-400">
+          Jednorázově přidá 2 testovací záznamy do{" "}
+          <code className="text-slate-300">free_agents</code> (hledám tým + hledám
+          hráče), pokud ještě neexistují.
+        </p>
+        <GlowButton
+          type="button"
+          variant="ghost"
+          className="mt-4"
+          onClick={() => void seedLfgDemos()}
+        >
+          Nahrát ukázky
+        </GlowButton>
+        {lfgSeedMsg ? (
+          <p className="mt-3 text-sm text-slate-300">{lfgSeedMsg}</p>
+        ) : null}
+      </GlassCard>
 
       <h2 className="font-[family-name:var(--font-bebas)] text-3xl text-white">
         Čekající týmy

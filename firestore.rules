@@ -72,11 +72,14 @@ service cloud.firestore {
       allow write: if false;
     }
 
-    // --- LFG / free agents ---
+    // --- LFG / free agents (inzerát přidá kdokoli bez účtu; mazání jen cron / Admin) ---
     match /free_agents/{docId} {
       allow read: if true;
 
-      allow create: if request.auth != null
+      allow create: if request.resource.data.keys().hasOnly([
+            'type', 'discordUsername', 'hoursPlayed', 'faceitLevel',
+            'description', 'createdAt'
+          ])
         && request.resource.data.type in ['looking_team', 'looking_player']
         && request.resource.data.discordUsername is string
         && request.resource.data.discordUsername.size() > 0
@@ -91,7 +94,8 @@ service cloud.firestore {
         && (request.resource.data.faceitLevel is int
             || request.resource.data.faceitLevel is float)
         && request.resource.data.faceitLevel >= 1
-        && request.resource.data.faceitLevel <= 10;
+        && request.resource.data.faceitLevel <= 10
+        && request.resource.data.createdAt is timestamp;
 
       allow update, delete: if false;
     }
