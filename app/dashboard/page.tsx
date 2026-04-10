@@ -1,10 +1,12 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect } from "react";
 import { motion } from "framer-motion";
 import { useAuth } from "@/contexts/auth-context";
 import { GlassCard } from "@/components/glass-card";
 import { GlowButton } from "@/components/glow-button";
+import { isClientAdminEmail } from "@/lib/admin-client";
 
 const quick = [
   { href: "/dashboard/tymy", label: "Týmy (hry)" },
@@ -15,7 +17,22 @@ const quick = [
 ];
 
 export default function DashboardHomePage() {
-  const { user, profile } = useAuth();
+  const { user, profile, loading } = useAuth();
+
+  useEffect(() => {
+    if (loading || !user?.email) return;
+    if (isClientAdminEmail(user.email) && typeof window !== "undefined") {
+      window.location.assign("/admin");
+    }
+  }, [user, loading]);
+
+  if (!loading && user?.email && isClientAdminEmail(user.email)) {
+    return (
+      <div className="flex min-h-[40vh] items-center justify-center text-slate-500">
+        Otevírám administraci…
+      </div>
+    );
+  }
 
   return (
     <motion.main

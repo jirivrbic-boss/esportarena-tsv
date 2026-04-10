@@ -4,8 +4,9 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/contexts/auth-context";
+import { isClientAdminEmail } from "@/lib/admin-client";
 
-const nav = [
+const captainNav = [
   { href: "/dashboard", label: "Přehled", exact: true },
   { href: "/dashboard/tymy", label: "Týmy" },
   { href: "/dashboard/oznameni", label: "Oznámení" },
@@ -16,7 +17,14 @@ const nav = [
 
 export function CaptainSidebar() {
   const pathname = usePathname();
-  const { signOut } = useAuth();
+  const { user, signOut } = useAuth();
+  const admin = isClientAdminEmail(user?.email);
+  const nav = admin
+    ? [
+        { href: "/admin", label: "Přehled administrace", exact: false },
+        ...captainNav,
+      ]
+    : captainNav;
 
   return (
     <aside className="flex w-full shrink-0 flex-col border-b border-white/10 bg-[#080808] md:w-60 md:border-b-0 md:border-r">
@@ -46,10 +54,12 @@ export function CaptainSidebar() {
         {nav.map((item) => {
           const active = item.exact
             ? pathname === item.href
-            : pathname === item.href ||
-              pathname.startsWith(`${item.href}/`) ||
-              (item.href === "/dashboard/tymy" &&
-                pathname.startsWith("/dashboard/tym"));
+            : item.href === "/admin"
+              ? pathname === "/admin" || pathname.startsWith("/admin/")
+              : pathname === item.href ||
+                pathname.startsWith(`${item.href}/`) ||
+                (item.href === "/dashboard/tymy" &&
+                  pathname.startsWith("/dashboard/tym"));
           return (
             <Link
               key={item.href}

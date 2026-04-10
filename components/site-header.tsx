@@ -75,17 +75,9 @@ export function SiteHeader() {
         <div className="flex items-center gap-2">
           {user ? (
             <>
-              {showAdmin ? (
-                <Link
-                  href="/admin"
-                  className="hidden text-sm font-medium text-[#39FF14] hover:underline sm:inline"
-                >
-                  Administrace
-                </Link>
-              ) : null}
               <Link
-                href="/dashboard"
-                className="hidden text-sm text-[#39FF14] hover:underline sm:inline"
+                href={showAdmin ? "/admin" : "/dashboard"}
+                className="hidden text-sm font-medium text-[#39FF14] hover:underline sm:inline"
               >
                 Přehled
               </Link>
@@ -167,13 +159,13 @@ export function SiteHeader() {
                   </Link>
                 );
               })}
-              {user && showAdmin ? (
+              {user ? (
                 <Link
-                  href="/admin"
+                  href={showAdmin ? "/admin" : "/dashboard"}
                   onClick={closeMenu}
                   className="mt-2 rounded-md px-3 py-3 text-sm font-medium text-[#39FF14] hover:bg-white/5"
                 >
-                  Administrace
+                  Přehled
                 </Link>
               ) : null}
               {!user ? (

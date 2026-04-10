@@ -7,8 +7,7 @@ import { motion } from "framer-motion";
 import { useAuth } from "@/contexts/auth-context";
 import { GlowButton } from "@/components/glow-button";
 import { GlassCard } from "@/components/glass-card";
-import { isClientAdminEmail } from "@/lib/admin-client";
-import { syncFirebaseSessionCookie } from "@/lib/auth-session-client";
+import { completeAuthLanding } from "@/lib/auth-session-client";
 import { getFirebaseAuth } from "@/lib/firebase/client";
 
 export default function RegistracePage() {
@@ -21,21 +20,7 @@ export default function RegistracePage() {
 
   useEffect(() => {
     if (loading || !user) return;
-    let cancelled = false;
-    void (async () => {
-      try {
-        await syncFirebaseSessionCookie(user);
-      } catch {
-        /* */
-      }
-      if (cancelled) return;
-      router.replace(
-        isClientAdminEmail(user.email) ? "/admin" : "/dashboard"
-      );
-    })();
-    return () => {
-      cancelled = true;
-    };
+    void completeAuthLanding(user, router);
   }, [user, loading, router]);
 
   async function onSubmit(e: React.FormEvent) {
@@ -54,14 +39,7 @@ export default function RegistracePage() {
       await signUp(email, password);
       const u = getFirebaseAuth().currentUser;
       if (u) {
-        try {
-          await syncFirebaseSessionCookie(u);
-        } catch {
-          /* */
-        }
-        router.push(
-          isClientAdminEmail(u.email) ? "/admin" : "/dashboard"
-        );
+        await completeAuthLanding(u, router);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Registrace selhala.");
