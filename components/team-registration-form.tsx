@@ -56,10 +56,14 @@ function draftFromRoster(p: RosterPlayer): Draft {
   };
 }
 
-async function fetchElo(nickname: string): Promise<number | null> {
+async function fetchElo(
+  nickname: string,
+  idToken: string
+): Promise<number | null> {
   if (!nickname.trim()) return null;
   const res = await fetch(
-    `/api/faceit/elo?nickname=${encodeURIComponent(nickname.trim())}`
+    `/api/faceit/elo?nickname=${encodeURIComponent(nickname.trim())}`,
+    { headers: { Authorization: `Bearer ${idToken}` } }
   );
   const j = await res.json();
   if (!j.ok) return null;
@@ -156,7 +160,8 @@ export function TeamRegistrationForm({
   async function buildRoster(
     tid: string,
     list: Draft[],
-    prefix: string
+    prefix: string,
+    idToken: string
   ): Promise<{ players: RosterPlayer[]; storageMeta: { path: string; uploadedAt: number }[]; links: { label: string; url: string }[] }> {
     const storageMeta: { path: string; uploadedAt: number }[] = [];
     const links: { label: string; url: string }[] = [];
@@ -203,7 +208,7 @@ export function TeamRegistrationForm({
         }
       }
 
-      const elo = await fetchElo(d.faceitNickname);
+      const elo = await fetchElo(d.faceitNickname, idToken);
       players.push({
         firstName: d.firstName.trim(),
         lastName: d.lastName.trim(),
@@ -269,6 +274,7 @@ export function TeamRegistrationForm({
 
     setPending(true);
     try {
+      const idToken = await user.getIdToken();
       const db = getFirebaseDb();
       const tid = teamId ?? doc(collection(db, "teams")).id;
       const isNew = isNewTeam;
@@ -291,8 +297,8 @@ export function TeamRegistrationForm({
         setTeamId(tid);
       }
 
-      const tRoster = await buildRoster(tid, teammates, "hrac");
-      const sRoster = await buildRoster(tid, subs, "nahradnik");
+      const tRoster = await buildRoster(tid, teammates, "hrac", idToken);
+      const sRoster = await buildRoster(tid, subs, "nahradnik", idToken);
 
       for (const p of tRoster.players) {
         if (!p.studentCertUrl) {
@@ -352,7 +358,10 @@ export function TeamRegistrationForm({
 
       await fetch("/api/notifications/discord", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${idToken}`,
+        },
         body: JSON.stringify({
           title: isNew ? "Nový tým" : "Aktualizace soupisky",
           teamName: teamName.trim(),
@@ -365,12 +374,11 @@ export function TeamRegistrationForm({
         }),
       }).catch(() => {});
 
-      const token = await user.getIdToken();
       await fetch("/api/notifications/captain-email", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${idToken}`,
         },
         body: JSON.stringify({
           kind: "team_submitted",

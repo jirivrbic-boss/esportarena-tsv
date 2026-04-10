@@ -53,17 +53,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [firebaseReady]);
 
+  const syncSessionCookie = useCallback(async (u: User | null) => {
+    try {
+      if (!u) {
+        await fetch("/api/auth/session", { method: "DELETE", credentials: "include" });
+        return;
+      }
+      const token = await u.getIdToken();
+      await fetch("/api/auth/session", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        credentials: "include",
+      });
+    } catch {
+      /* cookie je best-effort pro Edge middleware */
+    }
+  }, []);
+
   useEffect(() => {
     if (!firebaseReady) return;
     const auth = getFirebaseAuth();
     const unsub = onAuthStateChanged(auth, async (u) => {
       setUser(u);
-      if (u) await loadProfile(u);
-      else setProfile(null);
+      if (u) {
+        await loadProfile(u);
+        await syncSessionCookie(u);
+      } else {
+        setProfile(null);
+        await syncSessionCookie(null);
+      }
       setLoading(false);
     });
     return () => unsub();
-  }, [firebaseReady, loadProfile]);
+  }, [firebaseReady, loadProfile, syncSessionCookie]);
 
   const refreshProfile = useCallback(async () => {
     if (user && firebaseReady) await loadProfile(user);
@@ -123,6 +145,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = useCallback(async () => {
     if (!firebaseReady) return;
+    try {
+      await fetch("/api/auth/session", { method: "DELETE", credentials: "include" });
+    } catch {
+      /* */
+    }
     await firebaseSignOut(getFirebaseAuth());
   }, [firebaseReady]);
 

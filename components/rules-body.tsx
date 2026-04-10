@@ -1,13 +1,13 @@
 "use client";
 
 import { GlassCard } from "@/components/glass-card";
-import { RULES_SECTIONS } from "@/lib/rules-data";
+import type { RuleSection } from "@/lib/cms-defaults";
 
-export function RulesBody() {
+export function RulesBody({ sections }: { sections: RuleSection[] }) {
   return (
     <div className="mt-10 space-y-6">
-      {RULES_SECTIONS.map((s, i) => (
-        <GlassCard key={s.title} delay={i * 0.05}>
+      {sections.map((s, i) => (
+        <GlassCard key={`${s.title}-${i}`} delay={i * 0.05}>
           <h2 className="font-[family-name:var(--font-bebas)] text-2xl text-[#39FF14]">
             {s.title}
           </h2>

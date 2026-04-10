@@ -3,10 +3,22 @@
 import { motion } from "framer-motion";
 import Image from "next/image";
 import { GlowButton } from "@/components/glow-button";
+import type { HomeCms } from "@/lib/cms-defaults";
 
 const videoUrl = process.env.NEXT_PUBLIC_HERO_VIDEO_URL;
 
-export function Hero() {
+type HeroProps = Pick<
+  HomeCms,
+  "heroTagline" | "heroTitle" | "heroTitleAccent" | "heroSubtitle" | "heroPoweredBy"
+>;
+
+export function Hero({
+  heroTagline,
+  heroTitle,
+  heroTitleAccent,
+  heroSubtitle,
+  heroPoweredBy,
+}: HeroProps) {
   return (
     <section className="relative min-h-[88vh] overflow-hidden">
       <div className="absolute inset-0 bg-gradient-to-b from-[#050505] via-[#070707] to-[#0a0a0a]" />
@@ -49,7 +61,7 @@ export function Hero() {
           transition={{ delay: 0.15, duration: 0.5 }}
           className="mb-3 text-xs font-semibold uppercase tracking-[0.35em] text-[#39FF14]"
         >
-          Counter-Strike 2 · České školy
+          {heroTagline}
         </motion.p>
         <motion.h1
           initial={{ opacity: 0, y: 16 }}
@@ -57,23 +69,20 @@ export function Hero() {
           transition={{ delay: 0.2, duration: 0.55 }}
           className="font-[family-name:var(--font-bebas)] text-5xl leading-none tracking-wide text-white sm:text-7xl md:text-8xl"
         >
-          ESPORTARENA
+          {heroTitle}
           <span className="block text-[#39FF14] drop-shadow-[0_0_20px_rgba(57,255,20,0.5)]">
-            TSV
+            {heroTitleAccent}
           </span>
         </motion.h1>
         <motion.p
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3, duration: 0.55 }}
-          className="mt-6 max-w-2xl text-lg text-slate-400"
+          className="mt-6 max-w-2xl text-lg text-slate-400 whitespace-pre-line"
         >
-          Sezóna 4 · Prize pool{" "}
-          <span className="font-semibold text-white">120 000 Kč</span>
+          {heroSubtitle}
           <br />
-          <span className="text-sm text-slate-500">
-            Powered by Cougar & EsportArena Plzeň
-          </span>
+          <span className="text-sm text-slate-500">{heroPoweredBy}</span>
         </motion.p>
 
         <motion.div

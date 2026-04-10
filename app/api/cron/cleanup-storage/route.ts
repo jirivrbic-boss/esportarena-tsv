@@ -3,17 +3,13 @@ import { adminDb, adminStorage, getAdminApp } from "@/lib/firebase/admin";
 
 const HOURS_48_MS = 48 * 60 * 60 * 1000;
 
-/**
- * GDPR: smaže soubory ve Storage starší než 48 h podle záznamů v teams.storageMeta
- * Volání: POST s hlavičkou Authorization: Bearer CRON_SECRET
- */
-export async function POST(request: Request) {
+function authorizeCron(request: Request): boolean {
   const secret = process.env.CRON_SECRET;
   const auth = request.headers.get("authorization");
-  if (!secret || auth !== `Bearer ${secret}`) {
-    return NextResponse.json({ ok: false, error: "Neautorizováno." }, { status: 401 });
-  }
+  return Boolean(secret && auth === `Bearer ${secret}`);
+}
 
+async function runStorageCleanup() {
   try {
     getAdminApp();
   } catch {
@@ -70,4 +66,21 @@ export async function POST(request: Request) {
   }
 
   return NextResponse.json({ ok: true, deleted, errors: errors.slice(0, 20) });
+}
+
+/**
+ * GDPR: maže soubory ve Storage starší než 48 h. Chráněno Bearer CRON_SECRET.
+ */
+export async function GET(request: Request) {
+  if (!authorizeCron(request)) {
+    return NextResponse.json({ ok: false, error: "Neautorizováno." }, { status: 401 });
+  }
+  return runStorageCleanup();
+}
+
+export async function POST(request: Request) {
+  if (!authorizeCron(request)) {
+    return NextResponse.json({ ok: false, error: "Neautorizováno." }, { status: 401 });
+  }
+  return runStorageCleanup();
 }

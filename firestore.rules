@@ -66,6 +66,12 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // --- CMS stránek (čtení veřejně, zápis jen Admin SDK / API) ---
+    match /page_content/{slug} {
+      allow read: if true;
+      allow write: if false;
+    }
+
     // --- LFG / free agents ---
     match /free_agents/{docId} {
       allow read: if true;

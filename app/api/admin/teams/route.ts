@@ -1,10 +1,16 @@
 import { NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/server-auth";
+import { verifyIdTokenFromRequest, isSuperAdminEmail } from "@/lib/server-auth";
 import { adminDb } from "@/lib/firebase/admin";
 
 export async function GET(request: Request) {
-  const admin = await requireAdmin(request);
-  if (!admin) {
+  const user = await verifyIdTokenFromRequest(request);
+  if (!user) {
+    return NextResponse.json(
+      { ok: false, error: "Chybí nebo neplatný token." },
+      { status: 401 }
+    );
+  }
+  if (!isSuperAdminEmail(user.email)) {
     return NextResponse.json({ ok: false, error: "Přístup odepřen." }, { status: 403 });
   }
 

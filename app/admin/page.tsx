@@ -2,9 +2,11 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useAuth } from "@/contexts/auth-context";
 import { GlassCard } from "@/components/glass-card";
 import { GlowButton } from "@/components/glow-button";
+import { AdminAnnouncementsPanel } from "@/components/admin-announcements-panel";
 
 type TeamRow = {
   id: string;
@@ -55,7 +57,7 @@ export default function AdminPage() {
         headers: { Authorization: `Bearer ${token}` },
       });
       const j = await res.json();
-      if (res.status === 403) {
+      if (res.status === 401 || res.status === 403) {
         router.replace("/");
         return;
       }
@@ -75,12 +77,9 @@ export default function AdminPage() {
 
   useEffect(() => {
     if (loading) return;
-    if (!user) {
-      router.replace("/prihlaseni");
-      return;
-    }
+    if (!user) return;
     void load();
-  }, [user, loading, router, load]);
+  }, [user, loading, load]);
 
   async function approve(id: string) {
     if (!user) return;
@@ -136,11 +135,31 @@ export default function AdminPage() {
   return (
     <main className="mx-auto max-w-5xl px-4 py-16 sm:px-6">
       <h1 className="font-[family-name:var(--font-bebas)] text-4xl text-white">
-        Admin · čekající týmy
+        Super Admin
       </h1>
       <p className="mt-2 text-sm text-slate-400">
-        Schválením se týmu odemkne odkaz na Faceit hub. Přístup mají jen e-maily v{" "}
-        <code className="text-[#39FF14]">ADMIN_EMAILS</code>.
+        Schvalování týmů, oznámení a odkaz na úpravu textů stránek (
+        <Link href="/edit" className="text-[#39FF14] hover:underline">
+          úvod
+        </Link>
+        ,{" "}
+        <Link href="/pravidla/edit" className="text-[#39FF14] hover:underline">
+          pravidla
+        </Link>
+        ,{" "}
+        <Link href="/oznameni/edit" className="text-[#39FF14] hover:underline">
+          text oznámení
+        </Link>
+        ).
+      </p>
+
+      <AdminAnnouncementsPanel />
+
+      <h2 className="font-[family-name:var(--font-bebas)] text-3xl text-white">
+        Čekající týmy
+      </h2>
+      <p className="mt-2 text-sm text-slate-400">
+        Schválením se týmu odemkne Faceit hub a kapitánovi odejde e-mail (Resend).
       </p>
       <GlowButton type="button" variant="ghost" className="mt-6" onClick={() => void load()}>
         Obnovit seznam

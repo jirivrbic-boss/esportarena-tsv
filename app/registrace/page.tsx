@@ -63,7 +63,12 @@ export default function RegistracePage() {
       </h1>
       <p className="mt-2 text-sm text-slate-400">
         Pouze kapitán zakládá účet. Po registraci vyplň profil a nahraj
-        potřebné dokumenty.
+        potřebné dokumenty. U týmových dokumentů (ISIC, souhlasy) platí automatické
+        mazání po 48 h —{" "}
+        <Link href="/gdpr" className="text-[#39FF14] hover:underline">
+          GDPR
+        </Link>
+        .
       </p>
       <GlassCard className="mt-8">
         <form onSubmit={onSubmit} className="space-y-4">

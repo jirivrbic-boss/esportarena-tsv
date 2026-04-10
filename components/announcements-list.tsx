@@ -29,12 +29,19 @@ function formatDate(ms: number) {
   }).format(new Date(ms));
 }
 
+function firebaseMissingMessage(): string {
+  if (process.env.NODE_ENV === "production") {
+    return "Databáze není dostupná: na hostingu (Vercel) chybí proměnné NEXT_PUBLIC_FIREBASE_API_KEY, NEXT_PUBLIC_FIREBASE_PROJECT_ID a NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET (a ostatní z .env.example). Po doplnění proveď nový deploy.";
+  }
+  return "Firebase není nakonfigurováno — zkopíruj .env.example do .env.local a doplň údaje.";
+}
+
 export function AnnouncementsList() {
   const firebaseOk = isFirebaseConfigured();
   const [items, setItems] = useState<AnnouncementItem[]>([]);
   const [loading, setLoading] = useState(firebaseOk);
   const [err, setErr] = useState<string | null>(() =>
-    firebaseOk ? null : "Firebase není nakonfigurováno."
+    firebaseOk ? null : firebaseMissingMessage()
   );
 
   useEffect(() => {
@@ -78,8 +85,8 @@ export function AnnouncementsList() {
     return (
       <GlassCard>
         <p className="text-slate-400">
-          Zatím žádná oznámení. Novinky přidává administrace přes vyhrazený kanál
-          na Discordu (viz dokumentace v repozitáři).
+          Zatím žádná oznámení. Novinky přidává super administrátor v sekci Admin na
+          webu.
         </p>
       </GlassCard>
     );

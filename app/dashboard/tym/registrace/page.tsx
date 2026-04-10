@@ -40,7 +40,12 @@ export default function DashboardTymRegistracePage() {
         Přesně <strong className="text-white">4 hráči</strong>, až{" "}
         <strong className="text-white">2 náhradníci</strong> a{" "}
         <strong className="text-white">1 trenér</strong>. Faceit ELO se stáhne
-        automaticky pro administrátory (seedování).
+        automaticky pro administrátory (seedování). Nahrané doklady o studiu a
+        souhlasy se mažou po 48 h — viz{" "}
+        <Link href="/gdpr" className="text-[#39FF14] underline-offset-2 hover:underline">
+          GDPR
+        </Link>
+        .
       </p>
       {!profile.profileComplete ? (
         <p className="mt-6 rounded-lg border border-amber-500/30 bg-amber-950/40 p-4 text-sm text-amber-100">

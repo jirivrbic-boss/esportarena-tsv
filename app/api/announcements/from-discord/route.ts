@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAdminApp, adminDb } from "@/lib/firebase/admin";
+import { verifyIdTokenFromRequest, isSuperAdminEmail } from "@/lib/server-auth";
 
 type Body = {
   content: string;
@@ -8,10 +9,18 @@ type Body = {
   discordMessageId?: string;
 };
 
-export async function POST(request: Request) {
+async function isAuthorized(request: Request): Promise<boolean> {
+  const authHeader = request.headers.get("authorization");
+  if (!authHeader?.startsWith("Bearer ")) return false;
+  const bearer = authHeader.slice(7);
   const secret = process.env.DISCORD_ANNOUNCEMENTS_SECRET;
-  const auth = request.headers.get("authorization");
-  if (!secret || auth !== `Bearer ${secret}`) {
+  if (secret && bearer === secret) return true;
+  const user = await verifyIdTokenFromRequest(request);
+  return Boolean(user?.email && isSuperAdminEmail(user.email));
+}
+
+export async function POST(request: Request) {
+  if (!(await isAuthorized(request))) {
     return NextResponse.json({ ok: false, error: "Neautorizováno." }, { status: 401 });
   }
 

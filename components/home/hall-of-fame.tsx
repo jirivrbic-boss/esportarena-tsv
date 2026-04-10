@@ -7,19 +7,19 @@ const seasons = [
     season: "Sezóna 1",
     first: "SPŠ MV Praha (Sokolov)",
     second: "Gymnázium Třeboň",
-    third: "Historické 3. místo — doplní pořadatel",
+    third: "SPŠ Mladá Boleslav",
   },
   {
     season: "Sezóna 2",
     first: "SPŠEK Rakovník",
     second: "SPŠ MV Praha (Sokolov)",
-    third: "Historické 3. místo — doplní pořadatel",
+    third: "SPŠ Teplice",
   },
   {
     season: "Sezóna 3",
     first: "VUT Brno",
     second: "VŠB Ostrava",
-    third: "Historické 3. místo — doplní pořadatel",
+    third: "FEKT VUT Brno",
   },
 ];
 

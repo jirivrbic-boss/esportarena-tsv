@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { verifyIdTokenFromRequest } from "@/lib/server-auth";
 
 type Body = {
   title: string;
@@ -12,6 +13,14 @@ type Body = {
 };
 
 export async function POST(request: Request) {
+  const user = await verifyIdTokenFromRequest(request);
+  if (!user) {
+    return NextResponse.json(
+      { ok: false, error: "Chybí nebo neplatný token." },
+      { status: 401 }
+    );
+  }
+
   const url = process.env.DISCORD_WEBHOOK_URL;
   if (!url) {
     return NextResponse.json(

@@ -52,7 +52,8 @@ export function parseAdminEmails(): string[] {
     .filter(Boolean);
 }
 
-export function isAdminEmail(email: string | undefined): boolean {
+/** Jen seznam ADMIN_EMAILS (bez hardcodovaného Super Admina). */
+export function isAdminEmailFromEnv(email: string | undefined): boolean {
   if (!email) return false;
   return parseAdminEmails().includes(email.toLowerCase());
 }
