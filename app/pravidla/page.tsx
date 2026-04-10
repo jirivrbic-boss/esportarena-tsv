@@ -1,5 +1,7 @@
 import { RulesBody } from "@/components/rules-body";
+import { OfficialDocumentsDownloads } from "@/components/official-documents-downloads";
 import type { Metadata } from "next";
+import Link from "next/link";
 import { getPageContent } from "@/lib/get-cms-page";
 import type { PravidlaCms } from "@/lib/cms-defaults";
 
@@ -19,8 +21,19 @@ export default async function PravidlaPage() {
       <p className="mt-3 text-slate-400">
         Stručný oficiální rámec pro CS2 část ESPORTARENA TSV — Sezóna 4. Detailní
         rozvrh a případné výjimky vždy na{" "}
-        <strong className="text-[#39FF14]">Discordu</strong>.
+        <strong className="text-[#39FF14]">Discordu</strong>. Kompletní znění v
+        souborech Word najdeš na{" "}
+        <Link href="/dokumenty" className="text-[#39FF14] underline-offset-2 hover:underline">
+          stránce Dokumenty
+        </Link>
+        .
       </p>
+      <OfficialDocumentsDownloads
+        variant="rules"
+        className="mt-10"
+        heading="Pravidla ke stažení (Word)"
+        intro="Obecná pravidla CS2 a pravidla registrace — stejné znění jako v administraci turnaje."
+      />
       <RulesBody sections={cms.sections} />
     </main>
   );

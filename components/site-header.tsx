@@ -12,6 +12,7 @@ const publicLinks = [
   { href: "/", label: "Domů" },
   { href: "/oznameni", label: "Oznámení" },
   { href: "/pravidla", label: "Pravidla" },
+  { href: "/dokumenty", label: "Dokumenty" },
   { href: "/hledam", label: "Hledám tým / hráče" },
   { href: "/tym/registrace", label: "Registrace týmu" },
 ];

@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import { doc, getDoc } from "firebase/firestore";
 import { RulesBody } from "@/components/rules-body";
+import { OfficialDocumentsDownloads } from "@/components/official-documents-downloads";
 import { getFirebaseDb } from "@/lib/firebase/client";
 import { isFirebaseConfigured } from "@/lib/firebase/config";
 import { CMS_DEFAULTS, type PravidlaCms, type RuleSection } from "@/lib/cms-defaults";
@@ -37,6 +38,12 @@ export default function DashboardPravidlaPage() {
         rozvrh a případné výjimky vždy na{" "}
         <strong className="text-[#39FF14]">Discordu</strong>.
       </p>
+      <OfficialDocumentsDownloads
+        variant="rules"
+        className="mt-10"
+        heading="Pravidla ke stažení (Word)"
+        intro="Obecná pravidla CS2 a pravidla registrace."
+      />
       <RulesBody sections={sections} />
     </motion.main>
   );

@@ -45,6 +45,10 @@ export default function DashboardTymRegistracePage() {
         <Link href="/gdpr" className="text-[#39FF14] underline-offset-2 hover:underline">
           GDPR
         </Link>
+        . Šablonu souhlasu rodičů:{" "}
+        <Link href="/dokumenty" className="text-[#39FF14] underline-offset-2 hover:underline">
+          Dokumenty
+        </Link>
         .
       </p>
       {!profile.profileComplete ? (

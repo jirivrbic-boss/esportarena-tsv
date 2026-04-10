@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { OfficialDocumentsDownloads } from "@/components/official-documents-downloads";
 
 export const metadata: Metadata = {
   title: "Ochrana údajů (GDPR) · ESPORTARENA TSV",
@@ -17,8 +18,19 @@ export default function GdprPage() {
         <p>
           Při registraci týmu nahráváš dokumenty sloužící výhradně k ověření, že
           hráči splňují podmínku studentského statusu (např. ISIC, potvrzení o studiu)
-          a v případě nezletilých též souhlas zákonného zástupce.
+          a v případě nezletilých též souhlas zákonného zástupce. Šablonu souhlasu
+          můžeš stáhnout níže nebo na stránce{" "}
+          <Link href="/dokumenty" className="text-[#39FF14] underline-offset-2 hover:underline">
+            Dokumenty
+          </Link>
+          .
         </p>
+        <OfficialDocumentsDownloads
+          variant="consent"
+          className="mt-6"
+          heading="Souhlas zákonného zástupce"
+          intro=""
+        />
         <p>
           Tyto citlivé soubory jsou uloženy zabezpečeně ve Firebase Storage a{" "}
           <strong className="text-white">

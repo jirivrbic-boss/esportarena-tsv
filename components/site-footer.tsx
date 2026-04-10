@@ -27,6 +27,12 @@ export function SiteFooter() {
             Pravidla turnaje
           </Link>
           <Link
+            href="/dokumenty"
+            className="mt-2 inline-block text-slate-300 underline-offset-4 hover:text-white hover:underline"
+          >
+            Dokumenty ke stažení
+          </Link>
+          <Link
             href="/gdpr"
             className="mt-2 inline-block text-slate-300 underline-offset-4 hover:text-white hover:underline"
           >

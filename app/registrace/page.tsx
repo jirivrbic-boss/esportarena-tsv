@@ -68,7 +68,14 @@ export default function RegistracePage() {
         <Link href="/gdpr" className="text-[#39FF14] hover:underline">
           GDPR
         </Link>
-        .
+        . Šablonu{" "}
+        <Link
+          href="/dokumenty#doc-souhlas-zakonneho-zastupce"
+          className="text-[#39FF14] hover:underline"
+        >
+          souhlasu zákonného zástupce
+        </Link>{" "}
+        stáhneš na stránce Dokumenty.
       </p>
       <GlassCard className="mt-8">
         <form onSubmit={onSubmit} className="space-y-4">
