@@ -7,7 +7,8 @@ import { SiteFooter } from "@/components/site-footer";
 
 export function AppChrome({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const isDashboard = pathname.startsWith("/dashboard");
+  const isDashboard =
+    pathname.startsWith("/dashboard") || pathname.startsWith("/admin");
 
   if (isDashboard) {
     return (

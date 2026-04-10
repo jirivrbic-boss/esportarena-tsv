@@ -25,6 +25,8 @@ export default function DashboardProfilPage() {
   const [pending, setPending] = useState(false);
   const [sentEmail, setSentEmail] = useState(false);
   const [emailNotifyError, setEmailNotifyError] = useState<string | null>(null);
+  const [discordHookError, setDiscordHookError] = useState<string | null>(null);
+  const [accountSavedOk, setAccountSavedOk] = useState(false);
 
   useEffect(() => {
     if (profile) {
@@ -61,7 +63,9 @@ export default function DashboardProfilPage() {
 
     setPending(true);
     setEmailNotifyError(null);
+    setDiscordHookError(null);
     setSentEmail(false);
+    setAccountSavedOk(false);
     try {
       const db = getFirebaseDb();
       const uid = user.uid;
@@ -93,10 +97,11 @@ export default function DashboardProfilPage() {
         profileComplete,
         updatedAt: serverTimestamp(),
       });
+      setAccountSavedOk(true);
 
-      const token = await user.getIdToken();
+      const token = await user.getIdToken(true);
 
-      await fetch("/api/notifications/captain-profile", {
+      const discRes = await fetch("/api/notifications/captain-profile", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -115,7 +120,20 @@ export default function DashboardProfilPage() {
           newStudentUpload: Boolean(studentFile),
           newParentUpload: Boolean(parentFile),
         }),
-      }).catch(() => {});
+      });
+      const discJson = (await discRes.json().catch(() => ({}))) as {
+        error?: string;
+      };
+      if (!discRes.ok) {
+        setDiscordHookError(
+          discJson.error ??
+            (discRes.status === 503
+              ? "Discord: na serveru není nastavený DISCORD_WEBHOOK_URL (Netlify → Environment variables)."
+              : discRes.status === 401
+                ? "Discord: server neověřil token — zkontroluj na Netlify proměnnou FIREBASE_PROJECT_ID (stejné ID projektu jako u Firebase), případně FIREBASE_SERVICE_ACCOUNT_JSON."
+                : `Discord hláška se neodeslala (HTTP ${discRes.status}).`)
+        );
+      }
 
       const mail = await postCaptainEmail(token, { kind: "profile_update" });
       if (mail.ok) {
@@ -124,7 +142,9 @@ export default function DashboardProfilPage() {
         setEmailNotifyError(
           mail.status === 503
             ? "Potvrzovací e-mail se neodeslal: na serveru chybí Resend (RESEND_API_KEY / RESEND_FROM) nebo není ověřená doména odesílatele."
-            : `E-mail se nepodařilo odeslat: ${mail.error}`
+            : mail.status === 401
+              ? `Odeslání e-mailu se nepodařilo (neověřený token na serveru). Údaje máš uložené v účtu. Zkontroluj FIREBASE_PROJECT_ID na Netlify. Detail: ${mail.error}`
+              : `E-mail se nepodařilo odeslat: ${mail.error}`
         );
       }
       await refreshProfile();
@@ -166,9 +186,10 @@ export default function DashboardProfilPage() {
           <div>
             <label>E-mail</label>
             <input
+              type="email"
               value={user.email ?? ""}
               disabled
-              className="mt-1 opacity-60"
+              className="mt-1"
             />
           </div>
           <div>
@@ -255,9 +276,19 @@ export default function DashboardProfilPage() {
               {error}
             </p>
           ) : null}
+          {accountSavedOk ? (
+            <p className="text-sm text-[#39FF14]">
+              Profil je uložený v účtu (Firebase).
+            </p>
+          ) : null}
           {sentEmail ? (
             <p className="text-sm text-[#39FF14]">
-              Profil uložen. Potvrzovací e-mail odeslán.
+              Potvrzovací e-mail byl odeslán.
+            </p>
+          ) : null}
+          {discordHookError ? (
+            <p className="text-sm text-amber-200" role="status">
+              {discordHookError}
             </p>
           ) : null}
           {emailNotifyError ? (

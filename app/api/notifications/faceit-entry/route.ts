@@ -2,10 +2,10 @@ import { NextResponse } from "next/server";
 import { adminDb, getAdminApp } from "@/lib/firebase/admin";
 import { notifyDiscordFaceitHubEntry } from "@/lib/discord-webhook";
 import { gameLabel, type GameId } from "@/lib/games";
-import { verifyIdTokenFromRequest } from "@/lib/server-auth";
+import { verifyFirebaseClientIdTokenFromRequest } from "@/lib/firebase/verify-client-id-token";
 
 export async function POST(request: Request) {
-  const user = await verifyIdTokenFromRequest(request);
+  const user = await verifyFirebaseClientIdTokenFromRequest(request);
   if (!user?.uid) {
     return NextResponse.json(
       { ok: false, error: "Chybí nebo neplatný token." },

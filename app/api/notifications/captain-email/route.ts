@@ -5,14 +5,17 @@ import {
   teamSubmittedEmailHtml,
   welcomeEmailHtml,
 } from "@/lib/emails/captain-templates";
-import { verifyIdTokenFromRequest } from "@/lib/server-auth";
+import { verifyFirebaseClientIdTokenFromRequest } from "@/lib/firebase/verify-client-id-token";
 
 type Kind = "welcome" | "profile_update" | "team_submitted";
 
 export async function POST(request: Request) {
-  const user = await verifyIdTokenFromRequest(request);
+  const user = await verifyFirebaseClientIdTokenFromRequest(request);
   if (!user?.email) {
-    return NextResponse.json({ ok: false, error: "Neautorizováno." }, { status: 401 });
+    return NextResponse.json(
+      { ok: false, error: "Neautorizováno (neplatný token nebo chybí e-mail v tokenu)." },
+      { status: 401 }
+    );
   }
 
   const key = process.env.RESEND_API_KEY;

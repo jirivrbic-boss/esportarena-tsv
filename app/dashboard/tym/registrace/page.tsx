@@ -8,6 +8,7 @@ import { useAuth } from "@/contexts/auth-context";
 import { isFirebaseConfigured } from "@/lib/firebase/config";
 import { parseGameId, GAMES_BY_ID } from "@/lib/games";
 import { TeamRegistrationForm } from "@/components/team-registration-form";
+import { GlowButton } from "@/components/glow-button";
 
 function RegistraceTymuInner() {
   const searchParams = useSearchParams();
@@ -79,17 +80,23 @@ function RegistraceTymuInner() {
         .
       </p>
       {!profile.profileComplete ? (
-        <p className="mt-6 rounded-lg border border-amber-500/30 bg-amber-950/40 p-4 text-sm text-amber-100">
-          Nejdřív dokonči{" "}
-          <Link href="/dashboard/profil" className="text-[#39FF14] underline">
-            profil kapitána
-          </Link>
-          .
-        </p>
-      ) : null}
-      <div className="mt-10">
-        <TeamRegistrationForm user={user} profile={profile} gameId={gameId} />
-      </div>
+        <div className="mt-6 space-y-4 rounded-lg border border-amber-500/30 bg-amber-950/40 p-4 text-sm text-amber-100">
+          <p>
+            Registraci týmu můžeš vyplnit až po uloženém a kompletním{" "}
+            <Link href="/dashboard/profil" className="text-[#39FF14] underline">
+              profilu kapitána
+            </Link>{" "}
+            (kontakty a nahrané doklady).
+          </p>
+          <GlowButton href="/dashboard/profil" variant="ghost" className="!text-xs">
+            Přejít na profil kapitána
+          </GlowButton>
+        </div>
+      ) : (
+        <div className="mt-10">
+          <TeamRegistrationForm user={user} profile={profile} gameId={gameId} />
+        </div>
+      )}
     </motion.main>
   );
 }

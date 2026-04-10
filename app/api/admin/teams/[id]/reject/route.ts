@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { verifyIdTokenFromRequest, isAdminEmail } from "@/lib/server-auth";
+import { verifyAdminBearer } from "@/lib/server-auth";
 import { adminDb } from "@/lib/firebase/admin";
 import { sendTeamRejectedEmail } from "@/lib/resend-team-status";
 
@@ -7,15 +7,12 @@ export async function POST(
   request: Request,
   ctx: { params: Promise<{ id: string }> }
 ) {
-  const authUser = await verifyIdTokenFromRequest(request);
-  if (!authUser) {
+  const auth = await verifyAdminBearer(request);
+  if (!auth.ok) {
     return NextResponse.json(
-      { ok: false, error: "Chybí nebo neplatný token." },
-      { status: 401 }
+      { ok: false, error: auth.error },
+      { status: auth.status }
     );
-  }
-  if (!isAdminEmail(authUser.email)) {
-    return NextResponse.json({ ok: false, error: "Přístup odepřen." }, { status: 403 });
   }
 
   const { id } = await ctx.params;

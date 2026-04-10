@@ -1,0 +1,184 @@
+================================================================================
+REPORT: ESPORTARENA TSV – WEBOVÁ PLATFORMA (Next.js)
+Soubor pro analýzu v Gemini / doplnění chybějících částí
+Datum kontextu: duben 2026
+================================================================================
+
+1) ÚČEL A KONTEXT
+--------------------------------------------------------------------------------
+Studentský turnaj CS2 „ESPORTARENA TSV“ (Sezóna 4). Web slouží kapitánům týmů:
+registrace účtu, profil s doklady, registrace soupisky (4+2+1 trenér), stav
+schválení, odkaz na Faceit po schválení. Veřejné části: úvod, pravidla, LFG,
+oznámení. Admin: skrytá stránka /admin + serverové API pro schvalování týmů.
+Jazyk UI: čeština. Design: dark + neon zelená, Framer Motion.
+
+2) TECH STACK
+--------------------------------------------------------------------------------
+- Next.js 16 (App Router), React 19, TypeScript
+- Tailwind CSS v4 (globals.css + @theme)
+- Framer Motion
+- Firebase: Auth (email/heslo), Firestore, Storage (klient + firebase-admin na serveru)
+- Resend: transakční e-maily + alert adminovi při novém účtu
+- Discord: webhook (notifikace při týmu), samostatný Node skript (discord.js) pro
+  oznámení z kanálu → REST API → Firestore
+- Faceit Data API (volitelné): server route pro ELO podle přezdívky
+
+3) MAPA ROUT (STRÁNKY)
+--------------------------------------------------------------------------------
+Veřejné (s hlavičkou + patičkou):
+  /                    Úvod, hero, síň slávy, Twitch embed (lazy)
+  /oznameni            Seznam oznámení z Firestore
+  /pravidla            Pravidla turnaje (sdílená data s dashboardem)
+  /hledam              Nástěnka LFG (free_agents)
+  /prihlaseni          Přihlášení + modal obnova hesla (Firebase)
+  /registrace          Registrace kapitána
+
+Přesměrování (next.config):
+  /profil              → /dashboard/profil
+  /tym/registrace      → /dashboard/tym/registrace
+
+Kapitánský dashboard (bez globální hlavičky, levé menu):
+  /dashboard                    Přehled + zkratky
+  /dashboard/oznameni           Stejná logika oznámení jako veřejná stránka
+  /dashboard/pravidla           Pravidla
+  /dashboard/hledam             LFG (stejná komponenta jako /hledam)
+  /dashboard/profil             Profil kapitána + uploady do Storage
+  /dashboard/tym/registrace     Formulář týmu + uploady, Discord notifikace
+
+Admin (veřejná URL, ochrana přes API + e-mail v ADMIN_EMAILS):
+  /admin                 Klient volá GET /api/admin/teams s Firebase ID tokenem;
+                         při 403 přesměrování na /. Schvalování/zamítnutí přes API.
+
+4) API ROUTY (SERVER)
+--------------------------------------------------------------------------------
+POST /api/notifications/discord
+  - Tělo: tým, škola, kapitán, soupiska, odkazy na dokumenty
+  - Vyžaduje DISCORD_WEBHOOK_URL
+
+POST /api/notifications/admin-new-user
+  - Bearer Firebase ID token; e-mail na ADMIN_ALERT_EMAIL přes Resend
+
+POST /api/notifications/captain-email
+  - Bearer token; typy: welcome | profile_update | team_submitted
+
+GET  /api/faceit/elo?nickname=
+  - FACEIT_API_KEY; vrací elo / playerId
+
+GET  /api/admin/teams
+  - Bearer token; e-mail musí být v ADMIN_EMAILS; firebase-admin
+
+POST /api/admin/teams/[id]/approve
+POST /api/admin/teams/[id]/reject
+  - Stejná autorizace; mění Firestore přes Admin SDK
+
+POST /api/cron/cleanup-storage
+  - Bearer CRON_SECRET; maže soubory ve Storage podle teams.storageMeta starší 48h
+  - Musí běžet podle plánu (Vercel Cron / jiný scheduler); jinak se soubory nesmažou
+
+POST /api/announcements/from-discord
+  - Bearer DISCORD_ANNOUNCEMENTS_SECRET
+  - Vytvoří dokument v announcements (Admin SDK)
+  - Volá ho Discord bot (skript mimo Vercel – dlouhý proces)
+
+5) FIRESTORE – KOLEKCE (LOGICKY)
+--------------------------------------------------------------------------------
+users/{uid}
+  - Profil kapitána: email, phone, discord, faceit, steam, isAdult, dokumenty URL,
+    profileComplete, timestamps
+
+teams/{teamId}
+  - captainId, captainEmail, captainDiscord, teamName, schoolName, status
+    (pending|approved|rejected), teammates[], substitutes[], coach, faceitHubUrl?,
+    storageMeta[] (path + uploadedAt pro GDPR cron), rejectionReason?, timestamps
+
+free_agents/{id}
+  - type, discordUsername, hoursPlayed, faceitLevel, description, createdAt
+
+announcements/{id}
+  - content, imageUrl?, authorName, discordMessageId?, source, createdAt
+  - Čtení veřejné; zápis jen přes Admin API / bot
+
+6) FIREBASE STORAGE
+--------------------------------------------------------------------------------
+users/{uid}/{soubor}     – dokumenty kapitána (PDF/JPG, max ~15 MB)
+teams/{teamId}/{soubor}  – dokumenty hráčů; zápis jen pokud tým pending a kapitán
+
+7) BEZPEČNOSTNÍ PRAVIDLA (SOUBORY V REPO)
+--------------------------------------------------------------------------------
+firestore.rules – uživatelé, týmy, free_agents, announcements + závěrečný deny all
+storage.rules   – omezení typu souboru, velikosti, vazba na Firestore u týmů
+
+Nutné nasadit přes Firebase CLI nebo konzoli (projekt musí odpovídat .env).
+
+8) CO JE HOTOVÉ (FUNKČNÍ OBLASTI)
+--------------------------------------------------------------------------------
+[+] Registrace / přihlášení kapitána (Firebase Auth)
+[+] Obnova hesla (sendPasswordResetEmail + modal)
+[+] Profil kapitána + nahrání ISIC/souhlasů
+[+] Registrace týmu: 4 hráči, až 2 náhradníci, trenér, dokumenty, Faceit ELO fetch
+[+] Stav týmu pending → po schválení zobrazení Faceit hub URL
+[+] Admin panel + API schvalování (závislé na FIREBASE_SERVICE_ACCOUNT_JSON + ADMIN_EMAILS)
+[+] Discord webhook při vytvoření/úpravě soupisky (pokud je URL nastaveno)
+[+] Resend e-maily (pokud jsou klíče nastavené)
+[+] LFG board s filtry
+[+] Oznámení: čtení z Firestore + ingest z Discordu přes API + volitelný bot skript
+[+] Pravidla (text v lib/rules-data.ts)
+[+] Síň slávy S1–S3 (1.–3. místo; 3. místo uvedeno jako placeholder k doplnění)
+[+] Twitch embed (parent hostname; produkce vyžaduje doménu v Twitch dev konzoli)
+[+] GDPR: návrh cron mazání Storage po 48 h (nutné nasadit cron)
+
+9) CO TYPICKY CHYBÍ NEBO JE ZRANITELNÉ / K DOPLNĚNÍ
+--------------------------------------------------------------------------------
+Nasazení a provoz:
+  - Chybí CI/CD popis (GitHub Actions, Vercel projekt, env proměnné na produkci)
+  - Chybí ověření, že všechny env jsou na hostingu nastavené
+  - Firebase: autorizované domény pro Auth, šablona e-mailu pro reset hesla
+  - Firestore composite index pro announcements (createdAt desc) – často vyžádá konzole
+    při prvním dotazu
+
+Discord bot:
+  - Bot neběží na Vercelu; potřeba VPS/Railway/PC nebo jiný hostitel
+  - Message Content Intent v Discord Developer Portal
+  - Kanál musí být chráněný (kdokoliv může spamovat ingest, pokud má přístup ke kanálu)
+
+Bezpečnost:
+  - /admin je „skryté“ jen URL – kdokoliv stránku otevře; skutečná ochrana je na API.
+    Chybí rate limiting na API, CAPTCHA u registrace/LFG, audit log
+  - POST /api/notifications/discord bez autentizace – kdokoliv může spamovat webhook,
+    pokud zná URL aplikace (mitigace: tajný header nebo podpis – zatím není)
+  - Faceit API route je veřejná GET – možné zneužití (rate limit / API key omezení)
+
+Produkt / obsah:
+  - Právní: GDPR (informace o zpracování, správce, účel dokumentů), souhlas se zpracováním
+  - Cookies / analytika (Firebase Analytics v konfiguraci uživatele – na webu nemusí být
+    zapojeno, ale pokud ano → cookie lišta)
+  - Chybí stránka „Kontakt“, „O turnaji“ detailněji, FAQ
+  - Síň slávy: doplnit skutečná 3. místa S1–S3
+  - Chybí notifikace kapitánovi e-mailem při schválení/zamítnutí týmu (jen stav na webu)
+  - Chybí mobilní menu (hamburger) pro hlavní navigaci na úzkých displejích
+  - Chybí testy (unit/e2e), monitoring chyb (Sentry), logování API
+
+Technické dluhy:
+  - Žádný middleware Next.js pro auth na úrovni serveru (vše client + Firebase rules)
+  - Duplicitní obsah LFG/pravidel na /hledam vs /dashboard/… (záměr, ale SEO duplicity)
+  - Team registration: složitá validace závislá na stavu „nový vs existující“ tým
+
+10) SKRIPTY NPM
+--------------------------------------------------------------------------------
+npm run dev
+npm run build / start
+npm run lint
+npm run discord-bot:announce   → vyžaduje .env u bota (viz scripts/discord-announce-bot.mjs)
+
+11) DŮLEŽITÉ SOUBORY PRO ORIENTACI
+--------------------------------------------------------------------------------
+app/layout.tsx              → Providers, AppChrome (header/footer vs dashboard)
+components/app-chrome.tsx
+components/captain-sidebar.tsx
+contexts/auth-context.tsx
+firestore.rules, storage.rules, firebase.json
+.env.example
+
+================================================================================
+KONEC REPORTU – použij tento text v Gemini k otázce „co ještě doplnit / zkontrolovat“
+================================================================================

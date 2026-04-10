@@ -7,6 +7,14 @@
         { "fieldPath": "captainId", "order": "ASCENDING" },
         { "fieldPath": "gameId", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "tournaments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "published", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

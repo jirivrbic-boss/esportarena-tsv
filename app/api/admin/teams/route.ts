@@ -1,17 +1,14 @@
 import { NextResponse } from "next/server";
-import { verifyIdTokenFromRequest, isAdminEmail } from "@/lib/server-auth";
+import { verifyAdminBearer } from "@/lib/server-auth";
 import { adminDb } from "@/lib/firebase/admin";
 
 export async function GET(request: Request) {
-  const user = await verifyIdTokenFromRequest(request);
-  if (!user) {
+  const auth = await verifyAdminBearer(request);
+  if (!auth.ok) {
     return NextResponse.json(
-      { ok: false, error: "Chybí nebo neplatný token." },
-      { status: 401 }
+      { ok: false, error: auth.error },
+      { status: auth.status }
     );
-  }
-  if (!isAdminEmail(user.email)) {
-    return NextResponse.json({ ok: false, error: "Přístup odepřen." }, { status: 403 });
   }
 
   try {

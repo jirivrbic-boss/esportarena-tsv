@@ -29,21 +29,70 @@ body {
   color: #fff;
 }
 
-/* Form inputs — dark esports */
-input[type="text"],
-input[type="email"],
-input[type="password"],
-input[type="number"],
-input[type="tel"],
+/* Form inputs — dark esports (včetně <input> bez atributu type = text v prohlížeči, ale CSS selektor ho jinak nechytí) */
+input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]):not([type="submit"]):not([type="button"]):not([type="image"]):not([type="reset"]):not([type="range"]):not([type="color"]),
 textarea,
 select {
-  @apply w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-slate-600 focus:border-[#39FF14]/50 focus:outline-none focus:ring-1 focus:ring-[#39FF14]/40;
+  @apply w-full rounded-lg border border-slate-500/45 bg-[#141414] px-3 py-2.5 text-sm text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] placeholder:text-slate-500 focus:border-[#39FF14]/70 focus:outline-none focus:ring-2 focus:ring-[#39FF14]/30;
+}
+
+input:disabled,
+textarea:disabled,
+select:disabled {
+  @apply cursor-not-allowed border-slate-600/40 bg-[#0d0d0d] text-slate-400 opacity-100;
 }
 
 input[type="checkbox"] {
-  @apply h-4 w-4 rounded border-white/20 bg-black/40 text-[#39FF14] focus:ring-[#39FF14];
+  @apply h-4 w-4 rounded border-slate-500/60 bg-[#141414] text-[#39FF14] focus:ring-2 focus:ring-[#39FF14]/40;
 }
 
 label {
-  @apply text-sm text-slate-400;
+  @apply text-sm font-medium text-slate-300;
+}
+
+/* Prize pool — „tekutina“ na vyplněných barech po dokončení animace šířky */
+@keyframes prize-pool-liquid-shine {
+  0% {
+    transform: translateX(-120%) skewX(-18deg);
+  }
+  100% {
+    transform: translateX(220%) skewX(-18deg);
+  }
+}
+
+@keyframes prize-pool-liquid-ripple {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: translateY(0) scaleY(1);
+  }
+  50% {
+    opacity: 0.55;
+    transform: translateY(-6%) scaleY(1.08);
+  }
+}
+
+.prize-pool-bar-liquid {
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.2) 0%,
+    transparent 42%,
+    rgba(0, 0, 0, 0.12) 100%
+  );
+  animation: prize-pool-liquid-ripple 2.4s ease-in-out infinite;
+}
+
+.prize-pool-bar-liquid-shine {
+  position: absolute;
+  inset: 0;
+  width: 45%;
+  background: linear-gradient(
+    100deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.35) 48%,
+    rgba(255, 255, 255, 0.12) 52%,
+    transparent 100%
+  );
+  animation: prize-pool-liquid-shine 2.2s ease-in-out infinite;
+  mix-blend-mode: overlay;
 }

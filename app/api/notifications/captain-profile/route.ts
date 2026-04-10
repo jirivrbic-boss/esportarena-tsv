@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { sendDiscordWebhook } from "@/lib/discord-webhook";
-import { verifyIdTokenFromRequest } from "@/lib/server-auth";
+import { verifyFirebaseClientIdTokenFromRequest } from "@/lib/firebase/verify-client-id-token";
 
 type Body = {
   captainEmail: string;
@@ -22,10 +22,20 @@ function normEmail(s: string | undefined): string {
 }
 
 export async function POST(request: Request) {
-  const user = await verifyIdTokenFromRequest(request);
-  if (!user?.email) {
+  const user = await verifyFirebaseClientIdTokenFromRequest(request);
+  if (!user?.uid) {
     return NextResponse.json(
-      { ok: false, error: "Chybí nebo neplatný token." },
+      { ok: false, error: "Chybí nebo neplatný Firebase ID token." },
+      { status: 401 }
+    );
+  }
+  if (!user.email) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error:
+          "Token neobsahuje e-mail. Zkus se odhlásit a znovu přihlásit (e-mail/heslo).",
+      },
       { status: 401 }
     );
   }

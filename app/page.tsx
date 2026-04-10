@@ -5,6 +5,7 @@ import { HomePhotoGallery } from "@/components/home/home-photo-gallery";
 import { TwitchSection } from "@/components/home/twitch-section";
 import { HomeAboutSection } from "@/components/home/home-about-section";
 import { HomeTournamentRoadmap } from "@/components/home/home-tournament-roadmap";
+import { HomeTournamentsSection } from "@/components/home/home-tournaments-section";
 import { getPageContent } from "@/lib/get-cms-page";
 import type { HomeCms } from "@/lib/cms-defaults";
 
@@ -21,6 +22,7 @@ export default async function Home() {
       />
       <HomeAboutSection cards={cms.aboutCards} />
       <HomeTournamentRoadmap />
+      <HomeTournamentsSection />
       <HomePrizePool />
       <HomePhotoGallery />
       <HallOfFame />

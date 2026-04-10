@@ -55,6 +55,11 @@ export default function DashboardHomePage() {
             <GlowButton href={q.href} className="w-full !justify-center">
               {q.label}
             </GlowButton>
+            {q.href === "/dashboard/tymy" && !profile?.profileComplete ? (
+              <p className="mt-2 text-center text-[10px] font-medium uppercase tracking-wider text-amber-200/85">
+                Tým založíš až po dokončeném profilu
+              </p>
+            ) : null}
           </GlassCard>
         ))}
       </div>

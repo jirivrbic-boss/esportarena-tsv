@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { getPageContent } from "@/lib/get-cms-page";
 import type { HomeCms } from "@/lib/cms-defaults";
+import { CmsEditGuard } from "@/components/cms-edit-guard";
 import { HomeEditClient } from "./home-edit-client";
 
 export const metadata: Metadata = {
@@ -10,5 +11,9 @@ export const metadata: Metadata = {
 
 export default async function HomeCmsEditPage() {
   const cms = (await getPageContent("home")) as HomeCms;
-  return <HomeEditClient initial={cms} />;
+  return (
+    <CmsEditGuard>
+      <HomeEditClient initial={cms} />
+    </CmsEditGuard>
+  );
 }

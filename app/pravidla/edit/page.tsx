@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { getPageContent } from "@/lib/get-cms-page";
 import type { PravidlaCms } from "@/lib/cms-defaults";
+import { CmsEditGuard } from "@/components/cms-edit-guard";
 import { PravidlaEditClient } from "./pravidla-edit-client";
 
 export const metadata: Metadata = {
@@ -10,5 +11,9 @@ export const metadata: Metadata = {
 
 export default async function PravidlaEditPage() {
   const cms = (await getPageContent("pravidla")) as PravidlaCms;
-  return <PravidlaEditClient initialSections={cms.sections} />;
+  return (
+    <CmsEditGuard>
+      <PravidlaEditClient initialSections={cms.sections} />
+    </CmsEditGuard>
+  );
 }

@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { fetchFaceitEloByNickname } from "@/lib/faceit-server";
-import { verifyIdTokenFromRequest } from "@/lib/server-auth";
+import { verifyFirebaseClientIdTokenFromRequest } from "@/lib/firebase/verify-client-id-token";
 
 export async function GET(request: Request) {
-  const user = await verifyIdTokenFromRequest(request);
-  if (!user) {
+  const user = await verifyFirebaseClientIdTokenFromRequest(request);
+  if (!user?.uid) {
     return NextResponse.json(
       { ok: false, error: "Chybí nebo neplatný token." },
       { status: 401 }

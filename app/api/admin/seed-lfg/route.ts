@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { verifyIdTokenFromRequest, isAdminEmail } from "@/lib/server-auth";
+import { verifyAdminBearer } from "@/lib/server-auth";
 import { adminDb, getAdminApp } from "@/lib/firebase/admin";
 
 const DEMOS = [
@@ -23,12 +23,12 @@ const DEMOS = [
 ];
 
 export async function POST(request: Request) {
-  const user = await verifyIdTokenFromRequest(request);
-  if (!user?.email) {
-    return NextResponse.json({ ok: false, error: "Neautorizováno." }, { status: 401 });
-  }
-  if (!isAdminEmail(user.email)) {
-    return NextResponse.json({ ok: false, error: "Přístup odepřen." }, { status: 403 });
+  const auth = await verifyAdminBearer(request);
+  if (!auth.ok) {
+    return NextResponse.json(
+      { ok: false, error: auth.error },
+      { status: auth.status }
+    );
   }
 
   try {

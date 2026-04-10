@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { sendDiscordWebhook } from "@/lib/discord-webhook";
-import { verifyIdTokenFromRequest } from "@/lib/server-auth";
+import { verifyFirebaseClientIdTokenFromRequest } from "@/lib/firebase/verify-client-id-token";
 
 type Body = {
   title: string;
@@ -21,10 +21,10 @@ function normEmail(s: string | undefined): string {
 }
 
 export async function POST(request: Request) {
-  const user = await verifyIdTokenFromRequest(request);
+  const user = await verifyFirebaseClientIdTokenFromRequest(request);
   if (!user?.email) {
     return NextResponse.json(
-      { ok: false, error: "Chybí nebo neplatný token." },
+      { ok: false, error: "Chybí nebo neplatný Firebase ID token (nebo e-mail v tokenu)." },
       { status: 401 }
     );
   }

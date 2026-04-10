@@ -74,13 +74,29 @@ function RoadmapIcon({ kind }: { kind: RoadmapStageIcon }) {
 function StageConnector() {
   return (
     <div
-      className="hidden shrink-0 items-center justify-center self-stretch md:flex"
+      className="hidden shrink-0 items-center justify-center self-stretch md:flex md:w-11 lg:w-12"
       aria-hidden
     >
-      <div className="flex h-full min-h-[120px] items-center rounded-lg border border-white/10 bg-white/[0.04] px-2.5">
-        <span className="font-mono text-lg font-bold tracking-tight text-slate-500">
-          &gt;&gt;
-        </span>
+      <div className="relative flex h-full min-h-[120px] w-full flex-col items-center justify-center overflow-hidden rounded-xl border border-[#39FF14]/25 bg-gradient-to-b from-[#39FF14]/[0.07] via-white/[0.03] to-[#39FF14]/[0.05] shadow-[0_0_24px_rgba(57,255,20,0.08),inset_0_1px_0_rgba(255,255,255,0.06)]">
+        <div
+          className="pointer-events-none absolute inset-y-4 left-1/2 w-px -translate-x-1/2 bg-gradient-to-b from-transparent via-[#39FF14]/35 to-transparent"
+          aria-hidden
+        />
+        <svg
+          width="28"
+          height="40"
+          viewBox="0 0 28 40"
+          fill="none"
+          className="relative z-[1] text-[#39FF14] drop-shadow-[0_0_10px_rgba(57,255,20,0.55)]"
+        >
+          <path
+            d="M6 10l8 10-8 10M14 10l8 10-8 10"
+            stroke="currentColor"
+            strokeWidth="2.25"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
       </div>
     </div>
   );

@@ -76,6 +76,17 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // --- Turnaje (veřejně jen published; zápis jen Admin SDK / API) ---
+    match /tournaments/{tournamentId} {
+      allow read: if resource.data.published == true;
+      allow write: if false;
+
+      match /registrations/{teamId} {
+        allow read: if get(/databases/$(database)/documents/tournaments/$(tournamentId)).data.published == true;
+        allow write: if false;
+      }
+    }
+
     // --- CMS stránek (čtení veřejně, zápis jen Admin SDK / API) ---
     match /page_content/{slug} {
       allow read: if true;

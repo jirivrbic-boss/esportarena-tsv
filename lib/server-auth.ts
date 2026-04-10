@@ -1,4 +1,5 @@
 import { adminAuth, isAdminEmailFromEnv } from "@/lib/firebase/admin";
+import { verifyFirebaseClientIdTokenFromRequest } from "@/lib/firebase/verify-client-id-token";
 import { isSuperAdminEmail } from "@/lib/super-admin";
 
 export { isSuperAdminEmail, SUPER_ADMIN_EMAIL } from "@/lib/super-admin";
@@ -42,4 +43,29 @@ export async function requireSuperAdmin(request: Request) {
 /** Jakýkoli přihlášený uživatel (platný Firebase ID token). */
 export async function requireAuth(request: Request) {
   return verifyIdTokenFromRequest(request);
+}
+
+/**
+ * Admin API: ověření Bearer ID tokenu bez Admin SDK + kontrola ADMIN_EMAILS / super admin.
+ */
+export async function verifyAdminBearer(request: Request): Promise<
+  | { ok: true; user: { uid: string; email: string } }
+  | { ok: false; status: 401 | 403; error: string }
+> {
+  const user = await verifyFirebaseClientIdTokenFromRequest(request);
+  if (!user?.uid) {
+    return {
+      ok: false,
+      status: 401,
+      error: "Chybí nebo neplatný Firebase token.",
+    };
+  }
+  if (!user.email || !isAdminEmail(user.email)) {
+    return {
+      ok: false,
+      status: 403,
+      error: "Účet nemá oprávnění administrátora.",
+    };
+  }
+  return { ok: true, user: { uid: user.uid, email: user.email } };
 }

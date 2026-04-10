@@ -132,7 +132,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
-      const token = await cred.user.getIdToken();
+      const token = await cred.user.getIdToken(true);
       await fetch("/api/notifications/admin-new-user", {
         method: "POST",
         headers: {

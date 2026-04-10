@@ -1,5 +1,6 @@
 import Image from "next/image";
 import { PRIZE_POOL, formatMoney } from "@/lib/prize-pool";
+import { PrizePoolBars } from "@/components/home/prize-pool-bars";
 
 /** Rozdělení výher — layout inspirovaný turnajovými weby, barvy ESPORTARENA TSV. */
 export function HomePrizePool() {
@@ -32,13 +33,13 @@ export function HomePrizePool() {
             <div className="pointer-events-none absolute left-4 top-4 z-10 h-2 w-2 bg-[#39FF14] shadow-[0_0_12px_#39FF14]" />
             <div className="pointer-events-none absolute right-6 top-8 h-1 w-8 bg-[#39FF14]/40" />
 
-            <div className="absolute inset-0 flex items-end justify-center pb-0 pt-12">
+            <div className="absolute inset-0 flex items-end justify-center overflow-hidden pt-4 pb-[28%] sm:pb-[26%] lg:pb-[24%]">
               <Image
                 src="/fotky/agent.png"
                 alt=""
                 width={900}
                 height={900}
-                className="h-[min(85%,420px)] w-auto max-w-none object-contain object-bottom opacity-95 sm:h-[min(88%,480px)] lg:h-[min(92%,520px)]"
+                className="h-[min(118%,560px)] w-auto max-w-[135%] origin-bottom object-contain object-bottom opacity-95 sm:h-[min(125%,640px)] sm:max-w-[145%] sm:-translate-y-5 lg:h-[min(132%,720px)] lg:max-w-[155%] lg:-translate-y-8"
                 sizes="(max-width: 1024px) 100vw, 50vw"
                 priority={false}
                 draggable={false}
@@ -74,36 +75,7 @@ export function HomePrizePool() {
               Výhry podle umístění
             </p>
 
-            <ul className="mt-5 space-y-4">
-              {PRIZE_POOL.places.map((p, i) => {
-                const tones = [
-                  "from-[#39FF14] to-[#2ad60f]",
-                  "from-[#2ee010] to-[#1fa80a]",
-                  "from-[#1a8f08] to-[#156b0a]",
-                  "from-[#156b0a] to-[#0f4d08]",
-                ];
-                const grad = tones[i] ?? tones[3]!;
-                return (
-                  <li
-                    key={p.rankShort}
-                    className="flex items-center gap-3 sm:gap-4"
-                  >
-                    <span className="flex w-8 shrink-0 items-center font-[family-name:var(--font-bebas)] text-lg tracking-wide text-slate-400 sm:w-9 sm:text-xl">
-                      {p.rankShort}
-                    </span>
-                    <div className="relative h-11 min-w-0 flex-1 overflow-hidden rounded-lg border border-white/10 bg-black/60">
-                      <div
-                        className={`absolute inset-y-0 left-0 bg-gradient-to-r ${grad} opacity-95`}
-                        style={{ width: `${p.barPct}%` }}
-                      />
-                    </div>
-                    <span className="shrink-0 font-[family-name:var(--font-bebas)] text-lg tracking-wide text-white sm:text-xl">
-                      {formatMoney(p.amount, PRIZE_POOL.currency)}
-                    </span>
-                  </li>
-                );
-              })}
-            </ul>
+            <PrizePoolBars />
           </div>
         </div>
       </div>

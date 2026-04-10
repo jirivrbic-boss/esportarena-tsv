@@ -9,6 +9,7 @@ import { isClientAdminEmail } from "@/lib/admin-client";
 const captainNav = [
   { href: "/dashboard", label: "Přehled", exact: true },
   { href: "/dashboard/tymy", label: "Týmy" },
+  { href: "/dashboard/turnaje", label: "Turnaje" },
   { href: "/dashboard/oznameni", label: "Oznámení" },
   { href: "/dashboard/pravidla", label: "Pravidla" },
   { href: "/dashboard/hledam", label: "Hledám tým / hráče" },
@@ -59,7 +60,10 @@ export function CaptainSidebar() {
               : pathname === item.href ||
                 pathname.startsWith(`${item.href}/`) ||
                 (item.href === "/dashboard/tymy" &&
-                  pathname.startsWith("/dashboard/tym"));
+                  pathname.startsWith("/dashboard/tym")) ||
+                (item.href === "/dashboard/turnaje" &&
+                  (pathname === "/dashboard/turnaje" ||
+                    pathname.startsWith("/dashboard/turnaje/")));
           return (
             <Link
               key={item.href}
@@ -75,17 +79,17 @@ export function CaptainSidebar() {
           );
         })}
       </nav>
-      <div className="flex flex-wrap gap-2 border-t border-white/10 p-3">
+      <div className="flex flex-col gap-2 border-t border-white/10 p-3">
         <Link
           href="/"
-          className="text-xs text-slate-500 hover:text-white md:block"
+          className="rounded-md px-2 py-1.5 text-center text-xs text-slate-500 transition-colors hover:bg-white/5 hover:text-white"
         >
           Veřejná úvodní stránka
         </Link>
         <button
           type="button"
           onClick={() => void signOut()}
-          className="text-xs font-medium text-red-400 hover:text-red-300"
+          className="rounded-lg border border-red-500/45 bg-red-950/50 px-3 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-red-200 shadow-[0_0_0_1px_rgba(0,0,0,0.3)_inset] transition-colors hover:border-red-400/70 hover:bg-red-950/80 hover:text-white"
         >
           Odhlásit se
         </button>

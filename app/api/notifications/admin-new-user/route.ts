@@ -2,15 +2,15 @@ import { NextResponse } from "next/server";
 import { Resend } from "resend";
 import { adminNewUserEmailHtml } from "@/lib/emails/captain-templates";
 import { notifyDiscordCaptainRegistered } from "@/lib/discord-webhook";
-import { verifyIdTokenFromRequest } from "@/lib/server-auth";
+import { verifyFirebaseClientIdTokenFromRequest } from "@/lib/firebase/verify-client-id-token";
 
 export async function POST(request: Request) {
   const key = process.env.RESEND_API_KEY;
   const from = process.env.RESEND_FROM;
   const to = process.env.ADMIN_ALERT_EMAIL ?? "jiri@esportarena.cz";
 
-  const user = await verifyIdTokenFromRequest(request);
-  if (!user?.email) {
+  const user = await verifyFirebaseClientIdTokenFromRequest(request);
+  if (!user?.uid) {
     return NextResponse.json({ ok: false, error: "Neautorizováno." }, { status: 401 });
   }
 
@@ -20,7 +20,13 @@ export async function POST(request: Request) {
   } catch {
     body = {};
   }
-  const email = body.email ?? user.email;
+  const email = (body.email ?? user.email ?? "").trim();
+  if (!email) {
+    return NextResponse.json(
+      { ok: false, error: "Chybí e-mail v tokenu nebo v těle požadavku." },
+      { status: 401 }
+    );
+  }
 
   await notifyDiscordCaptainRegistered({
     email,

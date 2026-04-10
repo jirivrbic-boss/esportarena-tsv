@@ -11,6 +11,7 @@ import { isClientAdminEmail } from "@/lib/admin-client";
 
 const publicLinks = [
   { href: "/", label: "Domů" },
+  { href: "/turnaje", label: "Turnaje" },
   { href: "/oznameni", label: "Oznámení" },
   { href: "/dokumenty", label: "Dokumenty" },
   { href: "/hledam", label: "Hledám tým" },

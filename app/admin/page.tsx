@@ -4,6 +4,8 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/contexts/auth-context";
+import { useAdminTempBypass } from "@/contexts/admin-temp-context";
+import { isClientAdminEmail } from "@/lib/admin-client";
 import { GlassCard } from "@/components/glass-card";
 import { GlowButton } from "@/components/glow-button";
 import { AdminAnnouncementsPanel } from "@/components/admin-announcements-panel";
@@ -45,6 +47,7 @@ function collectDocLinks(t: TeamRow): { label: string; url: string }[] {
 
 export default function AdminPage() {
   const { user, loading } = useAuth();
+  const tempBypass = useAdminTempBypass();
   const router = useRouter();
   const [teams, setTeams] = useState<TeamRow[]>([]);
   const [err, setErr] = useState<string | null>(null);
@@ -52,7 +55,15 @@ export default function AdminPage() {
   const [lfgSeedMsg, setLfgSeedMsg] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    if (!user) return;
+    if (!user) {
+      if (tempBypass) {
+        setErr(
+          "Dočasný náhled: přihlas se účtem administrátora — e-mail musí být v ADMIN_EMAILS (server) a v NEXT_PUBLIC_ADMIN_EMAILS (klient), nebo jako super admin v lib/super-admin.ts."
+        );
+        setTeams([]);
+      }
+      return;
+    }
     setErr(null);
     try {
       const token = await user.getIdToken();
@@ -61,6 +72,14 @@ export default function AdminPage() {
       });
       const j = await res.json();
       if (res.status === 401 || res.status === 403) {
+        if (tempBypass) {
+          setErr(
+            (j as { error?: string }).error ??
+              "API odmítlo přístup — tento účet není admin (zkontroluj ADMIN_EMAILS na Netlify a stejný seznam v NEXT_PUBLIC_ADMIN_EMAILS)."
+          );
+          setTeams([]);
+          return;
+        }
         router.replace("/");
         return;
       }
@@ -76,13 +95,24 @@ export default function AdminPage() {
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Chyba sítě");
     }
-  }, [user, router]);
+  }, [user, router, tempBypass]);
 
   useEffect(() => {
     if (loading) return;
-    if (!user) return;
+    if (tempBypass) {
+      void load();
+      return;
+    }
+    if (!user) {
+      router.replace("/prihlaseni");
+      return;
+    }
+    if (!isClientAdminEmail(user.email)) {
+      router.replace("/");
+      return;
+    }
     void load();
-  }, [user, loading, load]);
+  }, [user, loading, load, router, tempBypass]);
 
   async function approve(id: string) {
     if (!user) return;
@@ -147,7 +177,18 @@ export default function AdminPage() {
     }
   }
 
-  if (loading || !user) {
+  if (loading) {
+    return (
+      <div className="flex min-h-[40vh] items-center justify-center text-slate-500">
+        Načítání…
+      </div>
+    );
+  }
+
+  if (
+    !tempBypass &&
+    (!user || !isClientAdminEmail(user.email))
+  ) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center text-slate-500">
         Načítání…
@@ -156,7 +197,7 @@ export default function AdminPage() {
   }
 
   return (
-    <main className="mx-auto max-w-5xl px-4 py-16 sm:px-6">
+    <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6 md:py-12">
       <h1 className="font-[family-name:var(--font-bebas)] text-4xl text-white">
         Administrace
       </h1>
@@ -176,7 +217,25 @@ export default function AdminPage() {
         ).
       </p>
 
-      <AdminAnnouncementsPanel />
+      <section
+        id="turnaje"
+        className="mb-10 scroll-mt-24 rounded-xl border border-white/10 bg-white/[0.03] p-6"
+      >
+        <h2 className="font-[family-name:var(--font-bebas)] text-2xl text-[#39FF14]">
+          Turnaje
+        </h2>
+        <p className="mt-2 text-sm text-slate-400">
+          Vytvářej zveřejněné turnaje (hra, prize pool, pravidla, Faceit), kapitáni se
+          k nim mohou přihlásit schváleným týmem.
+        </p>
+        <GlowButton href="/admin/turnaje" variant="ghost" className="mt-4">
+          Správa turnajů
+        </GlowButton>
+      </section>
+
+      <div id="sprava-oznameni" className="scroll-mt-24">
+        <AdminAnnouncementsPanel />
+      </div>
 
       <GlassCard className="mb-10">
         <h2 className="font-[family-name:var(--font-bebas)] text-2xl text-[#39FF14]">
@@ -200,7 +259,10 @@ export default function AdminPage() {
         ) : null}
       </GlassCard>
 
-      <h2 className="font-[family-name:var(--font-bebas)] text-3xl text-white">
+      <h2
+        id="tymy"
+        className="scroll-mt-24 font-[family-name:var(--font-bebas)] text-3xl text-white"
+      >
         Čekající týmy
       </h2>
       <p className="mt-2 text-sm text-slate-400">
