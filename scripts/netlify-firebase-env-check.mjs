@@ -1,8 +1,11 @@
 /**
- * Na Netlify musí být NEXT_PUBLIC_FIREBASE_* dostupné už při `npm run build`.
- * Jinak se klientovi v bundlu objeví „prázdná“ konfigurace a Firebase nejde.
+ * Na Netlify musí být NEXT_PUBLIC_FIREBASE_* dostupné při buildu (a pro runtime v serverless).
+ * NETLIFY=true i NETLIFY_SITE_NAME bývá na všech Netlify buildech včetně deploy preview.
  */
-if (process.env.NETLIFY !== "true") {
+const onNetlify =
+  process.env.NETLIFY === "true" || Boolean(process.env.NETLIFY_SITE_NAME);
+
+if (!onNetlify) {
   process.exit(0);
 }
 

@@ -1,9 +1,12 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { Bebas_Neue, Inter } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
 import { AppChrome } from "@/components/app-chrome";
 import { FirebaseNotice } from "@/components/firebase-notice";
+import { FirebaseRuntimeInit } from "@/components/firebase-runtime-init";
+import { readFirebasePublicEnvFromProcess } from "@/lib/firebase/config";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -22,17 +25,21 @@ export const metadata: Metadata = {
     "Oficiální platforma studentského turnaje CS2. Registrace kapitánů, týmů, Faceit kvalifikace a síň slávy — EsportArena Plzeň.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  await headers();
+  const firebasePublic = readFirebasePublicEnvFromProcess();
+
   return (
     <html
       lang="cs"
       className={`${inter.variable} ${bebas.variable} h-full antialiased`}
     >
       <body className="flex min-h-screen flex-col bg-[#050505] text-white">
+        <FirebaseRuntimeInit config={firebasePublic} />
         <Providers>
           <div className="flex flex-1 flex-col">
             <FirebaseNotice />

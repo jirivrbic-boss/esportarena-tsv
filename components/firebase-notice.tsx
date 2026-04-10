@@ -11,22 +11,26 @@ export function FirebaseNotice() {
     <div className="border-b border-amber-500/40 bg-amber-950/80 px-4 py-2 text-center text-xs leading-relaxed text-amber-200">
       {isProd ? (
         <>
-          <strong className="text-amber-100">Produkce:</strong> v tomhle buildu
-          chyběly nebo byly prázdné{" "}
+          <strong className="text-amber-100">Produkce:</strong> na serveru chybí
+          nebo jsou prázdné{" "}
           <code className="rounded bg-black/30 px-1">
-            NEXT_PUBLIC_FIREBASE_*
+            NEXT_PUBLIC_FIREBASE_API_KEY
           </code>
-          . V{" "}
-          <strong className="text-amber-100">
-            Netlify → Environment variables
-          </strong>{" "}
-          je musíš mít <strong className="text-amber-100">před</strong> buildem —
-          pak{" "}
-          <strong className="text-amber-100">
-            Deploys → Trigger deploy → Clear cache and deploy site
-          </strong>
-          . Samotné uložení proměnných po posledním deployi nestačí; musí proběhnout
-          nový build. Hodnoty z Firebase → Project settings → Your apps.
+          ,{" "}
+          <code className="rounded bg-black/30 px-1">
+            NEXT_PUBLIC_FIREBASE_PROJECT_ID
+          </code>
+          ,{" "}
+          <code className="rounded bg-black/30 px-1">
+            NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+          </code>
+          . Doplň v{" "}
+          <strong className="text-amber-100">Netlify → Environment variables</strong>{" "}
+          (zkontroluj překlep: písmeno{" "}
+          <strong className="text-amber-100">O</strong> vs. číslice{" "}
+          <strong className="text-amber-100">0</strong> v API klíči) a dej{" "}
+          <strong className="text-amber-100">Clear cache and deploy</strong>. Používej
+          hlavní URL webu, ne starý odkaz z konkrétního deploye v historii.
         </>
       ) : (
         <>
