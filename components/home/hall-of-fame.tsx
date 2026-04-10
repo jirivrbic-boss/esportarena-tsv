@@ -29,21 +29,21 @@ export function HallOfFame() {
   return (
     <section className="border-t border-white/10 bg-[#080808] py-20">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
-        <div className="flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between lg:gap-12">
-          <div className="max-w-xl">
+        <div className="flex flex-col items-start gap-5 sm:flex-row sm:items-center sm:gap-6 md:gap-8">
+          <div className="min-w-0 flex-1">
             <h2 className="font-[family-name:var(--font-bebas)] text-4xl tracking-[0.08em] text-white sm:text-5xl">
               SÍŇ <span className="text-[#39FF14]">SLÁVY</span>
             </h2>
-            <p className="mt-2 text-slate-400">
+            <p className="mt-2 max-w-xl text-slate-400">
               Předchozí šampioni studentského formátu — od středních škol po
               univerzity.
             </p>
           </div>
-          <div className="relative mx-auto flex w-full max-w-[220px] shrink-0 justify-center sm:max-w-[260px] lg:mx-0 lg:max-w-[280px]">
-            <div className="absolute inset-0 scale-125 rounded-full bg-[#39FF14]/[0.08] blur-3xl" />
+          <div className="relative w-full max-w-[200px] shrink-0 sm:max-w-[220px] md:max-w-[240px]">
+            <div className="absolute inset-0 scale-110 rounded-full bg-[#39FF14]/[0.08] blur-2xl" />
             <motion.div
               className="relative w-full"
-              animate={{ y: [0, -12, 0] }}
+              animate={{ y: [0, -10, 0] }}
               transition={{
                 duration: 5,
                 repeat: Infinity,
@@ -53,10 +53,10 @@ export function HallOfFame() {
               <Image
                 src="/fotky/pohar.png"
                 alt="Trofej pro vítěze turnaje"
-                width={560}
-                height={560}
-                className="h-auto w-full object-contain [filter:drop-shadow(0_0_32px_rgba(57,255,20,0.22))]"
-                sizes="280px"
+                width={480}
+                height={480}
+                className="h-auto w-full object-contain [filter:drop-shadow(0_0_28px_rgba(57,255,20,0.22))]"
+                sizes="240px"
                 draggable={false}
               />
             </motion.div>

@@ -67,7 +67,7 @@ export default function AdminPage() {
       if (!res.ok) {
         setErr(
           j.error ??
-            "Nelze načíst týmy (Firebase Admin + ADMIN_EMAILS + shoda e-mailu s účtem)."
+            "Nelze načíst týmy — účet nemá oprávnění administrátora (ADMIN_EMAILS / super admin)."
         );
         setTeams([]);
         return;
@@ -158,10 +158,10 @@ export default function AdminPage() {
   return (
     <main className="mx-auto max-w-5xl px-4 py-16 sm:px-6">
       <h1 className="font-[family-name:var(--font-bebas)] text-4xl text-white">
-        Super Admin
+        Administrace
       </h1>
       <p className="mt-2 text-sm text-slate-400">
-        Schvalování týmů, oznámení a odkaz na úpravu textů stránek (
+        Schvalování a zamítání týmů, oznámení a úpravy textů stránek (
         <Link href="/edit" className="text-[#39FF14] hover:underline">
           úvod
         </Link>

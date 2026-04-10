@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
-import { verifyIdTokenFromRequest, isSuperAdminEmail } from "@/lib/server-auth";
+import { verifyIdTokenFromRequest, isAdminEmail } from "@/lib/server-auth";
 import { adminDb } from "@/lib/firebase/admin";
 
-async function requireSuper(request: Request) {
+async function requireAdminAuth(request: Request) {
   const user = await verifyIdTokenFromRequest(request);
   if (!user) {
     return NextResponse.json(
@@ -10,14 +10,14 @@ async function requireSuper(request: Request) {
       { status: 401 }
     );
   }
-  if (!isSuperAdminEmail(user.email)) {
+  if (!isAdminEmail(user.email)) {
     return NextResponse.json({ ok: false, error: "Přístup odepřen." }, { status: 403 });
   }
   return null;
 }
 
 export async function GET(request: Request) {
-  const deny = await requireSuper(request);
+  const deny = await requireAdminAuth(request);
   if (deny) return deny;
 
   try {
@@ -35,7 +35,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const deny = await requireSuper(request);
+  const deny = await requireAdminAuth(request);
   if (deny) return deny;
 
   let body: {

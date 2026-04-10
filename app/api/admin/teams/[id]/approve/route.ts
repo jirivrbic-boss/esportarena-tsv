@@ -1,6 +1,6 @@
 import { FieldValue } from "firebase-admin/firestore";
 import { NextResponse } from "next/server";
-import { verifyIdTokenFromRequest, isSuperAdminEmail } from "@/lib/server-auth";
+import { verifyIdTokenFromRequest, isAdminEmail } from "@/lib/server-auth";
 import { adminDb } from "@/lib/firebase/admin";
 import { sendTeamApprovedEmail } from "@/lib/resend-team-status";
 import { gameLabel, type GameId } from "@/lib/games";
@@ -16,7 +16,7 @@ export async function POST(
       { status: 401 }
     );
   }
-  if (!isSuperAdminEmail(authUser.email)) {
+  if (!isAdminEmail(authUser.email)) {
     return NextResponse.json({ ok: false, error: "Přístup odepřen." }, { status: 403 });
   }
 

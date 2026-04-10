@@ -7,6 +7,9 @@ import { motion } from "framer-motion";
 import { useAuth } from "@/contexts/auth-context";
 import { GlowButton } from "@/components/glow-button";
 import { GlassCard } from "@/components/glass-card";
+import { isClientAdminEmail } from "@/lib/admin-client";
+import { syncFirebaseSessionCookie } from "@/lib/auth-session-client";
+import { getFirebaseAuth } from "@/lib/firebase/client";
 
 export default function RegistracePage() {
   const { user, signUp, firebaseReady, loading } = useAuth();
@@ -17,9 +20,22 @@ export default function RegistracePage() {
   const [pending, setPending] = useState(false);
 
   useEffect(() => {
-    if (!loading && user) {
-      router.replace("/dashboard");
-    }
+    if (loading || !user) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        await syncFirebaseSessionCookie(user);
+      } catch {
+        /* */
+      }
+      if (cancelled) return;
+      router.replace(
+        isClientAdminEmail(user.email) ? "/admin" : "/dashboard"
+      );
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [user, loading, router]);
 
   async function onSubmit(e: React.FormEvent) {
@@ -36,7 +52,17 @@ export default function RegistracePage() {
     setPending(true);
     try {
       await signUp(email, password);
-      router.push("/dashboard");
+      const u = getFirebaseAuth().currentUser;
+      if (u) {
+        try {
+          await syncFirebaseSessionCookie(u);
+        } catch {
+          /* */
+        }
+        router.push(
+          isClientAdminEmail(u.email) ? "/admin" : "/dashboard"
+        );
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Registrace selhala.");
     } finally {

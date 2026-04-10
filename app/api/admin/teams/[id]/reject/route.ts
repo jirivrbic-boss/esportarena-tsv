@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { verifyIdTokenFromRequest, isSuperAdminEmail } from "@/lib/server-auth";
+import { verifyIdTokenFromRequest, isAdminEmail } from "@/lib/server-auth";
 import { adminDb } from "@/lib/firebase/admin";
 import { sendTeamRejectedEmail } from "@/lib/resend-team-status";
 
@@ -14,7 +14,7 @@ export async function POST(
       { status: 401 }
     );
   }
-  if (!isSuperAdminEmail(authUser.email)) {
+  if (!isAdminEmail(authUser.email)) {
     return NextResponse.json({ ok: false, error: "Přístup odepřen." }, { status: 403 });
   }
 

@@ -2,5 +2,8 @@
 export const SUPER_ADMIN_EMAIL = "jiri@esportarena.cz";
 
 export function isSuperAdminEmail(email: string | undefined): boolean {
-  return email?.toLowerCase() === SUPER_ADMIN_EMAIL;
+  if (!email) return false;
+  return (
+    email.trim().toLowerCase() === SUPER_ADMIN_EMAIL.trim().toLowerCase()
+  );
 }

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { isSiteAdminEmail } from "@/lib/admin-access";
 import { verifyFirebaseSessionCookie } from "@/lib/session-cookie-edge";
-import { isSuperAdminEmail } from "@/lib/super-admin";
 
 const SESSION_COOKIE = "firebase_session";
 
@@ -15,9 +15,9 @@ export async function middleware(request: NextRequest) {
   const session = token
     ? await verifyFirebaseSessionCookie(token, projectId)
     : null;
-  const isSuper = Boolean(session?.email && isSuperAdminEmail(session.email));
+  const allowed = Boolean(session?.email && isSiteAdminEmail(session.email));
 
-  if (!isSuper) {
+  if (!allowed) {
     return NextResponse.redirect(new URL("/", request.url));
   }
 

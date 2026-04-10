@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { verifyIdTokenFromRequest, isSuperAdminEmail } from "@/lib/server-auth";
+import { verifyIdTokenFromRequest, isAdminEmail } from "@/lib/server-auth";
 import { adminDb } from "@/lib/firebase/admin";
 import type { CmsSlug } from "@/lib/cms-defaults";
 
@@ -13,7 +13,7 @@ export async function PUT(request: Request) {
       { status: 401 }
     );
   }
-  if (!isSuperAdminEmail(user.email)) {
+  if (!isAdminEmail(user.email)) {
     return NextResponse.json({ ok: false, error: "Přístup odepřen." }, { status: 403 });
   }
 

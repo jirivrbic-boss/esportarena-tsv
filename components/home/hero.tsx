@@ -1,10 +1,8 @@
 "use client";
 
-import type { PointerEvent } from "react";
-import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
+import { motion } from "framer-motion";
 import Image from "next/image";
 import { GlowButton } from "@/components/glow-button";
-import { HeroBackdropAssets } from "@/components/home/hero-backdrop-assets";
 import type { HomeCms } from "@/lib/cms-defaults";
 
 const videoUrl = process.env.NEXT_PUBLIC_HERO_VIDEO_URL;
@@ -21,30 +19,8 @@ export function Hero({
   heroSubtitle,
   heroPoweredBy,
 }: HeroProps) {
-  const parallaxX = useMotionValue(0);
-  const parallaxY = useMotionValue(0);
-  const smoothX = useSpring(parallaxX, { stiffness: 38, damping: 24 });
-  const smoothY = useSpring(parallaxY, { stiffness: 38, damping: 24 });
-  const layerX = useTransform(smoothX, [-1, 1], [26, -26]);
-  const layerY = useTransform(smoothY, [-1, 1], [18, -18]);
-
-  function onHeroPointer(e: PointerEvent<HTMLElement>) {
-    const r = e.currentTarget.getBoundingClientRect();
-    parallaxX.set(((e.clientX - r.left) / r.width - 0.5) * 2);
-    parallaxY.set(((e.clientY - r.top) / r.height - 0.5) * 2);
-  }
-
-  function resetParallax() {
-    parallaxX.set(0);
-    parallaxY.set(0);
-  }
-
   return (
-    <section
-      className="relative min-h-[88vh] overflow-hidden"
-      onPointerMove={onHeroPointer}
-      onPointerLeave={resetParallax}
-    >
+    <section className="relative min-h-[88vh] overflow-hidden">
       <div className="absolute inset-0 bg-gradient-to-b from-[#050505] via-[#070707] to-[#0a0a0a]" />
       {videoUrl ? (
         <video
@@ -60,14 +36,6 @@ export function Hero({
       ) : null}
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(57,255,20,0.08),transparent_55%)]" />
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_top,#050505_0%,transparent_45%)]" />
-
-      <motion.div
-        className="pointer-events-none absolute inset-0 z-[1]"
-        style={{ x: layerX, y: layerY }}
-        aria-hidden
-      >
-        <HeroBackdropAssets />
-      </motion.div>
 
       <div className="relative z-10 mx-auto flex min-h-[88vh] max-w-6xl flex-col items-center justify-center px-4 pb-24 pt-28 text-center sm:px-6">
         <motion.div

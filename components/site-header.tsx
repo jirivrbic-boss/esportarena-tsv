@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useState, useCallback } from "react";
 import { useAuth } from "@/contexts/auth-context";
 import { GlowButton } from "@/components/glow-button";
+import { isClientAdminEmail } from "@/lib/admin-client";
 
 const publicLinks = [
   { href: "/", label: "Domů" },
@@ -20,6 +21,7 @@ export function SiteHeader() {
   const pathname = usePathname();
   const { user, signOut } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
+  const showAdmin = Boolean(user && isClientAdminEmail(user.email));
 
   const closeMenu = useCallback(() => setMenuOpen(false), []);
 
@@ -73,6 +75,14 @@ export function SiteHeader() {
         <div className="flex items-center gap-2">
           {user ? (
             <>
+              {showAdmin ? (
+                <Link
+                  href="/admin"
+                  className="hidden text-sm font-medium text-[#39FF14] hover:underline sm:inline"
+                >
+                  Administrace
+                </Link>
+              ) : null}
               <Link
                 href="/dashboard"
                 className="hidden text-sm text-[#39FF14] hover:underline sm:inline"
@@ -157,6 +167,15 @@ export function SiteHeader() {
                   </Link>
                 );
               })}
+              {user && showAdmin ? (
+                <Link
+                  href="/admin"
+                  onClick={closeMenu}
+                  className="mt-2 rounded-md px-3 py-3 text-sm font-medium text-[#39FF14] hover:bg-white/5"
+                >
+                  Administrace
+                </Link>
+              ) : null}
               {!user ? (
                 <Link
                   href="/registrace"

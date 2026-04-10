@@ -2,6 +2,7 @@ import { cert, getApps, initializeApp, type App } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { getFirestore } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
+import { parseAdminEmailsEnv } from "@/lib/admin-access";
 
 let adminApp: App | undefined;
 
@@ -45,11 +46,7 @@ export function adminStorage() {
 }
 
 export function parseAdminEmails(): string[] {
-  const raw = process.env.ADMIN_EMAILS ?? "";
-  return raw
-    .split(",")
-    .map((e) => e.trim().toLowerCase())
-    .filter(Boolean);
+  return parseAdminEmailsEnv();
 }
 
 /** Jen seznam ADMIN_EMAILS (bez hardcodovaného Super Admina). */

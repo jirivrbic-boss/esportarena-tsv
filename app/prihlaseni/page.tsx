@@ -7,6 +7,9 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/contexts/auth-context";
 import { GlowButton } from "@/components/glow-button";
 import { GlassCard } from "@/components/glass-card";
+import { isClientAdminEmail } from "@/lib/admin-client";
+import { syncFirebaseSessionCookie } from "@/lib/auth-session-client";
+import { getFirebaseAuth } from "@/lib/firebase/client";
 
 export default function PrihlaseniPage() {
   const { user, signIn, sendPasswordReset, firebaseReady, loading } = useAuth();
@@ -22,9 +25,22 @@ export default function PrihlaseniPage() {
   const [resetPending, setResetPending] = useState(false);
 
   useEffect(() => {
-    if (!loading && user) {
-      router.replace("/dashboard");
-    }
+    if (loading || !user) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        await syncFirebaseSessionCookie(user);
+      } catch {
+        /* cookie je best-effort; bez ní /admin přesměruje z middleware */
+      }
+      if (cancelled) return;
+      router.replace(
+        isClientAdminEmail(user.email) ? "/admin" : "/dashboard"
+      );
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [user, loading, router]);
 
   async function onSubmit(e: React.FormEvent) {
@@ -37,7 +53,17 @@ export default function PrihlaseniPage() {
     setPending(true);
     try {
       await signIn(email, password);
-      router.push("/dashboard");
+      const u = getFirebaseAuth().currentUser;
+      if (u) {
+        try {
+          await syncFirebaseSessionCookie(u);
+        } catch {
+          /* */
+        }
+        router.push(
+          isClientAdminEmail(u.email) ? "/admin" : "/dashboard"
+        );
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Přihlášení selhalo.");
     } finally {
