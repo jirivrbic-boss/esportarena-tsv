@@ -1,0 +1,16 @@
+# Next.js na Netlify (OpenNext / @netlify/plugin-nextjs)
+# Soubor vercel.json v repu je jen pro Vercel; Netlify ho ignoruje.
+
+[build]
+  command = "npm run build"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+
+# GDPR úklid Storage: volá GET /api/cron/cleanup-storage s Bearer CRON_SECRET (stejně jako dřív na Vercelu)
+[functions."cleanup-storage-cron"]
+  schedule = "0 */4 * * *"
