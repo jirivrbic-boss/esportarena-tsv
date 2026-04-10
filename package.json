@@ -9,7 +9,8 @@
     "lint": "eslint",
     "discord-bot:announce": "node scripts/discord-announce-bot.mjs",
     "seed:lfg": "node scripts/seed-free-agents.mjs",
-    "dokumenty:pdf": "node scripts/docx-to-pdf.mjs"
+    "dokumenty:pdf": "node scripts/docx-to-pdf.mjs",
+    "test:discord-webhook": "node scripts/test-discord-webhook.mjs"
   },
   "dependencies": {
     "@opentelemetry/api": "^1.9.1",
