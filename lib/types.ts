@@ -1,4 +1,5 @@
 import type { Timestamp } from "firebase/firestore";
+import type { GameId } from "@/lib/games";
 
 export type TeamStatus = "pending" | "approved" | "rejected";
 
@@ -21,6 +22,8 @@ export interface CoachRoster {
 
 export interface TeamDocument {
   captainId: string;
+  /** Hra turnaje; chybějící u starších záznamů = považovat za CS2. */
+  gameId?: GameId;
   schoolName: string;
   teamName: string;
   status: TeamStatus;

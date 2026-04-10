@@ -15,11 +15,6 @@ const nextConfig: NextConfig = {
         destination: "/dashboard/profil",
         permanent: false,
       },
-      {
-        source: "/tym/registrace",
-        destination: "/dashboard/tym/registrace",
-        permanent: false,
-      },
     ];
   },
 };

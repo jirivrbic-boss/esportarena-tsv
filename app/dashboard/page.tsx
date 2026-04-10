@@ -7,10 +7,10 @@ import { GlassCard } from "@/components/glass-card";
 import { GlowButton } from "@/components/glow-button";
 
 const quick = [
+  { href: "/dashboard/tymy", label: "Týmy (hry)" },
   { href: "/dashboard/oznameni", label: "Oznámení" },
   { href: "/dashboard/pravidla", label: "Pravidla" },
   { href: "/dashboard/hledam", label: "Hledám tým / hráče" },
-  { href: "/dashboard/tym/registrace", label: "Registrace týmu" },
   { href: "/dashboard/profil", label: "Profil kapitána" },
 ];
 
@@ -50,7 +50,7 @@ export default function DashboardHomePage() {
           {profile?.profileComplete ? (
             <>
               Profil je <span className="text-[#39FF14]">dokončen</span>. Můžeš
-              registrovat tým.
+              zakládat týmy v jednotlivých hrách.
             </>
           ) : (
             <>

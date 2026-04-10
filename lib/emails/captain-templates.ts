@@ -5,6 +5,14 @@ const brand = {
   white: "#ffffff",
 };
 
+function escapeHtml(s: string) {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
 function shell(title: string, inner: string) {
   return `<!DOCTYPE html><html><head><meta charset="utf-8"></head>
 <body style="margin:0;background:${brand.bg};font-family:Inter,system-ui,sans-serif;color:${brand.white};">
@@ -20,7 +28,7 @@ function shell(title: string, inner: string) {
 ${inner}
 </td></tr>
 <tr><td style="padding:16px 28px;border-top:1px solid #1f2937;font-size:12px;color:${brand.muted};">
-EsportArena Plzeň · studentský turnaj CS2
+EsportArena Plzeň · studentský turnaj (CS2, LoL, Brawl Stars, FC 26)
 </td></tr>
 </table>
 </td></tr></table></body></html>`;
@@ -43,11 +51,23 @@ export function profileUpdateEmailHtml() {
   );
 }
 
-export function teamSubmittedEmailHtml(teamName: string, schoolName: string) {
+export function teamSubmittedEmailHtml(
+  teamName: string,
+  schoolName: string,
+  gameLabel?: string
+) {
+  const safeGame = gameLabel ? escapeHtml(gameLabel) : "";
+  const gameLine = gameLabel
+    ? `<p style="line-height:1.6;color:#e5e7eb;"><strong>Hra:</strong> ${safeGame}</p>`
+    : "";
+  const afterApprove =
+    gameLabel?.includes("Counter-Strike")
+      ? "Po schválení administrátorem ti může být doplněn odkaz na Faceit kvalifikaci (u CS2)."
+      : "Po schválení administrátorem tě navedeme na Discordu k dalším krokům pro tuto hru.";
   return shell(
     "Tým odeslán ke schválení",
-    `<p style="line-height:1.6;color:#e5e7eb;">Registrace týmu <strong style="color:${brand.green};">${teamName}</strong> (${schoolName}) byla přijata.</p>
-<p style="line-height:1.6;color:#e5e7eb;">Status: <strong>Čeká na schválení</strong>. Po schválení administrátorem získáš přístup k odkazu na Faceit kvalifikaci.</p>
+    `${gameLine}<p style="line-height:1.6;color:#e5e7eb;">Registrace týmu <strong style="color:${brand.green};">${teamName}</strong> (${schoolName}) byla přijata.</p>
+<p style="line-height:1.6;color:#e5e7eb;">Status: <strong>Čeká na schválení</strong>. ${afterApprove}</p>
 <p style="line-height:1.6;color:${brand.muted};font-size:13px;">Dotazy řešíme na Discordu.</p>`
   );
 }

@@ -21,6 +21,7 @@ import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import { getFirebaseAuth, getFirebaseDb } from "@/lib/firebase/client";
 import { isFirebaseConfigured } from "@/lib/firebase/config";
 import type { CaptainProfile } from "@/lib/types";
+import { postCaptainEmail } from "@/lib/client-notifications";
 
 type AuthState = {
   user: User | null;
@@ -128,17 +129,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         },
         body: JSON.stringify({ email: cred.user.email }),
       }).catch(() => {});
-      await fetch("/api/notifications/captain-email", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          kind: "welcome",
-          displayName: (cred.user.email ?? "kapitán").split("@")[0],
-        }),
-      }).catch(() => {});
+      const welcome = await postCaptainEmail(token, {
+        kind: "welcome",
+        displayName: (cred.user.email ?? "kapitán").split("@")[0],
+      });
+      if (!welcome.ok) {
+        console.warn(
+          "[captain-email] welcome:",
+          welcome.error,
+          "— zkontroluj RESEND_API_KEY a RESEND_FROM na hostingu."
+        );
+      }
     },
     [firebaseReady]
   );

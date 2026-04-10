@@ -9,6 +9,7 @@ import { isFirebaseConfigured } from "@/lib/firebase/config";
 import { uploadUserFile } from "@/lib/storage-upload";
 import { GlassCard } from "@/components/glass-card";
 import { GlowButton } from "@/components/glow-button";
+import { postCaptainEmail } from "@/lib/client-notifications";
 import Link from "next/link";
 
 export default function DashboardProfilPage() {
@@ -23,6 +24,7 @@ export default function DashboardProfilPage() {
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [sentEmail, setSentEmail] = useState(false);
+  const [emailNotifyError, setEmailNotifyError] = useState<string | null>(null);
 
   useEffect(() => {
     if (profile) {
@@ -58,6 +60,8 @@ export default function DashboardProfilPage() {
     }
 
     setPending(true);
+    setEmailNotifyError(null);
+    setSentEmail(false);
     try {
       const db = getFirebaseDb();
       const uid = user.uid;
@@ -91,15 +95,16 @@ export default function DashboardProfilPage() {
       });
 
       const token = await user.getIdToken();
-      await fetch("/api/notifications/captain-email", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ kind: "profile_update" }),
-      }).catch(() => {});
-      setSentEmail(true);
+      const mail = await postCaptainEmail(token, { kind: "profile_update" });
+      if (mail.ok) {
+        setSentEmail(true);
+      } else {
+        setEmailNotifyError(
+          mail.status === 503
+            ? "Potvrzovací e-mail se neodeslal: na serveru chybí Resend (RESEND_API_KEY / RESEND_FROM) nebo není ověřená doména odesílatele."
+            : `E-mail se nepodařilo odeslat: ${mail.error}`
+        );
+      }
       await refreshProfile();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Uložení selhalo.");
@@ -230,7 +235,12 @@ export default function DashboardProfilPage() {
           ) : null}
           {sentEmail ? (
             <p className="text-sm text-[#39FF14]">
-              Profil uložen. E-mail odeslán.
+              Profil uložen. Potvrzovací e-mail odeslán.
+            </p>
+          ) : null}
+          {emailNotifyError ? (
+            <p className="text-sm text-amber-200" role="status">
+              {emailNotifyError}
             </p>
           ) : null}
           <GlowButton type="submit" disabled={pending} className="w-full">
@@ -242,15 +252,15 @@ export default function DashboardProfilPage() {
       {profile?.profileComplete ? (
         <p className="mt-8 text-center text-sm text-slate-400">
           <Link
-            href="/dashboard/tym/registrace"
+            href="/dashboard/tymy"
             className="text-[#39FF14] hover:underline"
           >
-            Pokračovat na registraci týmu →
+            Pokračovat na týmy (výběr hry) →
           </Link>
         </p>
       ) : (
         <p className="mt-8 text-center text-sm text-slate-500">
-          Po dokončení profilu můžeš registrovat tým.
+          Po dokončení profilu můžeš zakládat týmy v jednotlivých hrách.
         </p>
       )}
     </motion.main>

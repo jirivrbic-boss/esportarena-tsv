@@ -7,7 +7,8 @@ import {
 export async function sendTeamApprovedEmail(
   to: string,
   teamName: string,
-  hubUrl: string
+  hubUrl?: string,
+  gameLabel?: string
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const key = process.env.RESEND_API_KEY;
   const from = process.env.RESEND_FROM;
@@ -19,7 +20,7 @@ export async function sendTeamApprovedEmail(
     from,
     to,
     subject: `GG! Tým „${teamName}“ byl schválen · ESPORTARENA TSV`,
-    html: teamApprovedEmailHtml(teamName, hubUrl),
+    html: teamApprovedEmailHtml(teamName, hubUrl, gameLabel),
   });
   if (error) return { ok: false, error: error.message };
   return { ok: true };

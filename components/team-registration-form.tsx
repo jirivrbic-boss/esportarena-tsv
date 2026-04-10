@@ -13,11 +13,16 @@ import {
   setDoc,
   updateDoc,
   where,
+  type DocumentData,
+  type QueryDocumentSnapshot,
 } from "firebase/firestore";
 import type { User } from "firebase/auth";
 import { getFirebaseDb } from "@/lib/firebase/client";
 import { uploadTeamFile } from "@/lib/storage-upload";
 import type { CaptainProfile, RosterPlayer, TeamStatus } from "@/lib/types";
+import type { GameId } from "@/lib/games";
+import { GAMES_BY_ID } from "@/lib/games";
+import { postCaptainEmail } from "@/lib/client-notifications";
 import { GlassCard } from "@/components/glass-card";
 import { GlowButton } from "@/components/glow-button";
 
@@ -73,11 +78,19 @@ async function fetchElo(
 export function TeamRegistrationForm({
   user,
   profile,
+  gameId,
+  onSaved,
 }: {
   user: User;
   profile: CaptainProfile;
+  gameId: GameId;
+  /** Volitelně po úspěšném uložení (např. obnovit přehled na /dashboard/tymy). */
+  onSaved?: () => void;
 }) {
   const router = useRouter();
+  const game = GAMES_BY_ID[gameId];
+  const nickLabel = game.playerNickLabel;
+  const usesFaceit = game.usesFaceitElo;
   const [teamId, setTeamId] = useState<string | null>(null);
   const [status, setStatus] = useState<TeamStatus | null>(null);
   const [faceitHubUrl, setFaceitHubUrl] = useState<string | null>(null);
@@ -99,19 +112,32 @@ export function TeamRegistrationForm({
 
   const loadTeam = useCallback(async () => {
     const db = getFirebaseDb();
-    const q = query(
+    const q1 = query(
       collection(db, "teams"),
       where("captainId", "==", user.uid),
-      limit(1)
+      where("gameId", "==", gameId)
     );
-    const snap = await getDocs(q);
-    if (snap.empty) {
+    let snap = await getDocs(q1);
+    let d: QueryDocumentSnapshot<DocumentData> | null = snap.docs[0] ?? null;
+    if (!d && gameId === "cs2") {
+      const qLegacy = query(
+        collection(db, "teams"),
+        where("captainId", "==", user.uid),
+        limit(25)
+      );
+      const legacySnap = await getDocs(qLegacy);
+      const legacy = legacySnap.docs.find((docSnap) => {
+        const g = docSnap.data().gameId as string | undefined;
+        return g === undefined || g === null || g === "";
+      });
+      d = legacy ?? null;
+    }
+    if (!d) {
       setTeamId(null);
       setStatus(null);
       setLoadingTeam(false);
       return;
     }
-    const d = snap.docs[0]!;
     const data = d.data() as {
       status: TeamStatus;
       faceitHubUrl?: string;
@@ -139,7 +165,7 @@ export function TeamRegistrationForm({
     setCoachFirst(data.coach?.firstName ?? "");
     setCoachLast(data.coach?.lastName ?? "");
     setLoadingTeam(false);
-  }, [user.uid]);
+  }, [user.uid, gameId]);
 
   useEffect(() => {
     void loadTeam();
@@ -161,7 +187,9 @@ export function TeamRegistrationForm({
     tid: string,
     list: Draft[],
     prefix: string,
-    idToken: string
+    idToken: string,
+    nickLabel: string,
+    usesFaceit: boolean
   ): Promise<{ players: RosterPlayer[]; storageMeta: { path: string; uploadedAt: number }[]; links: { label: string; url: string }[] }> {
     const storageMeta: { path: string; uploadedAt: number }[] = [];
     const links: { label: string; url: string }[] = [];
@@ -170,7 +198,9 @@ export function TeamRegistrationForm({
     for (let i = 0; i < list.length; i++) {
       const d = list[i]!;
       if (!d.firstName.trim() || !d.lastName.trim() || !d.faceitNickname.trim()) {
-        throw new Error(`Vyplň jméno, příjmení a Faceit u hráče ${prefix} ${i + 1}.`);
+        throw new Error(
+          `Vyplň jméno, příjmení a ${nickLabel.toLowerCase()} u hráče ${prefix} ${i + 1}.`
+        );
       }
       let studentCertUrl = "";
       if (d.studentFile) {
@@ -208,7 +238,9 @@ export function TeamRegistrationForm({
         }
       }
 
-      const elo = await fetchElo(d.faceitNickname, idToken);
+      const elo = usesFaceit
+        ? await fetchElo(d.faceitNickname, idToken)
+        : null;
       players.push({
         firstName: d.firstName.trim(),
         lastName: d.lastName.trim(),
@@ -228,7 +260,7 @@ export function TeamRegistrationForm({
 
     if (!profile.profileComplete) {
       setError("Nejdřív dokonči profil kapitána.");
-      router.push("/profil");
+      router.push("/dashboard/profil");
       return;
     }
 
@@ -282,6 +314,7 @@ export function TeamRegistrationForm({
       if (isNew) {
         await setDoc(doc(db, "teams", tid), {
           captainId: user.uid,
+          gameId,
           captainEmail: user.email ?? "",
           captainDiscord: profile.discordUsername ?? "",
           teamName: teamName.trim(),
@@ -297,8 +330,22 @@ export function TeamRegistrationForm({
         setTeamId(tid);
       }
 
-      const tRoster = await buildRoster(tid, teammates, "hrac", idToken);
-      const sRoster = await buildRoster(tid, subs, "nahradnik", idToken);
+      const tRoster = await buildRoster(
+        tid,
+        teammates,
+        "hrac",
+        idToken,
+        nickLabel,
+        usesFaceit
+      );
+      const sRoster = await buildRoster(
+        tid,
+        subs,
+        "nahradnik",
+        idToken,
+        nickLabel,
+        usesFaceit
+      );
 
       for (const p of tRoster.players) {
         if (!p.studentCertUrl) {
@@ -328,6 +375,7 @@ export function TeamRegistrationForm({
       ];
 
       await updateDoc(doc(db, "teams", tid), {
+        gameId,
         teamName: teamName.trim(),
         schoolName: schoolName.trim(),
         teammates: tRoster.players,
@@ -342,14 +390,16 @@ export function TeamRegistrationForm({
         updatedAt: serverTimestamp(),
       });
 
+      const eloSuffix = (p: RosterPlayer) =>
+        usesFaceit ? ` · ELO: ${p.faceitElo ?? "?"}` : "";
       const playerSummary = [
         ...tRoster.players.map(
           (p, i) =>
-            `${i + 1}. ${p.firstName} ${p.lastName} (${p.faceitNickname}) ELO: ${p.faceitElo ?? "?"}`
+            `${i + 1}. ${p.firstName} ${p.lastName} (${p.faceitNickname})${eloSuffix(p)}`
         ),
         ...sRoster.players.map(
           (p, i) =>
-            `N${i + 1}. ${p.firstName} ${p.lastName} (${p.faceitNickname}) ELO: ${p.faceitElo ?? "?"}`
+            `N${i + 1}. ${p.firstName} ${p.lastName} (${p.faceitNickname})${eloSuffix(p)}`
         ),
         `Trenér: ${coachFirst.trim()} ${coachLast.trim()}`,
       ].join("\n");
@@ -363,7 +413,7 @@ export function TeamRegistrationForm({
           Authorization: `Bearer ${idToken}`,
         },
         body: JSON.stringify({
-          title: isNew ? "Nový tým" : "Aktualizace soupisky",
+          title: isNew ? `Nový tým · ${game.shortLabel}` : `Aktualizace · ${game.shortLabel}`,
           teamName: teamName.trim(),
           schoolName: schoolName.trim(),
           captainDiscord: profile.discordUsername ?? "",
@@ -371,24 +421,23 @@ export function TeamRegistrationForm({
           playerSummary,
           documentLinks: docLinks,
           event: isNew ? "team_created" : "roster_updated",
+          gameLabel: game.label,
         }),
       }).catch(() => {});
 
-      await fetch("/api/notifications/captain-email", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${idToken}`,
-        },
-        body: JSON.stringify({
-          kind: "team_submitted",
-          teamName: teamName.trim(),
-          schoolName: schoolName.trim(),
-        }),
-      }).catch(() => {});
+      const mail = await postCaptainEmail(idToken, {
+        kind: "team_submitted",
+        teamName: teamName.trim(),
+        schoolName: schoolName.trim(),
+        gameLabel: game.label,
+      });
+      if (!mail.ok) {
+        console.warn("[captain-email] team_submitted:", mail.error);
+      }
 
       setStatus("pending");
       await loadTeam();
+      onSaved?.();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Odeslání selhalo.");
     } finally {
@@ -402,18 +451,28 @@ export function TeamRegistrationForm({
     );
   }
 
-  if (status === "approved" && faceitHubUrl) {
+  if (status === "approved") {
     return (
       <GlassCard className="mx-auto max-w-lg">
         <h2 className="font-[family-name:var(--font-bebas)] text-3xl text-[#39FF14]">
-          Tým schválen
+          Tým schválen · {game.shortLabel}
         </h2>
-        <p className="mt-2 text-slate-400">
-          Přístup do Faceit kvalifikace je odemčen.
-        </p>
-        <GlowButton href={faceitHubUrl} className="mt-6">
-          Otevřít Faceit hub
-        </GlowButton>
+        {usesFaceit && faceitHubUrl ? (
+          <>
+            <p className="mt-2 text-slate-400">
+              Přístup do Faceit kvalifikace je odemčen.
+            </p>
+            <GlowButton href={faceitHubUrl} className="mt-6">
+              Otevřít Faceit hub
+            </GlowButton>
+          </>
+        ) : (
+          <p className="mt-2 text-slate-400">
+            {usesFaceit
+              ? "Administrátoři doplní odkaz na Faceit hub — sleduj Discord a e-mail."
+              : "Další kroky k soutěži v této hře najdeš na oficiálním Discordu turnaje."}
+          </p>
+        )}
       </GlassCard>
     );
   }
@@ -437,6 +496,14 @@ export function TeamRegistrationForm({
   return (
     <GlassCard>
       <form onSubmit={onSubmit} className="space-y-8">
+        <div className="rounded-xl border border-[#39FF14]/25 bg-[#39FF14]/5 px-4 py-3 text-sm text-slate-300">
+          <p className="font-semibold text-[#39FF14]">{game.label}</p>
+          <p className="mt-1 text-xs text-slate-400">
+            Soupiska 4 hráčů + až 2 náhradníci + trenér. Přesný formát zápasů a
+            počty slotů může upřesnit organizátor na Discordu.
+          </p>
+          <p className="mt-2 text-xs text-slate-500">{game.playerNickHint}</p>
+        </div>
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <label>Název týmu</label>
@@ -495,7 +562,7 @@ export function TeamRegistrationForm({
                     />
                   </div>
                   <div className="sm:col-span-2">
-                    <label>Faceit přezdívka</label>
+                    <label>{nickLabel}</label>
                     <input
                       value={t.faceitNickname}
                       onChange={(e) =>
@@ -605,7 +672,7 @@ export function TeamRegistrationForm({
                     />
                   </div>
                   <div className="sm:col-span-2">
-                    <label>Faceit přezdívka</label>
+                    <label>{nickLabel}</label>
                     <input
                       value={t.faceitNickname}
                       onChange={(e) =>

@@ -7,10 +7,10 @@ import { useAuth } from "@/contexts/auth-context";
 
 const nav = [
   { href: "/dashboard", label: "Přehled", exact: true },
+  { href: "/dashboard/tymy", label: "Týmy" },
   { href: "/dashboard/oznameni", label: "Oznámení" },
   { href: "/dashboard/pravidla", label: "Pravidla" },
   { href: "/dashboard/hledam", label: "Hledám tým / hráče" },
-  { href: "/dashboard/tym/registrace", label: "Registrace týmu" },
   { href: "/dashboard/profil", label: "Profil kapitána" },
 ];
 
@@ -46,7 +46,10 @@ export function CaptainSidebar() {
         {nav.map((item) => {
           const active = item.exact
             ? pathname === item.href
-            : pathname === item.href || pathname.startsWith(`${item.href}/`);
+            : pathname === item.href ||
+              pathname.startsWith(`${item.href}/`) ||
+              (item.href === "/dashboard/tymy" &&
+                pathname.startsWith("/dashboard/tym"));
           return (
             <Link
               key={item.href}

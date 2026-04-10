@@ -27,6 +27,7 @@ service cloud.firestore {
 
       allow create: if request.auth != null
         && request.resource.data.captainId == request.auth.uid
+        && request.resource.data.gameId in ['cs2', 'brawl_stars', 'lol', 'fc26']
         && request.resource.data.status == 'pending'
         && request.resource.data.captainEmail == request.auth.token.email
         && request.resource.data.teamName is string
@@ -45,6 +46,13 @@ service cloud.firestore {
       allow update: if request.auth != null
         && resource.data.captainId == request.auth.uid
         && request.resource.data.captainId == resource.data.captainId
+        && request.resource.data.gameId in ['cs2', 'brawl_stars', 'lol', 'fc26']
+        && (
+          (resource.data.keys().hasAll(['gameId'])
+            && resource.data.gameId == request.resource.data.gameId)
+          || (!resource.data.keys().hasAll(['gameId'])
+            && request.resource.data.gameId == 'cs2')
+        )
         && resource.data.status == 'pending'
         && request.resource.data.status == 'pending'
         && request.resource.data.captainEmail == resource.data.captainEmail

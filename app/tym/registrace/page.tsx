@@ -7,7 +7,7 @@ import { GlassCard } from "@/components/glass-card";
 export const metadata: Metadata = {
   title: "Registrace týmu · ESPORTARENA TSV",
   description:
-    "Jak probíhá registrace týmu do studentského turnaje CS2 — co mají připravit hráči a co řeší kapitán.",
+    "Registrace týmů do CS2, LoL, Brawl Stars a FC 26 — co připravit hráči a co řeší kapitán.",
 };
 
 function Step({
@@ -45,8 +45,9 @@ export default function TymRegistracePublicPage() {
       </h1>
       <p className="mt-3 text-slate-400">
         Týmový formulář vyplňuje jen <strong className="text-white">kapitán</strong>{" "}
-        po přihlášení. Tato stránka je pro celý tým — ať víte dopředu, co budete
-        od sebe navzájem potřebovat.
+        po přihlášení — pro každou hru (CS2, LoL, Brawl Stars, FC 26) zvlášť, stejný
+        postup dokladů a soupisky. Tato stránka je pro celý tým — ať víte dopředu,
+        co budete od sebe navzájem potřebovat.
       </p>
 
       <div className="mt-8 flex flex-wrap gap-3">
@@ -56,14 +57,12 @@ export default function TymRegistracePublicPage() {
         </GlowButton>
       </div>
       <p className="mt-4 text-xs text-slate-500">
-        Po přihlášení otevři v menu kapitána položku stejného jména nebo přejdi na{" "}
-        <Link
-          href="/dashboard/tym/registrace"
-          className="text-[#39FF14] underline-offset-2 hover:underline"
-        >
-          přímý odkaz na formulář
-        </Link>{" "}
-        (bez účtu tě aplikace navede na přihlášení).
+        Po přihlášení otevři v kapitánském menu{" "}
+        <Link href="/dashboard/tymy" className="text-[#39FF14] hover:underline">
+          Týmy
+        </Link>
+        , vyber hru (nebo ji rozklikni) a vyplň formulář. Bez účtu tě aplikace navede
+        na přihlášení.
       </p>
 
       <GlassCard className="mt-12" delay={0.05}>
@@ -87,8 +86,9 @@ export default function TymRegistracePublicPage() {
           <li className="flex gap-2">
             <span className="text-[#39FF14]">·</span>
             <span>
-              <strong className="text-white">Přezdívka na FACEIT</strong> — přesně
-              ta, pod kterou hraješ; podle ní se stahuje ELO pro administrátory.
+              <strong className="text-white">Herní identita</strong> — u CS2 Faceit
+              nick (kvůli ELO), u dalších her přesný tvar podle pokynů (Riot ID, tag
+              v Brawl Stars, EA účet…).
             </span>
           </li>
           <li className="flex gap-2">
@@ -183,7 +183,7 @@ export default function TymRegistracePublicPage() {
           </Step>
           <Step n={2} title="Shromáždění podkladů od spoluhráčů">
             <p>
-              Sežeň od každého hráče jméno, FACEIT nick, doklad o studiu a u
+              Sežeň od každého hráče jméno, herní identitu (dle hry), doklad o studiu a u
               nezletilých souhlas rodiče. Domluvte se na{" "}
               <strong className="text-white">názvu týmu</strong> a na{" "}
               <strong className="text-white">škole / organizaci</strong>, za kterou
@@ -192,16 +192,22 @@ export default function TymRegistracePublicPage() {
           </Step>
           <Step n={3} title="Vyplnění a odeslání týmu">
             <p>
-              V přihlášeném přehledu otevřeš{" "}
-              <strong className="text-white">Registrace týmu</strong>, zadáš údaje
-              o sestavě, nahraješ soubory a formulář odešleš. Stav žádosti uvidíš u
-              záznamu týmu (např. čeká na schválení).
+              V menu kapitána otevřeš{" "}
+              <Link
+                href="/dashboard/tymy"
+                className="text-[#39FF14] underline-offset-2 hover:underline"
+              >
+                Týmy
+              </Link>
+              , vybereš hru (u nové hry „Založit tým“) a projdeš stejným formulářem:
+              soupiska, doklady, odeslání. U každé hry máš vlastní záznam a stav
+              schválení.
             </p>
           </Step>
           <Step n={4} title="Po schválení">
             <p>
               Administrátor tým schválí nebo vrátí s připomínkou. Po schválení můžeš
-              dostat další instrukce (např. odkaz na FACEIT hub) — sleduj Discord a
+              dostat další instrukce (u CS2 např. Faceit hub) — sleduj Discord a
               oznámení na webu.
             </p>
           </Step>

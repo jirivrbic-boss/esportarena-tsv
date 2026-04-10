@@ -20,9 +20,9 @@ const bebas = Bebas_Neue({
 });
 
 export const metadata: Metadata = {
-  title: "ESPORTARENA TSV · Sezóna 4 | Studentský turnaj CS2",
+  title: "ESPORTARENA TSV · Sezóna 4 | Studentský turnaj",
   description:
-    "Oficiální platforma studentského turnaje CS2. Registrace kapitánů, týmů, Faceit kvalifikace a síň slávy — EsportArena Plzeň.",
+    "CS2, League of Legends, Brawl Stars a EA SPORTS FC 26. Registrace kapitánů a týmů, Faceit kvalifikace u CS2, síň slávy — EsportArena Plzeň.",
 };
 
 export default async function RootLayout({

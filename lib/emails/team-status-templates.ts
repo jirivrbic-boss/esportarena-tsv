@@ -28,21 +28,35 @@ function shell(title: string, inner: string) {
 ${inner}
 </td></tr>
 <tr><td style="padding:16px 28px;border-top:1px solid #1f2937;font-size:12px;color:${brand.muted};">
-EsportArena Plzeň · studentský turnaj CS2
+EsportArena Plzeň · studentský turnaj (více her)
 </td></tr>
 </table>
 </td></tr></table></body></html>`;
 }
 
-export function teamApprovedEmailHtml(teamName: string, hubUrl: string) {
+export function teamApprovedEmailHtml(
+  teamName: string,
+  hubUrl?: string,
+  gameLabel?: string
+) {
   const safeName = escapeHtml(teamName);
-  const safeHub = escapeHtml(hubUrl);
+  const safeGame = gameLabel ? escapeHtml(gameLabel) : "";
+  const gameLine = gameLabel
+    ? `<p style="line-height:1.6;color:#e5e7eb;"><strong>Hra:</strong> ${safeGame}</p>`
+    : "";
+  const hubBlock =
+    hubUrl && hubUrl.length > 0
+      ? (() => {
+          const safeHub = escapeHtml(hubUrl);
+          return `<p style="line-height:1.6;color:#e5e7eb;">Odkaz na Faceit hub (kvalifikace CS2):</p>
+<p style="margin:16px 0;"><a href="${safeHub}" style="display:inline-block;padding:12px 20px;background:${brand.green};color:#050505;font-weight:700;text-decoration:none;border-radius:8px;">Otevřít Faceit hub</a></p>
+<p style="line-height:1.6;font-size:13px;color:${brand.muted};">Pokud tlačítko nefunguje, zkopíruj odkaz: ${safeHub}</p>`;
+        })()
+      : `<p style="line-height:1.6;color:#e5e7eb;">Další kroky k této hře najdeš na oficiálním Discordu turnaje.</p>`;
   return shell(
     "GG! Tvůj tým byl schválen",
-    `<p style="line-height:1.6;color:#e5e7eb;">Tým <strong style="color:${brand.white};">${safeName}</strong> byl schválen administrací.</p>
-<p style="line-height:1.6;color:#e5e7eb;">Odkaz na Faceit hub (kvalifikace):</p>
-<p style="margin:16px 0;"><a href="${safeHub}" style="display:inline-block;padding:12px 20px;background:${brand.green};color:#050505;font-weight:700;text-decoration:none;border-radius:8px;">Otevřít Faceit hub</a></p>
-<p style="line-height:1.6;font-size:13px;color:${brand.muted};">Pokud tlačítko nefunguje, zkopíruj odkaz: ${safeHub}</p>
+    `${gameLine}<p style="line-height:1.6;color:#e5e7eb;">Tým <strong style="color:${brand.white};">${safeName}</strong> byl schválen administrací.</p>
+${hubBlock}
 <p style="line-height:1.6;font-size:13px;color:${brand.muted};margin-top:20px;">Oficiální komunikace probíhá na Discordu.</p>`
   );
 }

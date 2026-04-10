@@ -9,8 +9,8 @@ export function SiteFooter() {
             ESPORTARENA TSV
           </p>
           <p className="mt-2 max-w-md text-sm leading-relaxed">
-            Oficiální studentský turnaj v CS2. Propojení s IT vzděláváním —
-            sítě, správa, multimédia.
+            Studentský turnaj v CS2, LoL, Brawl Stars a FC 26. Propojení s IT
+            vzděláváním — sítě, správa, multimédia.
           </p>
         </div>
         <div className="space-y-3 text-sm">

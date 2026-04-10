@@ -29,6 +29,7 @@ export async function POST(request: Request) {
     teamName?: string;
     schoolName?: string;
     displayName?: string;
+    gameLabel?: string;
   };
   try {
     payload = await request.json();
@@ -53,7 +54,8 @@ export async function POST(request: Request) {
       subject = "Tým odeslán ke schválení · ESPORTARENA TSV";
       html = teamSubmittedEmailHtml(
         payload.teamName ?? "Tým",
-        payload.schoolName ?? ""
+        payload.schoolName ?? "",
+        payload.gameLabel
       );
       break;
     default:

@@ -1,7 +1,9 @@
+import { FieldValue } from "firebase-admin/firestore";
 import { NextResponse } from "next/server";
 import { verifyIdTokenFromRequest, isSuperAdminEmail } from "@/lib/server-auth";
 import { adminDb } from "@/lib/firebase/admin";
 import { sendTeamApprovedEmail } from "@/lib/resend-team-status";
+import { gameLabel, type GameId } from "@/lib/games";
 
 export async function POST(
   request: Request,
@@ -32,10 +34,17 @@ export async function POST(
     const data = snap.data() as {
       teamName?: string;
       captainEmail?: string;
+      gameId?: GameId;
     };
+    const gid = data.gameId ?? "cs2";
+    const gLabel = gameLabel(gid);
+    const isCs2 = gid === "cs2";
+
     await ref.update({
       status: "approved",
-      faceitHubUrl: hubUrl,
+      ...(isCs2
+        ? { faceitHubUrl: hubUrl }
+        : { faceitHubUrl: FieldValue.delete() }),
       updatedAt: new Date(),
     });
 
@@ -44,14 +53,19 @@ export async function POST(
     let emailSent = false;
     let emailError: string | undefined;
     if (captainEmail) {
-      const sent = await sendTeamApprovedEmail(captainEmail, teamName, hubUrl);
+      const sent = await sendTeamApprovedEmail(
+        captainEmail,
+        teamName,
+        isCs2 ? hubUrl : undefined,
+        gLabel
+      );
       emailSent = sent.ok;
       if (!sent.ok) emailError = sent.error;
     }
 
     return NextResponse.json({
       ok: true,
-      faceitHubUrl: hubUrl,
+      faceitHubUrl: isCs2 ? hubUrl : null,
       emailSent,
       ...(emailError ? { emailError } : {}),
     });

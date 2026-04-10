@@ -7,9 +7,11 @@ import { useAuth } from "@/contexts/auth-context";
 import { GlassCard } from "@/components/glass-card";
 import { GlowButton } from "@/components/glow-button";
 import { AdminAnnouncementsPanel } from "@/components/admin-announcements-panel";
+import { gameLabel, type GameId } from "@/lib/games";
 
 type TeamRow = {
   id: string;
+  gameId?: GameId;
   teamName?: string;
   schoolName?: string;
   captainEmail?: string;
@@ -202,7 +204,10 @@ export default function AdminPage() {
         Čekající týmy
       </h2>
       <p className="mt-2 text-sm text-slate-400">
-        Schválením se týmu odemkne Faceit hub a kapitánovi odejde e-mail (Resend).
+        Schválením u CS2 můžeš doplnit Faceit hub; u ostatních her další kroky na
+        Discordu. Kapitánovi odejde e-mail přes Resend (nutný{" "}
+        <code className="text-slate-300">RESEND_API_KEY</code> a ověřená doména
+        odesílatele).
       </p>
       <GlowButton type="button" variant="ghost" className="mt-6" onClick={() => void load()}>
         Obnovit seznam
@@ -227,6 +232,9 @@ export default function AdminPage() {
                   <h2 className="text-xl font-semibold text-white">
                     {t.teamName ?? "Bez názvu"}
                   </h2>
+                  <p className="text-sm font-medium text-[#39FF14]">
+                    {t.gameId ? gameLabel(t.gameId) : "CS2 (starý záznam)"}
+                  </p>
                   <p className="text-slate-400">{t.schoolName}</p>
                   <p className="mt-2 text-sm text-slate-500">
                     Kapitán: {t.captainEmail} · Discord: {t.captainDiscord}

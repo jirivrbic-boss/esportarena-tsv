@@ -10,6 +10,7 @@ type Body = {
   playerSummary: string;
   documentLinks: { label: string; url: string }[];
   event: "team_created" | "roster_updated";
+  gameLabel?: string;
 };
 
 export async function POST(request: Request) {
@@ -43,9 +44,12 @@ export async function POST(request: Request) {
 
   const content = `**${body.title}**\n${body.event === "team_created" ? "Nová registrace" : "Aktualizace soupisky"}`;
 
+  const gameLine = body.gameLabel
+    ? `**Hra:** ${body.gameLabel}\n`
+    : "";
   const embed = {
     title: body.teamName,
-    description: `**Škola:** ${body.schoolName}\n**Kapitán Discord:** ${body.captainDiscord}\n**E-mail kapitána:** ${body.captainEmail}\n\n**Hráči:**\n${body.playerSummary}\n\n**Dokumenty:**\n${linksText.slice(0, 3500)}`,
+    description: `${gameLine}**Škola:** ${body.schoolName}\n**Kapitán Discord:** ${body.captainDiscord}\n**E-mail kapitána:** ${body.captainEmail}\n\n**Hráči:**\n${body.playerSummary}\n\n**Dokumenty:**\n${linksText.slice(0, 3500)}`,
     color: 0x39ff14,
     footer: { text: "ESPORTARENA TSV · Admin" },
     timestamp: new Date().toISOString(),
