@@ -5,7 +5,7 @@ import { OfficialDocumentsDownloads } from "@/components/official-documents-down
 export const metadata: Metadata = {
   title: "Dokumenty ke stažení · ESPORTARENA TSV",
   description:
-    "Obecná pravidla CS2, pravidla registrace a souhlas zákonného zástupce — oficiální soubory Word pro turnaj ESPORTARENA TSV.",
+    "Obecná pravidla CS2, pravidla registrace a souhlas zákonného zástupce — oficiální PDF dokumenty turnaje ESPORTARENA TSV.",
 };
 
 export default function DokumentyPage() {

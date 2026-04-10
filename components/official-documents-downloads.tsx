@@ -27,7 +27,7 @@ function DocRow({ doc }: { doc: OfficialDocument }) {
       >
         {doc.title}
       </a>
-      <span className="ml-2 text-xs font-normal text-slate-500">(.docx)</span>
+      <span className="ml-2 text-xs font-normal text-slate-500">(PDF)</span>
       <p className="mt-2 text-sm leading-relaxed text-slate-400">
         {doc.description}
       </p>
@@ -39,7 +39,7 @@ export function OfficialDocumentsDownloads({
   variant = "all",
   className = "",
   heading = "Formální dokumenty ke stažení",
-  intro = "Oficiální znění v Microsoft Wordu — vhodné k archivaci, tisku nebo úpravě podle aktuálního znění na webu.",
+  intro = "Oficiální znění v PDF — vhodné k archivaci a tisku.",
 }: Props) {
   const items = documentsForVariant(variant);
   return (

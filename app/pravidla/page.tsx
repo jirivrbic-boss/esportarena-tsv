@@ -22,7 +22,7 @@ export default async function PravidlaPage() {
         Stručný oficiální rámec pro CS2 část ESPORTARENA TSV — Sezóna 4. Detailní
         rozvrh a případné výjimky vždy na{" "}
         <strong className="text-[#39FF14]">Discordu</strong>. Kompletní znění v
-        souborech Word najdeš na{" "}
+        PDF dokumentech najdeš na{" "}
         <Link href="/dokumenty" className="text-[#39FF14] underline-offset-2 hover:underline">
           stránce Dokumenty
         </Link>
@@ -31,7 +31,7 @@ export default async function PravidlaPage() {
       <OfficialDocumentsDownloads
         variant="rules"
         className="mt-10"
-        heading="Pravidla ke stažení (Word)"
+        heading="Pravidla ke stažení (PDF)"
         intro="Obecná pravidla CS2 a pravidla registrace — stejné znění jako v administraci turnaje."
       />
       <RulesBody sections={cms.sections} />

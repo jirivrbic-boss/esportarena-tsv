@@ -41,7 +41,7 @@ export default function DashboardPravidlaPage() {
       <OfficialDocumentsDownloads
         variant="rules"
         className="mt-10"
-        heading="Pravidla ke stažení (Word)"
+        heading="Pravidla ke stažení (PDF)"
         intro="Obecná pravidla CS2 a pravidla registrace."
       />
       <RulesBody sections={sections} />

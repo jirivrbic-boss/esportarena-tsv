@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "discord-bot:announce": "node scripts/discord-announce-bot.mjs",
-    "seed:lfg": "node scripts/seed-free-agents.mjs"
+    "seed:lfg": "node scripts/seed-free-agents.mjs",
+    "dokumenty:pdf": "node scripts/docx-to-pdf.mjs"
   },
   "dependencies": {
     "@opentelemetry/api": "^1.9.1",
@@ -31,6 +32,8 @@
     "discord.js": "^14.26.2",
     "eslint": "^9",
     "eslint-config-next": "16.2.3",
+    "mammoth": "^1.12.0",
+    "playwright": "^1.59.1",
     "tailwindcss": "^4",
     "typescript": "^5"
   }
