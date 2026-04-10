@@ -1,5 +1,5 @@
 import { HledamBoard } from "@/components/hledam-board";
 
-export default function HledamPage() {
+export default function DashboardHledamPage() {
   return <HledamBoard />;
 }

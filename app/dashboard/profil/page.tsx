@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { useAuth } from "@/contexts/auth-context";
@@ -12,9 +11,8 @@ import { GlassCard } from "@/components/glass-card";
 import { GlowButton } from "@/components/glow-button";
 import Link from "next/link";
 
-export default function ProfilPage() {
-  const { user, profile, loading, refreshProfile, firebaseReady } = useAuth();
-  const router = useRouter();
+export default function DashboardProfilPage() {
+  const { user, profile, refreshProfile, firebaseReady } = useAuth();
   const [phone, setPhone] = useState("");
   const [discordUsername, setDiscordUsername] = useState("");
   const [faceitNickname, setFaceitNickname] = useState("");
@@ -25,10 +23,6 @@ export default function ProfilPage() {
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [sentEmail, setSentEmail] = useState(false);
-
-  useEffect(() => {
-    if (!loading && !user) router.replace("/prihlaseni");
-  }, [user, loading, router]);
 
   useEffect(() => {
     if (profile) {
@@ -45,7 +39,12 @@ export default function ProfilPage() {
     setError(null);
     if (!user || !firebaseReady) return;
 
-    if (!phone.trim() || !discordUsername.trim() || !faceitNickname.trim() || !steamNickname.trim()) {
+    if (
+      !phone.trim() ||
+      !discordUsername.trim() ||
+      !faceitNickname.trim() ||
+      !steamNickname.trim()
+    ) {
       setError("Vyplň všechny kontaktní údaje.");
       return;
     }
@@ -108,12 +107,8 @@ export default function ProfilPage() {
     }
   }
 
-  if (loading || !user) {
-    return (
-      <div className="flex min-h-[50vh] items-center justify-center text-slate-500">
-        Načítání…
-      </div>
-    );
+  if (!user) {
+    return null;
   }
 
   if (!isFirebaseConfigured()) {
@@ -128,7 +123,7 @@ export default function ProfilPage() {
     <motion.main
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      className="mx-auto max-w-xl px-4 py-16 sm:px-6"
+      className="mx-auto max-w-xl px-4 py-10 sm:px-6"
     >
       <h1 className="font-[family-name:var(--font-bebas)] text-4xl tracking-wide text-white">
         Profil kapitána
@@ -142,7 +137,11 @@ export default function ProfilPage() {
         <form onSubmit={onSubmit} className="space-y-4">
           <div>
             <label>E-mail</label>
-            <input value={user.email ?? ""} disabled className="mt-1 opacity-60" />
+            <input
+              value={user.email ?? ""}
+              disabled
+              className="mt-1 opacity-60"
+            />
           </div>
           <div>
             <label htmlFor="phone">Telefon</label>
@@ -211,7 +210,9 @@ export default function ProfilPage() {
           </div>
           {!isAdult ? (
             <div>
-              <label htmlFor="parent">Souhlas zákonného zástupce (PDF / JPG)</label>
+              <label htmlFor="parent">
+                Souhlas zákonného zástupce (PDF / JPG)
+              </label>
               <input
                 id="parent"
                 type="file"
@@ -227,7 +228,9 @@ export default function ProfilPage() {
             </p>
           ) : null}
           {sentEmail ? (
-            <p className="text-sm text-[#39FF14]">Profil uložen. E-mail odeslán.</p>
+            <p className="text-sm text-[#39FF14]">
+              Profil uložen. E-mail odeslán.
+            </p>
           ) : null}
           <GlowButton type="submit" disabled={pending} className="w-full">
             {pending ? "Ukládám…" : "Uložit profil"}
@@ -237,7 +240,10 @@ export default function ProfilPage() {
 
       {profile?.profileComplete ? (
         <p className="mt-8 text-center text-sm text-slate-400">
-          <Link href="/tym/registrace" className="text-[#39FF14] hover:underline">
+          <Link
+            href="/dashboard/tym/registrace"
+            className="text-[#39FF14] hover:underline"
+          >
             Pokračovat na registraci týmu →
           </Link>
         </p>

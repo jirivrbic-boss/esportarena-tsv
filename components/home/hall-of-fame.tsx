@@ -7,16 +7,19 @@ const seasons = [
     season: "Sezóna 1",
     first: "SPŠ MV Praha (Sokolov)",
     second: "Gymnázium Třeboň",
+    third: "Historické 3. místo — doplní pořadatel",
   },
   {
     season: "Sezóna 2",
     first: "SPŠEK Rakovník",
     second: "SPŠ MV Praha (Sokolov)",
+    third: "Historické 3. místo — doplní pořadatel",
   },
   {
     season: "Sezóna 3",
     first: "VUT Brno",
     second: "VŠB Ostrava",
+    third: "Historické 3. místo — doplní pořadatel",
   },
 ];
 
@@ -41,6 +44,8 @@ export function HallOfFame() {
               <p className="text-lg font-semibold text-white">{s.first}</p>
               <p className="mt-3 text-sm text-slate-500">2. místo</p>
               <p className="text-base text-slate-300">{s.second}</p>
+              <p className="mt-3 text-sm text-slate-500">3. místo</p>
+              <p className="text-base text-slate-400">{s.third}</p>
             </GlassCard>
           ))}
         </div>

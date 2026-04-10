@@ -60,6 +60,12 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // --- Oznámení (zápis jen přes Admin SDK / API) ---
+    match /announcements/{docId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
     // --- LFG / free agents ---
     match /free_agents/{docId} {
       allow read: if true;

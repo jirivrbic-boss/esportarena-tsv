@@ -1,20 +1,13 @@
 "use client";
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { useAuth } from "@/contexts/auth-context";
 import { isFirebaseConfigured } from "@/lib/firebase/config";
 import { TeamRegistrationForm } from "@/components/team-registration-form";
 import Link from "next/link";
 
-export default function TymRegistracePage() {
+export default function DashboardTymRegistracePage() {
   const { user, profile, loading } = useAuth();
-  const router = useRouter();
-
-  useEffect(() => {
-    if (!loading && !user) router.replace("/prihlaseni");
-  }, [user, loading, router]);
 
   if (loading || !user) {
     return (
@@ -38,7 +31,7 @@ export default function TymRegistracePage() {
     <motion.main
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      className="mx-auto max-w-3xl px-4 py-16 sm:px-6"
+      className="mx-auto max-w-3xl px-4 py-10 sm:px-6"
     >
       <h1 className="font-[family-name:var(--font-bebas)] text-4xl tracking-wide text-white sm:text-5xl">
         Registrace týmu · CS2
@@ -52,7 +45,7 @@ export default function TymRegistracePage() {
       {!profile.profileComplete ? (
         <p className="mt-6 rounded-lg border border-amber-500/30 bg-amber-950/40 p-4 text-sm text-amber-100">
           Nejdřív dokonči{" "}
-          <Link href="/profil" className="text-[#39FF14] underline">
+          <Link href="/dashboard/profil" className="text-[#39FF14] underline">
             profil kapitána
           </Link>
           .

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
@@ -9,12 +9,18 @@ import { GlowButton } from "@/components/glow-button";
 import { GlassCard } from "@/components/glass-card";
 
 export default function RegistracePage() {
-  const { signUp, firebaseReady, loading } = useAuth();
+  const { user, signUp, firebaseReady, loading } = useAuth();
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+
+  useEffect(() => {
+    if (!loading && user) {
+      router.replace("/dashboard");
+    }
+  }, [user, loading, router]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -30,7 +36,7 @@ export default function RegistracePage() {
     setPending(true);
     try {
       await signUp(email, password);
-      router.push("/profil");
+      router.push("/dashboard");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Registrace selhala.");
     } finally {

@@ -13,6 +13,7 @@ import {
   onAuthStateChanged,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
+  sendPasswordResetEmail,
   signOut as firebaseSignOut,
   type User,
 } from "firebase/auth";
@@ -30,6 +31,7 @@ type AuthState = {
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
+  sendPasswordReset: (email: string) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthState | null>(null);
@@ -124,6 +126,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await firebaseSignOut(getFirebaseAuth());
   }, [firebaseReady]);
 
+  const sendPasswordReset = useCallback(
+    async (email: string) => {
+      if (!firebaseReady) throw new Error("Firebase není nakonfigurováno.");
+      const auth = getFirebaseAuth();
+      const origin = window.location.origin;
+      await sendPasswordResetEmail(auth, email.trim(), {
+        url: `${origin}/prihlaseni`,
+        handleCodeInApp: false,
+      });
+    },
+    [firebaseReady]
+  );
+
   const value = useMemo(
     () => ({
       user,
@@ -134,6 +149,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signIn,
       signUp,
       signOut,
+      sendPasswordReset,
     }),
     [
       user,
@@ -144,6 +160,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signIn,
       signUp,
       signOut,
+      sendPasswordReset,
     ]
   );
 

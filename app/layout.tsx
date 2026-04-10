@@ -2,8 +2,7 @@ import type { Metadata } from "next";
 import { Bebas_Neue, Inter } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
-import { SiteHeader } from "@/components/site-header";
-import { SiteFooter } from "@/components/site-footer";
+import { AppChrome } from "@/components/app-chrome";
 import { FirebaseNotice } from "@/components/firebase-notice";
 
 const inter = Inter({
@@ -33,12 +32,12 @@ export default function RootLayout({
       lang="cs"
       className={`${inter.variable} ${bebas.variable} h-full antialiased`}
     >
-      <body className="flex min-h-full flex-col bg-[#050505] text-white">
+      <body className="flex min-h-screen flex-col bg-[#050505] text-white">
         <Providers>
-          <FirebaseNotice />
-          <SiteHeader />
-          <div className="flex-1">{children}</div>
-          <SiteFooter />
+          <div className="flex flex-1 flex-col">
+            <FirebaseNotice />
+            <AppChrome>{children}</AppChrome>
+          </div>
         </Providers>
       </body>
     </html>

@@ -1,15 +1,15 @@
+"use client";
+
+import { motion } from "framer-motion";
 import { RulesBody } from "@/components/rules-body";
-import type { Metadata } from "next";
 
-export const metadata: Metadata = {
-  title: "Pravidla · ESPORTARENA TSV S4",
-  description:
-    "Oficiální pravidla studentského turnaje CS2 — kvalifikace, AFK, disconnect, knife round, BO3.",
-};
-
-export default function PravidlaPage() {
+export default function DashboardPravidlaPage() {
   return (
-    <main className="mx-auto max-w-3xl px-4 py-16 sm:px-6">
+    <motion.main
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="mx-auto max-w-3xl px-4 py-10 sm:px-6"
+    >
       <h1 className="font-[family-name:var(--font-bebas)] text-4xl tracking-wide text-white sm:text-5xl">
         Pravidla turnaje
       </h1>
@@ -19,6 +19,6 @@ export default function PravidlaPage() {
         <strong className="text-[#39FF14]">Discordu</strong>.
       </p>
       <RulesBody />
-    </main>
+    </motion.main>
   );
 }

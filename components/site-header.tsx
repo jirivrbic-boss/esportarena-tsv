@@ -7,8 +7,9 @@ import { motion } from "framer-motion";
 import { useAuth } from "@/contexts/auth-context";
 import { GlowButton } from "@/components/glow-button";
 
-const links = [
+const publicLinks = [
   { href: "/", label: "Domů" },
+  { href: "/oznameni", label: "Oznámení" },
   { href: "/pravidla", label: "Pravidla" },
   { href: "/hledam", label: "Hledám tým / hráče" },
   { href: "/tym/registrace", label: "Registrace týmu" },
@@ -47,7 +48,7 @@ export function SiteHeader() {
         </Link>
 
         <nav className="hidden items-center gap-1 md:flex">
-          {links.map((l) => {
+          {publicLinks.map((l) => {
             const active = pathname === l.href;
             return (
               <Link
@@ -69,7 +70,13 @@ export function SiteHeader() {
           {user ? (
             <>
               <Link
-                href="/profil"
+                href="/dashboard"
+                className="hidden text-sm text-[#39FF14] hover:underline sm:inline"
+              >
+                Přehled
+              </Link>
+              <Link
+                href="/dashboard/profil"
                 className="hidden text-sm text-slate-300 hover:text-white sm:inline"
               >
                 Profil
