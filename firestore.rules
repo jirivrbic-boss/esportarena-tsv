@@ -12,9 +12,11 @@ service cloud.firestore {
           'email', 'phone', 'discordUsername', 'faceitNickname',
           'steamNickname', 'isAdult', 'profileComplete'
         ]);
+      // E-mail v dokumentu = e-mail z Auth tokenu (update vždy posílá email z klienta)
       allow update: if request.auth != null
         && request.auth.uid == userId
-        && request.resource.data.email == resource.data.email;
+        && request.auth.token.email != null
+        && request.resource.data.email == request.auth.token.email;
       allow delete: if false;
     }
 

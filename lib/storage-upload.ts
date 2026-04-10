@@ -5,6 +5,19 @@ function safeName(name: string) {
   return name.replace(/[^\w.\-]+/g, "_").slice(0, 120);
 }
 
+/** Storage rules vyžadují image/* nebo PDF — prázdný file.type na Safari občas selže. */
+function contentTypeForUpload(file: File): string {
+  if (file.type && file.type !== "application/octet-stream") {
+    return file.type;
+  }
+  const n = file.name.toLowerCase();
+  if (n.endsWith(".jpg") || n.endsWith(".jpeg")) return "image/jpeg";
+  if (n.endsWith(".png")) return "image/png";
+  if (n.endsWith(".webp")) return "image/webp";
+  if (n.endsWith(".pdf")) return "application/pdf";
+  return "image/jpeg";
+}
+
 export async function uploadUserFile(
   uid: string,
   prefix: string,
@@ -13,7 +26,7 @@ export async function uploadUserFile(
   const storage = getFirebaseStorage();
   const path = `users/${uid}/${prefix}-${Date.now()}-${safeName(file.name)}`;
   const r = ref(storage, path);
-  await uploadBytes(r, file);
+  await uploadBytes(r, file, { contentType: contentTypeForUpload(file) });
   const url = await getDownloadURL(r);
   return { url, path: r.fullPath, uploadedAt: Date.now() };
 }
@@ -26,7 +39,7 @@ export async function uploadTeamFile(
   const storage = getFirebaseStorage();
   const path = `teams/${teamId}/${prefix}-${Date.now()}-${safeName(file.name)}`;
   const r = ref(storage, path);
-  await uploadBytes(r, file);
+  await uploadBytes(r, file, { contentType: contentTypeForUpload(file) });
   const url = await getDownloadURL(r);
   return { url, path: r.fullPath, uploadedAt: Date.now() };
 }

@@ -78,6 +78,7 @@ export default function DashboardProfilPage() {
       );
 
       await updateDoc(doc(db, "users", uid), {
+        email: user.email ?? "",
         phone: phone.trim(),
         discordUsername: discordUsername.trim(),
         faceitNickname: faceitNickname.trim(),
