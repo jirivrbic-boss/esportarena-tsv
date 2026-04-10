@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "node scripts/netlify-firebase-env-check.mjs && next build",
     "start": "next start",
     "lint": "eslint",
     "discord-bot:announce": "node scripts/discord-announce-bot.mjs"
