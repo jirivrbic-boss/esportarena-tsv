@@ -11,21 +11,19 @@ export function FirebaseNotice() {
     <div className="border-b border-amber-500/40 bg-amber-950/80 px-4 py-2 text-center text-xs leading-relaxed text-amber-200">
       {isProd ? (
         <>
-          <strong className="text-amber-100">Produkce:</strong> aplikaci chybí
-          proměnné{" "}
+          <strong className="text-amber-100">Produkce:</strong> chybí proměnné{" "}
           <code className="rounded bg-black/30 px-1">
             NEXT_PUBLIC_FIREBASE_*
           </code>
-          . V{" "}
+          . V hostingu je nastav:{" "}
           <strong className="text-amber-100">
-            Vercel → Project → Settings → Environment Variables
+            Netlify → Site → Environment variables
           </strong>{" "}
-          je doplň (stejné hodnoty jako v Firebase → Project settings → Your
-          apps). Poté spusť{" "}
-          <strong className="text-amber-100">Redeploy</strong> — u proměnných
-          začínajících na{" "}
-          <code className="rounded bg-black/30 px-1">NEXT_PUBLIC_</code> musí
-          proběhnout nový build.
+          (nebo Vercel → Settings → Environment Variables) — hodnoty zkopíruj z
+          Firebase → Project settings → Your apps. Ulož a spusť{" "}
+          <strong className="text-amber-100">nový deploy / Clear cache and deploy</strong>
+          : proměnné <code className="rounded bg-black/30 px-1">NEXT_PUBLIC_*</code>{" "}
+          se vkládají při buildu, ne za běhu.
         </>
       ) : (
         <>

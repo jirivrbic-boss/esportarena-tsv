@@ -5,7 +5,7 @@ function env(name: string): string | undefined {
   return t.length ? t : undefined;
 }
 
-/** Konfigurace pro klientský Firebase SDK (musí být NEXT_PUBLIC_* a na Vercelu znovu build po změně). */
+/** Klientský Firebase SDK — NEXT_PUBLIC_* musí být v env při buildu (Netlify, Vercel, …). */
 export const firebaseConfig = {
   apiKey: env("NEXT_PUBLIC_FIREBASE_API_KEY"),
   authDomain: env("NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN"),
