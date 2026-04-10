@@ -1,26 +1,44 @@
 #!/usr/bin/env node
 /**
- * Ověření Discord Incoming Webhook (stejná URL jako DISCORD_WEBHOOK_URL na serveru).
+ * Ověření Discord Incoming Webhook.
  *
- * Spuštění:
- *   DISCORD_WEBHOOK_URL='https://discord.com/api/webhooks/...' node scripts/test-discord-webhook.mjs
+ * 1) Celá URL jako argument (nejjednodušší — žádné zkracování):
+ *    npm run test:discord-webhook -- 'https://discord.com/api/webhooks/ID/TOKEN'
  *
- * Nebo z .env.local (bez commitu):
- *   set -a && source .env.local 2>/dev/null; set +a; node scripts/test-discord-webhook.mjs
+ * 2) Nebo proměnná prostředí:
+ *    DISCORD_WEBHOOK_URL='https://discord.com/api/webhooks/ID/TOKEN' npm run test:discord-webhook
+ *
+ * POZOR: V příkazu musí být skutečná dlouhá URL z Discordu, NE text „…“ ani „...“ z nápovědy.
  */
 
-const url = process.env.DISCORD_WEBHOOK_URL?.trim();
+const argUrl = process.argv[2];
+const envUrl = process.env.DISCORD_WEBHOOK_URL?.trim();
+const url = (argUrl ?? envUrl)?.trim();
 
 if (!url) {
   console.error(
-    "Chybí DISCORD_WEBHOOK_URL. Zkopíruj URL z Discord → Kanál → Integrace → Webhooks → URL webhooku."
+    "Chybí URL. Použij např.:\n" +
+      "  npm run test:discord-webhook -- 'https://discord.com/api/webhooks/ČÍSLO/DLOUHÝ_TOKEN'\n" +
+      "nebo nastav DISCORD_WEBHOOK_URL (celá adresa z Discord → Integrace → Webhooks)."
   );
   process.exit(1);
 }
 
-if (!url.startsWith("https://discord.com/api/webhooks/")) {
+if (/…|\.\.\.|webhooks\/\.\.\./u.test(url)) {
+  console.error(
+    "URL vypadá jako zkrácený příklad (obsahuje … nebo ...).\n" +
+      "Zkopíruj z Discordu celou adresu webhooku — končí dlouhým náhodným řetězcem."
+  );
+  process.exit(1);
+}
+
+const okPrefix =
+  url.startsWith("https://discord.com/api/webhooks/") ||
+  url.startsWith("https://discordapp.com/api/webhooks/");
+
+if (!okPrefix) {
   console.warn(
-    "Varování: URL obvykle začíná https://discord.com/api/webhooks/ — zkontroluj překlep."
+    "Varování: očekává se https://discord.com/api/webhooks/... (nebo discordapp.com)."
   );
 }
 
@@ -30,7 +48,10 @@ const body = {
 
 const res = await fetch(url, {
   method: "POST",
-  headers: { "Content-Type": "application/json" },
+  headers: {
+    "Content-Type": "application/json",
+    "User-Agent": "ESPORTARENA-tsv-webhook-test (Node)",
+  },
   body: JSON.stringify(body),
 });
 
@@ -43,5 +64,14 @@ if (res.status === 204 || res.ok) {
   process.exit(0);
 }
 
-console.error("\n→ Discord odmítl požadavek. Zkontroluj, jestli webhook nebyl smazán nebo rotován.");
+if (res.status === 405) {
+  console.error(
+    "\n→ HTTP 405 u webhooku casem znamená neplatnou / zkrácenou URL (např. doslova „…“ v adrese),\n" +
+      "  nebo že v proměnné není kompletní odkaz. Znovu zkopíruj „Copy Webhook URL“ z Discordu."
+  );
+}
+
+console.error(
+  "\n→ Discord odmítl požadavek. Zkontroluj celou URL, případně vytvoř nový webhook."
+);
 process.exit(1);
