@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { Resend } from "resend";
 import { adminNewUserEmailHtml } from "@/lib/emails/captain-templates";
+import { notifyDiscordCaptainRegistered } from "@/lib/discord-webhook";
 import { verifyIdTokenFromRequest } from "@/lib/server-auth";
 
 export async function POST(request: Request) {
@@ -13,13 +14,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, error: "Neautorizováno." }, { status: 401 });
   }
 
-  if (!key || !from) {
-    return NextResponse.json(
-      { ok: false, error: "Resend není nakonfigurováno." },
-      { status: 503 }
-    );
-  }
-
   let body: { email?: string };
   try {
     body = await request.json();
@@ -27,6 +21,18 @@ export async function POST(request: Request) {
     body = {};
   }
   const email = body.email ?? user.email;
+
+  await notifyDiscordCaptainRegistered({
+    email,
+    uid: user.uid,
+  });
+
+  if (!key || !from) {
+    return NextResponse.json(
+      { ok: false, error: "Resend není nakonfigurováno." },
+      { status: 503 }
+    );
+  }
 
   const resend = new Resend(key);
   const { error } = await resend.emails.send({

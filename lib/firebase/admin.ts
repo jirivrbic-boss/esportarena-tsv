@@ -16,6 +16,11 @@ function getServiceAccount(): Record<string, unknown> | null {
   }
 }
 
+/** Ověření tokenu a session cookie vyžaduje platný service account na serveru (Netlify env). */
+export function isFirebaseAdminConfigured(): boolean {
+  return getServiceAccount() !== null;
+}
+
 export function getAdminApp(): App {
   if (adminApp) return adminApp;
   const sa = getServiceAccount();

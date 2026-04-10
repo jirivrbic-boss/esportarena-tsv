@@ -48,6 +48,29 @@ function emptyDraft(): Draft {
   };
 }
 
+/** Všechny odkazy na dokumenty hráčů pro Discord (i při úpravě týmu, ne jen nové uploady). */
+function collectRosterDocumentLinks(
+  players: RosterPlayer[],
+  prefix: string
+): { label: string; url: string }[] {
+  const out: { label: string; url: string }[] = [];
+  players.forEach((p, i) => {
+    if (p.studentCertUrl) {
+      out.push({
+        label: `${prefix} ${i + 1} · student`,
+        url: p.studentCertUrl,
+      });
+    }
+    if (!p.isAdult && p.parentConsentUrl) {
+      out.push({
+        label: `${prefix} ${i + 1} · souhlas rodiče`,
+        url: p.parentConsentUrl,
+      });
+    }
+  });
+  return out;
+}
+
 function draftFromRoster(p: RosterPlayer): Draft {
   return {
     firstName: p.firstName,
@@ -404,7 +427,10 @@ export function TeamRegistrationForm({
         `Trenér: ${coachFirst.trim()} ${coachLast.trim()}`,
       ].join("\n");
 
-      const docLinks = [...tRoster.links, ...sRoster.links];
+      const docLinks = [
+        ...collectRosterDocumentLinks(tRoster.players, "Hráč"),
+        ...collectRosterDocumentLinks(sRoster.players, "Náhradník"),
+      ];
 
       await fetch("/api/notifications/discord", {
         method: "POST",
@@ -413,7 +439,9 @@ export function TeamRegistrationForm({
           Authorization: `Bearer ${idToken}`,
         },
         body: JSON.stringify({
-          title: isNew ? `Nový tým · ${game.shortLabel}` : `Aktualizace · ${game.shortLabel}`,
+          title: isNew
+            ? `Přihlášení týmu · ${game.shortLabel}`
+            : `Úprava soupisky · ${game.shortLabel}`,
           teamName: teamName.trim(),
           schoolName: schoolName.trim(),
           captainDiscord: profile.discordUsername ?? "",
@@ -422,6 +450,7 @@ export function TeamRegistrationForm({
           documentLinks: docLinks,
           event: isNew ? "team_created" : "roster_updated",
           gameLabel: game.label,
+          teamId: tid,
         }),
       }).catch(() => {});
 
@@ -451,6 +480,24 @@ export function TeamRegistrationForm({
     );
   }
 
+  async function openFaceitHubWithNotify() {
+    if (!faceitHubUrl || !teamId) return;
+    try {
+      const token = await user.getIdToken();
+      await fetch("/api/notifications/faceit-entry", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ teamId }),
+      });
+    } catch {
+      /* webhook je best-effort */
+    }
+    window.open(faceitHubUrl, "_blank", "noopener,noreferrer");
+  }
+
   if (status === "approved") {
     return (
       <GlassCard className="mx-auto max-w-lg">
@@ -462,7 +509,11 @@ export function TeamRegistrationForm({
             <p className="mt-2 text-slate-400">
               Přístup do Faceit kvalifikace je odemčen.
             </p>
-            <GlowButton href={faceitHubUrl} className="mt-6">
+            <GlowButton
+              type="button"
+              className="mt-6"
+              onClick={() => void openFaceitHubWithNotify()}
+            >
               Otevřít Faceit hub
             </GlowButton>
           </>

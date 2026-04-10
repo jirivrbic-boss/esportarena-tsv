@@ -3,7 +3,7 @@ import { isClientAdminEmail } from "@/lib/admin-client";
 
 /** Nastaví HttpOnly session cookie pro Edge middleware (/admin, /edit). */
 export async function syncFirebaseSessionCookie(user: User): Promise<void> {
-  const token = await user.getIdToken();
+  const token = await user.getIdToken(true);
   const res = await fetch("/api/auth/session", {
     method: "POST",
     headers: { Authorization: `Bearer ${token}` },

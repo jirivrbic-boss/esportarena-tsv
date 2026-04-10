@@ -60,12 +60,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await fetch("/api/auth/session", { method: "DELETE", credentials: "include" });
         return;
       }
-      const token = await u.getIdToken();
-      await fetch("/api/auth/session", {
+      const token = await u.getIdToken(true);
+      const res = await fetch("/api/auth/session", {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
         credentials: "include",
       });
+      if (!res.ok) {
+        const j = (await res.json().catch(() => ({}))) as {
+          error?: string;
+          code?: string;
+        };
+        console.warn(
+          "[ESPORTARENA] Session cookie (/admin):",
+          res.status,
+          j.code ?? "",
+          j.error ?? ""
+        );
+      }
     } catch {
       /* cookie je best-effort pro Edge middleware */
     }

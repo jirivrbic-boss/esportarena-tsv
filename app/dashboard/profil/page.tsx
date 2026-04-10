@@ -95,6 +95,28 @@ export default function DashboardProfilPage() {
       });
 
       const token = await user.getIdToken();
+
+      await fetch("/api/notifications/captain-profile", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          captainEmail: user.email ?? "",
+          phone: phone.trim(),
+          discordUsername: discordUsername.trim(),
+          faceitNickname: faceitNickname.trim(),
+          steamNickname: steamNickname.trim(),
+          isAdult,
+          profileComplete,
+          studentCertUrl: studentCertUrl ?? null,
+          parentConsentUrl: isAdult ? null : (parentConsentUrl ?? null),
+          newStudentUpload: Boolean(studentFile),
+          newParentUpload: Boolean(parentFile),
+        }),
+      }).catch(() => {});
+
       const mail = await postCaptainEmail(token, { kind: "profile_update" });
       if (mail.ok) {
         setSentEmail(true);
