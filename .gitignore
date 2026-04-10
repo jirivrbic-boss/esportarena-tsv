@@ -30,12 +30,18 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
-.env*
+# env files (šablona .env.example se commituje)
+.env
+.env.local
+.env.*.local
+.env.development
+.env.production
 
 # vercel
 .vercel
 
 # typescript
 *.tsbuildinfo
-next-env.d.ts
+
+# lokální fotky v kořeni (veřejné assety jsou v public/fotky/)
+/fotky/

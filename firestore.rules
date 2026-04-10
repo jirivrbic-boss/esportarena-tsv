@@ -1,0 +1,91 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // --- Kapitáni (uid = document ID) ---
+    match /users/{userId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow create: if request.auth != null
+        && request.auth.uid == userId
+        && request.resource.data.email == request.auth.token.email
+        && request.resource.data.keys().hasAll([
+          'email', 'phone', 'discordUsername', 'faceitNickname',
+          'steamNickname', 'isAdult', 'profileComplete'
+        ]);
+      allow update: if request.auth != null
+        && request.auth.uid == userId
+        && request.resource.data.email == resource.data.email;
+      allow delete: if false;
+    }
+
+    // --- Týmy (schvalování řeší Admin SDK / API na serveru) ---
+    match /teams/{teamId} {
+      allow read: if request.auth != null
+        && resource.data.captainId == request.auth.uid;
+
+      allow create: if request.auth != null
+        && request.resource.data.captainId == request.auth.uid
+        && request.resource.data.status == 'pending'
+        && request.resource.data.captainEmail == request.auth.token.email
+        && request.resource.data.teamName is string
+        && request.resource.data.teamName.size() > 0
+        && request.resource.data.teamName.size() <= 200
+        && request.resource.data.schoolName is string
+        && request.resource.data.schoolName.size() > 0
+        && request.resource.data.schoolName.size() <= 200
+        && request.resource.data.captainDiscord is string
+        && request.resource.data.captainDiscord.size() <= 120
+        && request.resource.data.teammates is list
+        && request.resource.data.substitutes is list
+        && request.resource.data.coach is map
+        && request.resource.data.storageMeta is list;
+
+      allow update: if request.auth != null
+        && resource.data.captainId == request.auth.uid
+        && request.resource.data.captainId == resource.data.captainId
+        && resource.data.status == 'pending'
+        && request.resource.data.status == 'pending'
+        && request.resource.data.captainEmail == resource.data.captainEmail
+        && request.resource.data.teamName is string
+        && request.resource.data.teamName.size() <= 200
+        && request.resource.data.schoolName is string
+        && request.resource.data.schoolName.size() <= 200
+        && request.resource.data.captainDiscord is string
+        && request.resource.data.captainDiscord.size() <= 120
+        && request.resource.data.teammates is list
+        && request.resource.data.substitutes is list
+        && request.resource.data.coach is map
+        && request.resource.data.storageMeta is list;
+
+      allow delete: if false;
+    }
+
+    // --- LFG / free agents ---
+    match /free_agents/{docId} {
+      allow read: if true;
+
+      allow create: if request.auth != null
+        && request.resource.data.type in ['looking_team', 'looking_player']
+        && request.resource.data.discordUsername is string
+        && request.resource.data.discordUsername.size() > 0
+        && request.resource.data.discordUsername.size() <= 120
+        && request.resource.data.description is string
+        && request.resource.data.description.size() > 0
+        && request.resource.data.description.size() <= 4000
+        && (request.resource.data.hoursPlayed is int
+            || request.resource.data.hoursPlayed is float)
+        && request.resource.data.hoursPlayed >= 0
+        && request.resource.data.hoursPlayed <= 50000
+        && (request.resource.data.faceitLevel is int
+            || request.resource.data.faceitLevel is float)
+        && request.resource.data.faceitLevel >= 1
+        && request.resource.data.faceitLevel <= 10;
+
+      allow update, delete: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
