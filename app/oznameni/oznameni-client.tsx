@@ -8,7 +8,7 @@ export function OznameniClient({ intro }: { intro: string }) {
     <motion.main
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      className="mx-auto max-w-3xl px-4 py-16 sm:px-6"
+      className="mx-auto max-w-6xl px-4 py-16 sm:px-6"
     >
       <h1 className="font-[family-name:var(--font-bebas)] text-4xl tracking-wide text-white sm:text-5xl">
         Oznámení

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAdminApp, adminDb } from "@/lib/firebase/admin";
 import { verifyIdTokenFromRequest, isSuperAdminEmail } from "@/lib/server-auth";
+import { autoHighlightImportantText } from "@/lib/announcements";
 
 type Body = {
   content: string;
@@ -56,10 +57,18 @@ export async function POST(request: Request) {
   }
 
   const db = adminDb();
+  const fallbackTitle = content
+    .split("\n")
+    .map((x) => x.trim())
+    .find(Boolean)
+    ?.slice(0, 180);
   const ref = await db.collection("announcements").add({
+    title: fallbackTitle || "Oznámení z Discordu",
     content: content || "(příloha)",
+    highlightedContent: autoHighlightImportantText(content || "(příloha)"),
     imageUrl,
     authorName: (body.authorName ?? "Discord").slice(0, 120),
+    category: "general",
     discordMessageId: body.discordMessageId ?? null,
     source: "discord",
     createdAt: new Date(),

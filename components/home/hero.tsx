@@ -7,6 +7,30 @@ import type { HomeCms } from "@/lib/cms-defaults";
 
 const videoUrl = process.env.NEXT_PUBLIC_HERO_VIDEO_URL;
 
+function getYoutubeEmbedUrl(url: string) {
+  try {
+    const parsed = new URL(url);
+
+    if (parsed.hostname.includes("youtu.be")) {
+      const videoId = parsed.pathname.replace("/", "");
+      return videoId
+        ? `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&loop=1&playlist=${videoId}&controls=0&modestbranding=1&rel=0`
+        : null;
+    }
+
+    if (parsed.hostname.includes("youtube.com")) {
+      const videoId = parsed.searchParams.get("v");
+      return videoId
+        ? `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&loop=1&playlist=${videoId}&controls=0&modestbranding=1&rel=0`
+        : null;
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 type HeroProps = Pick<
   HomeCms,
   "heroTagline" | "heroTitle" | "heroTitleAccent" | "heroSubtitle" | "heroPoweredBy"
@@ -19,10 +43,26 @@ export function Hero({
   heroSubtitle,
   heroPoweredBy,
 }: HeroProps) {
+  const youtubeEmbedUrl = videoUrl ? getYoutubeEmbedUrl(videoUrl) : null;
+
   return (
     <section className="relative min-h-[88vh] overflow-hidden">
       <div className="absolute inset-0 bg-gradient-to-b from-[#050505] via-[#070707] to-[#0a0a0a]" />
-      {videoUrl ? (
+      {youtubeEmbedUrl ? (
+        <div className="absolute inset-0 overflow-hidden opacity-40 pointer-events-none">
+          <iframe
+            src={youtubeEmbedUrl}
+            title="Hero video"
+            className="absolute left-1/2 top-1/2 min-h-full min-w-full -translate-x-1/2 -translate-y-1/2"
+            style={{
+              width: "max(100vw, 177.78vh)",
+              height: "max(100vh, 56.25vw)",
+            }}
+            allow="autoplay; encrypted-media; picture-in-picture"
+            referrerPolicy="strict-origin-when-cross-origin"
+          />
+        </div>
+      ) : videoUrl ? (
         <video
           className="absolute inset-0 h-full w-full object-cover opacity-40"
           autoPlay

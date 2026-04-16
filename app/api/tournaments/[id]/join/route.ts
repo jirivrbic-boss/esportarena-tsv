@@ -4,6 +4,8 @@ import { verifyFirebaseClientIdTokenFromRequest } from "@/lib/firebase/verify-cl
 import { adminDb } from "@/lib/firebase/admin";
 import type { TeamDocument } from "@/lib/types";
 import type { TournamentDocument } from "@/lib/tournaments";
+import { gameLabel } from "@/lib/games";
+import { notifyDiscordTournamentJoin } from "@/lib/discord-webhook";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -89,6 +91,16 @@ export async function POST(request: Request, ctx: Ctx) {
       captainId: team.captainId,
       gameId: teamGame,
       registeredAt: FieldValue.serverTimestamp(),
+    });
+
+    await notifyDiscordTournamentJoin({
+      tournamentId,
+      tournamentName: tournament.name ?? "Turnaj",
+      teamId,
+      teamName: team.teamName ?? "Tým",
+      schoolName: team.schoolName,
+      captainEmail: team.captainEmail,
+      gameLabel: gameLabel(teamGame),
     });
 
     return NextResponse.json({ ok: true });

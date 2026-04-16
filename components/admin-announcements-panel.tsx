@@ -2,14 +2,21 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/contexts/auth-context";
+import {
+  ANNOUNCEMENT_CATEGORIES,
+  ANNOUNCEMENT_CATEGORY_LABEL,
+  type AnnouncementCategory,
+} from "@/lib/announcements";
 import { GlassCard } from "@/components/glass-card";
 import { GlowButton } from "@/components/glow-button";
 
 type Row = {
   id: string;
+  title?: string;
   content?: string;
   imageUrl?: string | null;
   authorName?: string;
+  category?: AnnouncementCategory;
   createdAt?: { toMillis?: () => number };
 };
 
@@ -18,11 +25,17 @@ export function AdminAnnouncementsPanel() {
   const [items, setItems] = useState<Row[]>([]);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [newTitle, setNewTitle] = useState("");
   const [newContent, setNewContent] = useState("");
   const [newImage, setNewImage] = useState("");
   const [newAuthor, setNewAuthor] = useState("Administrace");
+  const [newCategory, setNewCategory] = useState<AnnouncementCategory>("general");
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState("");
   const [editContent, setEditContent] = useState("");
+  const [editImage, setEditImage] = useState("");
+  const [editAuthor, setEditAuthor] = useState("");
+  const [editCategory, setEditCategory] = useState<AnnouncementCategory>("general");
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -49,7 +62,7 @@ export function AdminAnnouncementsPanel() {
   }, [load]);
 
   async function createAnnouncement() {
-    if (!user || !newContent.trim()) return;
+    if (!user || !newTitle.trim() || !newAuthor.trim() || !newContent.trim()) return;
     setBusy(true);
     setErr(null);
     try {
@@ -61,9 +74,11 @@ export function AdminAnnouncementsPanel() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
+          title: newTitle.trim(),
           content: newContent.trim(),
           imageUrl: newImage.trim() || null,
           authorName: newAuthor.trim() || "Administrace",
+          category: newCategory,
         }),
       });
       const j = await res.json();
@@ -71,6 +86,7 @@ export function AdminAnnouncementsPanel() {
         setErr(j.error ?? "Uložení selhalo.");
         return;
       }
+      setNewTitle("");
       setNewContent("");
       setNewImage("");
       await load();
@@ -91,7 +107,13 @@ export function AdminAnnouncementsPanel() {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ content: editContent }),
+        body: JSON.stringify({
+          title: editTitle,
+          content: editContent,
+          imageUrl: editImage.trim() || null,
+          authorName: editAuthor,
+          category: editCategory,
+        }),
       });
       const j = await res.json();
       if (!res.ok) {
@@ -128,7 +150,11 @@ export function AdminAnnouncementsPanel() {
 
   function startEdit(row: Row) {
     setEditingId(row.id);
+    setEditTitle(row.title ?? "");
     setEditContent(row.content ?? "");
+    setEditImage(row.imageUrl ?? "");
+    setEditAuthor(row.authorName ?? "");
+    setEditCategory(row.category ?? "general");
   }
 
   return (
@@ -151,12 +177,18 @@ export function AdminAnnouncementsPanel() {
         <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500">
           Nové oznámení
         </label>
+        <input
+          value={newTitle}
+          onChange={(e) => setNewTitle(e.target.value)}
+          className="w-full rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-slate-600"
+          placeholder="Nadpis (tučný titulek článku)"
+        />
         <textarea
           value={newContent}
           onChange={(e) => setNewContent(e.target.value)}
-          rows={4}
+          rows={8}
           className="w-full rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-slate-600"
-          placeholder="Text oznámení…"
+          placeholder="Obsah oznámení…"
         />
         <input
           value={newImage}
@@ -164,15 +196,28 @@ export function AdminAnnouncementsPanel() {
           className="w-full rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-slate-600"
           placeholder="URL obrázku (https://, volitelné)"
         />
-        <input
-          value={newAuthor}
-          onChange={(e) => setNewAuthor(e.target.value)}
-          className="w-full max-w-xs rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white"
-          placeholder="Jméno autora"
-        />
+        <div className="grid gap-3 sm:grid-cols-2">
+          <input
+            value={newAuthor}
+            onChange={(e) => setNewAuthor(e.target.value)}
+            className="w-full rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white"
+            placeholder="Jméno autora"
+          />
+          <select
+            value={newCategory}
+            onChange={(e) => setNewCategory(e.target.value as AnnouncementCategory)}
+            className="w-full rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white"
+          >
+            {ANNOUNCEMENT_CATEGORIES.map((c) => (
+              <option key={c} value={c}>
+                {ANNOUNCEMENT_CATEGORY_LABEL[c]}
+              </option>
+            ))}
+          </select>
+        </div>
         <GlowButton
           type="button"
-          disabled={busy || !newContent.trim()}
+          disabled={busy || !newTitle.trim() || !newAuthor.trim() || !newContent.trim()}
           onClick={() => void createAnnouncement()}
         >
           Publikovat
@@ -194,11 +239,44 @@ export function AdminAnnouncementsPanel() {
               {editingId === row.id ? (
                 <>
                   <textarea
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    rows={2}
+                    className="mb-2 w-full rounded-md border border-white/15 bg-black/50 px-2 py-2 text-slate-200"
+                  />
+                  <textarea
                     value={editContent}
                     onChange={(e) => setEditContent(e.target.value)}
                     rows={5}
                     className="w-full rounded-md border border-white/15 bg-black/50 px-2 py-2 text-slate-200"
                   />
+                  <input
+                    value={editImage}
+                    onChange={(e) => setEditImage(e.target.value)}
+                    className="mt-2 w-full rounded-md border border-white/15 bg-black/50 px-2 py-2 text-slate-200"
+                    placeholder="URL obrázku (https://, volitelné)"
+                  />
+                  <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                    <input
+                      value={editAuthor}
+                      onChange={(e) => setEditAuthor(e.target.value)}
+                      className="w-full rounded-md border border-white/15 bg-black/50 px-2 py-2 text-slate-200"
+                      placeholder="Autor"
+                    />
+                    <select
+                      value={editCategory}
+                      onChange={(e) =>
+                        setEditCategory(e.target.value as AnnouncementCategory)
+                      }
+                      className="w-full rounded-md border border-white/15 bg-black/50 px-2 py-2 text-slate-200"
+                    >
+                      {ANNOUNCEMENT_CATEGORIES.map((c) => (
+                        <option key={c} value={c}>
+                          {ANNOUNCEMENT_CATEGORY_LABEL[c]}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                   <div className="mt-2 flex flex-wrap gap-2">
                     <GlowButton
                       type="button"
@@ -220,7 +298,11 @@ export function AdminAnnouncementsPanel() {
                 </>
               ) : (
                 <>
-                  <p className="text-xs text-[#39FF14]">{row.authorName}</p>
+                  <p className="text-xs text-[#39FF14]">
+                    {row.authorName} ·{" "}
+                    {ANNOUNCEMENT_CATEGORY_LABEL[row.category ?? "general"]}
+                  </p>
+                  <p className="mt-1 text-lg font-semibold text-white">{row.title}</p>
                   <p className="mt-2 whitespace-pre-wrap text-slate-300">{row.content}</p>
                   <div className="mt-3 flex flex-wrap gap-2">
                     <GlowButton

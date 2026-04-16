@@ -16,6 +16,7 @@ type TeamRow = {
   gameId?: GameId;
   teamName?: string;
   schoolName?: string;
+  status?: "pending" | "approved" | "rejected";
   captainEmail?: string;
   captainDiscord?: string;
   teammates?: {
@@ -96,6 +97,8 @@ export default function AdminPage() {
       setErr(e instanceof Error ? e.message : "Chyba sítě");
     }
   }, [user, router, tempBypass]);
+
+  const pendingTeams = teams.filter((team) => team.status === "pending");
 
   useEffect(() => {
     if (loading) return;
@@ -282,12 +285,12 @@ export default function AdminPage() {
       ) : null}
 
       <div className="mt-8 space-y-6">
-        {teams.length === 0 ? (
+        {pendingTeams.length === 0 ? (
           <GlassCard>
             <p className="text-slate-400">Žádné týmy ve stavu „čeká na schválení“.</p>
           </GlassCard>
         ) : (
-          teams.map((t) => (
+          pendingTeams.map((t) => (
             <GlassCard key={t.id}>
               <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div>
@@ -343,6 +346,7 @@ export default function AdminPage() {
           ))
         )}
       </div>
+
     </main>
   );
 }

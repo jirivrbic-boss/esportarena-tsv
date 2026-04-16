@@ -74,7 +74,7 @@ function RoadmapIcon({ kind }: { kind: RoadmapStageIcon }) {
 function StageConnector() {
   return (
     <div
-      className="hidden shrink-0 items-center justify-center self-stretch md:flex md:w-11 lg:w-12"
+      className="hidden shrink-0 items-center justify-center self-stretch md:flex md:w-9 lg:w-10"
       aria-hidden
     >
       <div className="relative flex h-full min-h-[120px] w-full flex-col items-center justify-center overflow-hidden rounded-xl border border-[#39FF14]/25 bg-gradient-to-b from-[#39FF14]/[0.07] via-white/[0.03] to-[#39FF14]/[0.05] shadow-[0_0_24px_rgba(57,255,20,0.08),inset_0_1px_0_rgba(255,255,255,0.06)]">
@@ -144,7 +144,7 @@ export function HomeTournamentRoadmap() {
           Od kvalifikace po finále — přehled fází a formátu.
         </p>
 
-        <div className="mt-12 flex flex-col gap-6 md:mt-14 md:flex-row md:items-stretch md:justify-center md:gap-0">
+        <div className="mt-12 flex flex-col gap-6 md:mt-14 md:flex-row md:items-stretch md:justify-center md:gap-3 lg:gap-4">
           {TOURNAMENT_ROADMAP_STAGES.map((stage, index) => (
             <Fragment key={stage.title}>
               {index > 0 ? <StageConnector /> : null}

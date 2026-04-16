@@ -14,6 +14,8 @@ import Link from "next/link";
 
 export default function DashboardProfilPage() {
   const { user, profile, refreshProfile, firebaseReady } = useAuth();
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [phone, setPhone] = useState("");
   const [discordUsername, setDiscordUsername] = useState("");
   const [faceitNickname, setFaceitNickname] = useState("");
@@ -30,6 +32,8 @@ export default function DashboardProfilPage() {
 
   useEffect(() => {
     if (profile) {
+      setFirstName(profile.firstName ?? "");
+      setLastName(profile.lastName ?? "");
       setPhone(profile.phone ?? "");
       setDiscordUsername(profile.discordUsername ?? "");
       setFaceitNickname(profile.faceitNickname ?? "");
@@ -44,12 +48,14 @@ export default function DashboardProfilPage() {
     if (!user || !firebaseReady) return;
 
     if (
+      !firstName.trim() ||
+      !lastName.trim() ||
       !phone.trim() ||
       !discordUsername.trim() ||
       !faceitNickname.trim() ||
       !steamNickname.trim()
     ) {
-      setError("Vyplň všechny kontaktní údaje.");
+      setError("Vyplň jméno, příjmení a všechny kontaktní údaje.");
       return;
     }
     if (!isAdult && !parentFile && !profile?.parentConsentUrl) {
@@ -82,11 +88,16 @@ export default function DashboardProfilPage() {
       }
 
       const profileComplete = Boolean(
-        studentCertUrl && (isAdult || parentConsentUrl)
+        firstName.trim() &&
+          lastName.trim() &&
+          studentCertUrl &&
+          (isAdult || parentConsentUrl)
       );
 
       await updateDoc(doc(db, "users", uid), {
         email: user.email ?? "",
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
         phone: phone.trim(),
         discordUsername: discordUsername.trim(),
         faceitNickname: faceitNickname.trim(),
@@ -109,6 +120,8 @@ export default function DashboardProfilPage() {
         },
         body: JSON.stringify({
           captainEmail: user.email ?? "",
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
           phone: phone.trim(),
           discordUsername: discordUsername.trim(),
           faceitNickname: faceitNickname.trim(),
@@ -183,6 +196,28 @@ export default function DashboardProfilPage() {
 
       <GlassCard className="mt-8">
         <form onSubmit={onSubmit} className="space-y-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label htmlFor="firstName">Jméno</label>
+              <input
+                id="firstName"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                className="mt-1"
+                required
+              />
+            </div>
+            <div>
+              <label htmlFor="lastName">Příjmení</label>
+              <input
+                id="lastName"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                className="mt-1"
+                required
+              />
+            </div>
+          </div>
           <div>
             <label>E-mail</label>
             <input

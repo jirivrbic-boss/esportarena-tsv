@@ -13,14 +13,16 @@ export async function GET(request: Request) {
 
   try {
     const db = adminDb();
-    const pending = await db
-      .collection("teams")
-      .where("status", "==", "pending")
-      .limit(100)
-      .get();
+    const { searchParams } = new URL(request.url);
+    const scope = searchParams.get("scope");
+    const query =
+      scope === "all"
+        ? db.collection("teams").limit(300)
+        : db.collection("teams").where("status", "==", "pending").limit(100);
+    const snapshot = await query.get();
 
     type Row = { id: string; createdAt?: { toMillis?: () => number } };
-    const teams = pending.docs
+    const teams = snapshot.docs
       .map((d) => ({ id: d.id, ...d.data() }) as Row)
       .sort((a, b) => {
         const ta = a.createdAt?.toMillis?.() ?? 0;

@@ -2,33 +2,22 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import {
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  type Timestamp,
-} from "firebase/firestore";
-import { getFirebaseDb } from "@/lib/firebase/client";
-import { isFirebaseConfigured } from "@/lib/firebase/config";
 import type { GameId } from "@/lib/games";
-import type {
-  TournamentDocument,
-  TournamentRegistrationDocument,
-} from "@/lib/tournaments";
 import {
   TournamentDetailContent,
   type RegistrationRow,
 } from "@/components/tournaments/tournament-detail-content";
+import { PublicTournamentJoinSlot } from "@/components/tournaments/public-tournament-join-slot";
 
-function fmtTs(t: Timestamp | undefined): string {
-  if (!t || typeof t.toDate !== "function") return "—";
-  try {
-    return t.toDate().toLocaleString("cs-CZ");
-  } catch {
-    return "—";
-  }
-}
+type PublicTournament = {
+  name: string;
+  gameId: string;
+  backgroundImageUrl?: string;
+  startsAtMs?: number | null;
+  prizePoolText: string;
+  rulesText: string;
+  faceitUrl: string;
+};
 
 export default function TurnajPublicDetailPage() {
   const params = useParams();
@@ -36,50 +25,29 @@ export default function TurnajPublicDetailPage() {
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [tournament, setTournament] = useState<TournamentDocument | null>(null);
+  const [tournament, setTournament] = useState<PublicTournament | null>(null);
   const [regs, setRegs] = useState<RegistrationRow[]>([]);
 
   const load = useCallback(async () => {
-    if (!id || !isFirebaseConfigured()) {
-      setError(!id ? "Neplatný odkaz." : "Firebase není nakonfigurováno.");
+    if (!id) {
+      setError("Neplatný odkaz.");
       setLoading(false);
       return;
     }
     setLoading(true);
     setError(null);
     try {
-      const db = getFirebaseDb();
-      const tSnap = await getDoc(doc(db, "tournaments", id));
-      if (!tSnap.exists()) {
-        setError("Turnaj neexistuje nebo není zveřejněný.");
-        setTournament(null);
-        setRegs([]);
-        return;
+      const res = await fetch(`/api/tournaments/${id}/public`, { cache: "no-store" });
+      const j = (await res.json().catch(() => ({}))) as {
+        tournament?: PublicTournament;
+        registrations?: RegistrationRow[];
+        error?: string;
+      };
+      if (!res.ok || !j.tournament) {
+        throw new Error(j.error ?? "Turnaj neexistuje nebo není zveřejněný.");
       }
-      const t = tSnap.data() as TournamentDocument;
-      if (!t.published) {
-        setError("Turnaj neexistuje nebo není zveřejněný.");
-        setTournament(null);
-        setRegs([]);
-        return;
-      }
-      setTournament(t);
-
-      const rSnap = await getDocs(
-        collection(db, "tournaments", id, "registrations")
-      );
-      const list: RegistrationRow[] = [];
-      rSnap.forEach((d) => {
-        const x = d.data() as TournamentRegistrationDocument;
-        list.push({
-          teamId: d.id,
-          teamName: x.teamName,
-          schoolName: x.schoolName,
-          registeredAtLabel: fmtTs(x.registeredAt),
-        });
-      });
-      list.sort((a, b) => a.teamName.localeCompare(b.teamName, "cs"));
-      setRegs(list);
+      setTournament(j.tournament);
+      setRegs(j.registrations ?? []);
     } catch {
       setError("Turnaj neexistuje nebo není zveřejněný.");
       setTournament(null);
@@ -115,12 +83,24 @@ export default function TurnajPublicDetailPage() {
     <TournamentDetailContent
       name={tournament.name}
       gameId={gameId}
+      backgroundImageUrl={tournament.backgroundImageUrl}
+      startsAtMs={tournament.startsAtMs ?? null}
       prizePoolText={tournament.prizePoolText}
       rulesText={tournament.rulesText}
       faceitUrl={tournament.faceitUrl}
       registrations={regs}
       backHref="/turnaje"
       backLabel="← Zpět na přehled turnajů"
+      joinSlot={
+        <PublicTournamentJoinSlot
+          tournamentId={id}
+          gameId={gameId}
+          faceitUrl={tournament.faceitUrl}
+          startsAtMs={tournament.startsAtMs ?? null}
+          registeredTeamIds={regs.map((r) => r.teamId)}
+          onJoined={() => void load()}
+        />
+      }
     />
   );
 }

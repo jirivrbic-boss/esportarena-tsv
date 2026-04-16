@@ -2,12 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { collection, getDocs, orderBy, query, where } from "firebase/firestore";
 import { motion } from "framer-motion";
-import { getFirebaseDb } from "@/lib/firebase/client";
-import { isFirebaseConfigured } from "@/lib/firebase/config";
 import { gameLabel, type GameId } from "@/lib/games";
-import type { TournamentDocument } from "@/lib/tournaments";
 import { GlassCard } from "@/components/glass-card";
 
 type Row = {
@@ -23,31 +19,16 @@ export default function DashboardTurnajePage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!isFirebaseConfigured()) {
-      setErr("Firebase není nakonfigurováno.");
-      setLoading(false);
-      return;
-    }
-    const db = getFirebaseDb();
-    const q = query(
-      collection(db, "tournaments"),
-      where("published", "==", true),
-      orderBy("createdAt", "desc")
-    );
-    void getDocs(q)
-      .then((snap) => {
-        const list: Row[] = [];
-        snap.forEach((d) => {
-          const x = d.data() as Partial<TournamentDocument>;
-          const gid = (x.gameId ?? "cs2") as GameId;
-          list.push({
-            id: d.id,
-            name: x.name ?? "Bez názvu",
-            gameId: gid,
-            prizePoolText: x.prizePoolText ?? "",
-          });
-        });
-        setRows(list);
+    void fetch("/api/tournaments/public", { cache: "no-store" })
+      .then(async (res) => {
+        const j = (await res.json().catch(() => ({}))) as {
+          tournaments?: Row[];
+          error?: string;
+        };
+        if (!res.ok) {
+          throw new Error(j.error ?? `Chyba (${res.status})`);
+        }
+        setRows(j.tournaments ?? []);
       })
       .catch((e: Error) => setErr(e.message))
       .finally(() => setLoading(false));

@@ -3,7 +3,7 @@
 import { GlassCard } from "@/components/glass-card";
 
 const channel =
-  process.env.NEXT_PUBLIC_TWITCH_CHANNEL?.trim() || "esportarenaplzen";
+  process.env.NEXT_PUBLIC_TWITCH_CHANNEL?.trim() || "spajkk";
 
 export function TwitchHub() {
   const parent =

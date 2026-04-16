@@ -14,6 +14,8 @@ type Row = {
   id: string;
   name: string;
   gameId: GameId;
+  backgroundImageUrl: string;
+  startsAtMs?: number | null;
   prizePoolText: string;
   rulesText: string;
   faceitUrl: string;
@@ -33,6 +35,10 @@ function TournamentEditor({
 }) {
   const [name, setName] = useState(initial.name);
   const [gameId, setGameId] = useState<GameId>(initial.gameId);
+  const [backgroundImageUrl, setBackgroundImageUrl] = useState(initial.backgroundImageUrl);
+  const [startsAt, setStartsAt] = useState(
+    initial.startsAtMs ? new Date(initial.startsAtMs).toISOString().slice(0, 16) : ""
+  );
   const [prizePoolText, setPrizePoolText] = useState(initial.prizePoolText);
   const [rulesText, setRulesText] = useState(initial.rulesText);
   const [faceitUrl, setFaceitUrl] = useState(initial.faceitUrl);
@@ -43,6 +49,8 @@ function TournamentEditor({
   useEffect(() => {
     setName(initial.name);
     setGameId(initial.gameId);
+    setBackgroundImageUrl(initial.backgroundImageUrl);
+    setStartsAt(initial.startsAtMs ? new Date(initial.startsAtMs).toISOString().slice(0, 16) : "");
     setPrizePoolText(initial.prizePoolText);
     setRulesText(initial.rulesText);
     setFaceitUrl(initial.faceitUrl);
@@ -64,6 +72,8 @@ function TournamentEditor({
           body: JSON.stringify({
             name,
             gameId,
+            backgroundImageUrl,
+            startsAt,
             prizePoolText,
             rulesText,
             faceitUrl,
@@ -87,6 +97,8 @@ function TournamentEditor({
           body: JSON.stringify({
             name,
             gameId,
+            backgroundImageUrl,
+            startsAt,
             prizePoolText,
             rulesText,
             faceitUrl,
@@ -154,6 +166,24 @@ function TournamentEditor({
         </select>
       </div>
       <div>
+        <label className="text-sm text-slate-400">URL obrázku pozadí (volitelné)</label>
+        <input
+          value={backgroundImageUrl}
+          onChange={(e) => setBackgroundImageUrl(e.target.value)}
+          className="mt-1"
+          placeholder="https://…"
+        />
+      </div>
+      <div>
+        <label className="text-sm text-slate-400">Start turnaje (datum + čas)</label>
+        <input
+          type="datetime-local"
+          value={startsAt}
+          onChange={(e) => setStartsAt(e.target.value)}
+          className="mt-1"
+        />
+      </div>
+      <div>
         <label className="text-sm text-slate-400">Prize pool (text)</label>
         <input
           value={prizePoolText}
@@ -216,6 +246,7 @@ const emptyRow = (): Row => ({
   id: "",
   name: "",
   gameId: "cs2",
+  backgroundImageUrl: "",
   prizePoolText: "",
   rulesText: "",
   faceitUrl: "",

@@ -36,6 +36,9 @@ service cloud.firestore {
         && request.resource.data.schoolName is string
         && request.resource.data.schoolName.size() > 0
         && request.resource.data.schoolName.size() <= 200
+        && request.resource.data.schoolFullName is string
+        && request.resource.data.schoolFullName.size() > 0
+        && request.resource.data.schoolFullName.size() <= 300
         && request.resource.data.captainDiscord is string
         && request.resource.data.captainDiscord.size() <= 120
         && request.resource.data.teammates is list
@@ -53,13 +56,16 @@ service cloud.firestore {
           || (!resource.data.keys().hasAll(['gameId'])
             && request.resource.data.gameId == 'cs2')
         )
-        && resource.data.status == 'pending'
-        && request.resource.data.status == 'pending'
+        && resource.data.status in ['pending', 'approved']
+        && request.resource.data.status == resource.data.status
         && request.resource.data.captainEmail == resource.data.captainEmail
         && request.resource.data.teamName is string
         && request.resource.data.teamName.size() <= 200
         && request.resource.data.schoolName is string
         && request.resource.data.schoolName.size() <= 200
+        && request.resource.data.schoolFullName is string
+        && request.resource.data.schoolFullName.size() > 0
+        && request.resource.data.schoolFullName.size() <= 300
         && request.resource.data.captainDiscord is string
         && request.resource.data.captainDiscord.size() <= 120
         && request.resource.data.teammates is list

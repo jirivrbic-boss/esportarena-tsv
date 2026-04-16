@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import {
   collection,
@@ -84,6 +85,27 @@ function draftFromRoster(p: RosterPlayer): Draft {
   };
 }
 
+function getFriendlySubmitErrorMessage(error: unknown): string {
+  const message = error instanceof Error ? error.message : "";
+
+  if (
+    message.includes("Unsupported field value") ||
+    message.includes("Function updateDoc() called with invalid data")
+  ) {
+    return "Registraci se nepodařilo dokončit kvůli neplatným datům v soupisce. Zkus to prosím odeslat znovu.";
+  }
+
+  if (message.includes("Missing or insufficient permissions")) {
+    return "Nemáš oprávnění k této akci. Zkus se odhlásit a znovu přihlásit.";
+  }
+
+  if (message.includes("network") || message.includes("Network")) {
+    return "Odeslání selhalo kvůli problému s připojením. Zkus to prosím znovu.";
+  }
+
+  return message || "Odeslání selhalo.";
+}
+
 async function fetchElo(
   nickname: string,
   idToken: string
@@ -96,6 +118,33 @@ async function fetchElo(
   const j = await res.json();
   if (!j.ok) return null;
   return typeof j.elo === "number" ? j.elo : null;
+}
+
+async function buildCaptainPlayer(
+  user: User,
+  profile: CaptainProfile,
+  idToken: string,
+  usesFaceit: boolean
+): Promise<RosterPlayer> {
+  const elo = usesFaceit ? await fetchElo(profile.faceitNickname, idToken) : null;
+  const captain: RosterPlayer = {
+    firstName: profile.firstName.trim(),
+    lastName: profile.lastName.trim(),
+    faceitNickname: profile.faceitNickname.trim(),
+    isAdult: profile.isAdult,
+  };
+
+  if (profile.studentCertUrl) {
+    captain.studentCertUrl = profile.studentCertUrl;
+  }
+  if (!profile.isAdult && profile.parentConsentUrl) {
+    captain.parentConsentUrl = profile.parentConsentUrl;
+  }
+  if (usesFaceit) {
+    captain.faceitElo = elo;
+  }
+
+  return captain;
 }
 
 export function TeamRegistrationForm({
@@ -116,10 +165,9 @@ export function TeamRegistrationForm({
   const usesFaceit = game.usesFaceitElo;
   const [teamId, setTeamId] = useState<string | null>(null);
   const [status, setStatus] = useState<TeamStatus | null>(null);
-  const [faceitHubUrl, setFaceitHubUrl] = useState<string | null>(null);
   const [rejectionReason, setRejectionReason] = useState<string | null>(null);
-  const [teamName, setTeamName] = useState("");
-  const [schoolName, setSchoolName] = useState("");
+  const [schoolName, setSchoolName] = useState(""); // zkratka školy
+  const [schoolFullName, setSchoolFullName] = useState("");
   const [teammates, setTeammates] = useState<Draft[]>(() => [
     emptyDraft(),
     emptyDraft(),
@@ -130,8 +178,28 @@ export function TeamRegistrationForm({
   const [coachFirst, setCoachFirst] = useState("");
   const [coachLast, setCoachLast] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [loadingTeam, setLoadingTeam] = useState(true);
+  const [registrationModal, setRegistrationModal] = useState<"submitting" | "success" | null>(
+    null
+  );
+  const [showTeamPreview, setShowTeamPreview] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
+  const [expandedTeammates, setExpandedTeammates] = useState<boolean[]>([
+    true,
+    true,
+    true,
+    true,
+  ]);
+  const [expandedSubs, setExpandedSubs] = useState<boolean[]>([]);
+  const resolvedTeamName = schoolName.trim();
+  const captainPreview: RosterPlayer = {
+    firstName: profile.firstName ?? "",
+    lastName: profile.lastName ?? "",
+    faceitNickname: profile.faceitNickname ?? "",
+    isAdult: Boolean(profile.isAdult),
+  };
 
   const loadTeam = useCallback(async () => {
     const db = getFirebaseDb();
@@ -163,28 +231,25 @@ export function TeamRegistrationForm({
     }
     const data = d.data() as {
       status: TeamStatus;
-      faceitHubUrl?: string;
       rejectionReason?: string;
-      teamName?: string;
       schoolName?: string;
+      schoolFullName?: string;
       teammates?: RosterPlayer[];
       substitutes?: RosterPlayer[];
       coach?: { firstName?: string; lastName?: string };
     };
     setTeamId(d.id);
     setStatus(data.status);
-    setFaceitHubUrl(data.faceitHubUrl ?? null);
     setRejectionReason(data.rejectionReason ?? null);
-    setTeamName(data.teamName ?? "");
     setSchoolName(data.schoolName ?? "");
+    setSchoolFullName(data.schoolFullName ?? "");
     if (data.teammates?.length === 4) {
       setTeammates(data.teammates.map(draftFromRoster));
+      setExpandedTeammates([false, false, false, false]);
     }
-    setSubs(
-      data.substitutes?.length
-        ? data.substitutes.map(draftFromRoster)
-        : []
-    );
+    const loadedSubs = data.substitutes?.length ? data.substitutes.map(draftFromRoster) : [];
+    setSubs(loadedSubs);
+    setExpandedSubs(loadedSubs.map(() => false));
     setCoachFirst(data.coach?.firstName ?? "");
     setCoachLast(data.coach?.lastName ?? "");
     setLoadingTeam(false);
@@ -194,15 +259,50 @@ export function TeamRegistrationForm({
     void loadTeam();
   }, [loadTeam]);
 
+  useEffect(() => {
+    setIsMounted(true);
+    return () => setIsMounted(false);
+  }, []);
+
   function setTeammate(i: number, patch: Partial<Draft>) {
+    const identityChanged =
+      patch.firstName !== undefined ||
+      patch.lastName !== undefined ||
+      patch.faceitNickname !== undefined ||
+      patch.isAdult !== undefined;
     setTeammates((prev) =>
-      prev.map((t, idx) => (idx === i ? { ...t, ...patch } : t))
+      prev.map((t, idx) =>
+        idx === i
+          ? {
+              ...t,
+              ...patch,
+              ...(identityChanged
+                ? { existingStudentUrl: undefined, existingParentUrl: undefined }
+                : {}),
+            }
+          : t
+      )
     );
   }
 
   function setSub(i: number, patch: Partial<Draft>) {
+    const identityChanged =
+      patch.firstName !== undefined ||
+      patch.lastName !== undefined ||
+      patch.faceitNickname !== undefined ||
+      patch.isAdult !== undefined;
     setSubs((prev) =>
-      prev.map((t, idx) => (idx === i ? { ...t, ...patch } : t))
+      prev.map((t, idx) =>
+        idx === i
+          ? {
+              ...t,
+              ...patch,
+              ...(identityChanged
+                ? { existingStudentUrl: undefined, existingParentUrl: undefined }
+                : {}),
+            }
+          : t
+      )
     );
   }
 
@@ -261,18 +361,23 @@ export function TeamRegistrationForm({
         }
       }
 
-      const elo = usesFaceit
-        ? await fetchElo(d.faceitNickname, idToken)
-        : null;
-      players.push({
+      const elo = usesFaceit ? await fetchElo(d.faceitNickname, idToken) : null;
+      const player: RosterPlayer = {
         firstName: d.firstName.trim(),
         lastName: d.lastName.trim(),
         faceitNickname: d.faceitNickname.trim(),
         isAdult: d.isAdult,
-        studentCertUrl: studentCertUrl || undefined,
-        parentConsentUrl,
-        faceitElo: elo,
-      });
+      };
+      if (studentCertUrl) {
+        player.studentCertUrl = studentCertUrl;
+      }
+      if (parentConsentUrl) {
+        player.parentConsentUrl = parentConsentUrl;
+      }
+      if (usesFaceit) {
+        player.faceitElo = elo;
+      }
+      players.push(player);
     }
     return { players, storageMeta, links };
   }
@@ -280,9 +385,10 @@ export function TeamRegistrationForm({
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    setInfo(null);
 
-    if (!profile.profileComplete) {
-      setError("Nejdřív dokonči profil kapitána.");
+    if (!profile.firstName?.trim() || !profile.lastName?.trim() || !profile.profileComplete) {
+      setError("Nejdřív dokonči profil kapitána včetně jména a příjmení.");
       router.push("/dashboard/profil");
       return;
     }
@@ -291,8 +397,8 @@ export function TeamRegistrationForm({
 
     const isNewTeam = !teamId;
 
-    if (!teamName.trim() || !schoolName.trim()) {
-      setError("Vyplň název týmu a školu.");
+    if (!schoolName.trim() || !schoolFullName.trim()) {
+      setError("Vyplň zkratku školy a plný název školy.");
       return;
     }
     if (subs.length > 2) {
@@ -328,11 +434,15 @@ export function TeamRegistrationForm({
     }
 
     setPending(true);
+    if (isNewTeam) {
+      setRegistrationModal("submitting");
+    }
     try {
       const idToken = await user.getIdToken();
       const db = getFirebaseDb();
       const tid = teamId ?? doc(collection(db, "teams")).id;
       const isNew = isNewTeam;
+      const captainPlayer = await buildCaptainPlayer(user, profile, idToken, usesFaceit);
 
       if (isNew) {
         await setDoc(doc(db, "teams", tid), {
@@ -340,8 +450,10 @@ export function TeamRegistrationForm({
           gameId,
           captainEmail: user.email ?? "",
           captainDiscord: profile.discordUsername ?? "",
-          teamName: teamName.trim(),
+          teamName: resolvedTeamName,
           schoolName: schoolName.trim(),
+          schoolFullName: schoolFullName.trim(),
+          captainPlayer,
           status: "pending",
           teammates: [],
           substitutes: [],
@@ -399,8 +511,10 @@ export function TeamRegistrationForm({
 
       await updateDoc(doc(db, "teams", tid), {
         gameId,
-        teamName: teamName.trim(),
+        teamName: resolvedTeamName,
         schoolName: schoolName.trim(),
+        schoolFullName: schoolFullName.trim(),
+        captainPlayer,
         teammates: tRoster.players,
         substitutes: sRoster.players,
         coach: {
@@ -442,8 +556,9 @@ export function TeamRegistrationForm({
           title: isNew
             ? `Přihlášení týmu · ${game.shortLabel}`
             : `Úprava soupisky · ${game.shortLabel}`,
-          teamName: teamName.trim(),
+          teamName: resolvedTeamName,
           schoolName: schoolName.trim(),
+          schoolFullName: schoolFullName.trim(),
           captainDiscord: profile.discordUsername ?? "",
           captainEmail: user.email ?? "",
           playerSummary,
@@ -456,7 +571,7 @@ export function TeamRegistrationForm({
 
       const mail = await postCaptainEmail(idToken, {
         kind: "team_submitted",
-        teamName: teamName.trim(),
+        teamName: resolvedTeamName,
         schoolName: schoolName.trim(),
         gameLabel: game.label,
       });
@@ -465,10 +580,15 @@ export function TeamRegistrationForm({
       }
 
       setStatus("pending");
+      setInfo("Registrace týmu byla odeslána adminovi na schválení.");
+      if (isNewTeam) {
+        setRegistrationModal("success");
+      }
       await loadTeam();
       onSaved?.();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Odeslání selhalo.");
+      setRegistrationModal(null);
+      setError(getFriendlySubmitErrorMessage(err));
     } finally {
       setPending(false);
     }
@@ -480,51 +600,206 @@ export function TeamRegistrationForm({
     );
   }
 
-  async function openFaceitHubWithNotify() {
-    if (!faceitHubUrl || !teamId) return;
-    try {
-      const token = await user.getIdToken();
-      await fetch("/api/notifications/faceit-entry", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ teamId }),
-      });
-    } catch {
-      /* webhook je best-effort */
-    }
-    window.open(faceitHubUrl, "_blank", "noopener,noreferrer");
-  }
-
   if (status === "approved") {
     return (
-      <GlassCard className="mx-auto max-w-lg">
-        <h2 className="font-[family-name:var(--font-bebas)] text-3xl text-[#39FF14]">
-          Tým schválen · {game.shortLabel}
-        </h2>
-        {usesFaceit && faceitHubUrl ? (
-          <>
-            <p className="mt-2 text-slate-400">
-              Přístup do Faceit kvalifikace je odemčen.
-            </p>
+      <>
+        <GlassCard className="mx-auto max-w-lg">
+          <h2 className="font-[family-name:var(--font-bebas)] text-3xl text-[#39FF14]">
+            Tým schválen · {game.shortLabel}
+          </h2>
+          <p className="mt-2 text-slate-400">
+            Tým je schválený v našem systému. Účast ve Faceit kvalifikaci se řeší
+            samostatně přes organizátora.
+          </p>
+          <p className="mt-2 text-sm text-slate-500">
+            Potřebuješ upravit soupisku? V tomto stavu ji můžeš dál upravovat zde.
+          </p>
+          <div className="mt-6 flex flex-wrap gap-3">
+            <GlowButton type="button" onClick={() => setShowTeamPreview(true)}>
+              Zobrazit tým
+            </GlowButton>
+            <GlowButton type="button" onClick={() => setStatus("pending")}>
+              Upravit tým
+            </GlowButton>
             <GlowButton
               type="button"
-              className="mt-6"
-              onClick={() => void openFaceitHubWithNotify()}
+              variant="ghost"
+              onClick={() => {
+                setStatus("pending");
+                setExpandedTeammates([true, true, true, true]);
+                setExpandedSubs(subs.map(() => true));
+              }}
             >
-              Otevřít Faceit hub
+              Upravit tým (rozbalit vše)
             </GlowButton>
-          </>
-        ) : (
-          <p className="mt-2 text-slate-400">
-            {usesFaceit
-              ? "Administrátoři doplní odkaz na Faceit hub — sleduj Discord a e-mail."
-              : "Další kroky k soutěži v této hře najdeš na oficiálním Discordu turnaje."}
-          </p>
-        )}
-      </GlassCard>
+            {teamId ? (
+              <GlowButton
+                type="button"
+                variant="ghost"
+                onClick={async () => {
+                  if (!teamId) return;
+                  if (!window.confirm("Opravdu chceš smazat tým?")) return;
+                  setPending(true);
+                  setError(null);
+                  try {
+                    const token = await user.getIdToken();
+                    const res = await fetch(`/api/teams/${teamId}/captain-delete`, {
+                      method: "DELETE",
+                      headers: { Authorization: `Bearer ${token}` },
+                    });
+                    const j = (await res.json().catch(() => ({}))) as { error?: string };
+                    if (!res.ok) {
+                      setError(j.error ?? "Smazání týmu selhalo.");
+                      return;
+                    }
+                    setInfo("Tým byl smazán.");
+                    await loadTeam();
+                    onSaved?.();
+                  } finally {
+                    setPending(false);
+                  }
+                }}
+              >
+                Smazat tým
+              </GlowButton>
+            ) : null}
+          </div>
+        </GlassCard>
+
+        {showTeamPreview && isMounted
+          ? createPortal(
+              <div
+                className="fixed inset-0 z-[100] flex items-center justify-center bg-black/75 p-4"
+                onClick={() => setShowTeamPreview(false)}
+              >
+                <div
+                  className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-xl border border-white/10 bg-[#111] p-6 shadow-2xl"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <h3 className="font-[family-name:var(--font-bebas)] text-3xl text-[#39FF14]">
+                        {resolvedTeamName || schoolName || "Tým"}
+                      </h3>
+                      <p className="mt-1 text-sm text-slate-300">
+                        {schoolName || "Škola neuvedena"}
+                      </p>
+                      {schoolFullName ? (
+                        <p className="mt-1 text-sm text-slate-500">{schoolFullName}</p>
+                      ) : null}
+                      <p className="mt-1 text-sm font-medium text-[#39FF14]">{game.label}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowTeamPreview(false)}
+                      className="text-slate-400 hover:text-white"
+                    >
+                      ✕
+                    </button>
+                  </div>
+
+                  <div className="mt-6">
+                    <h4 className="font-[family-name:var(--font-bebas)] text-2xl text-white">
+                      Sestava
+                    </h4>
+                    <div className="mt-4 grid gap-4 md:grid-cols-2">
+                      <div className="rounded-lg border border-white/10 bg-black/30 px-4 py-3">
+                        <p className="text-xs uppercase tracking-wide text-slate-500">Kapitán</p>
+                        <p className="mt-2 text-sm font-medium text-white">
+                          {[captainPreview.firstName, captainPreview.lastName]
+                            .filter(Boolean)
+                            .join(" ") || "Jméno neuvedeno"}
+                        </p>
+                        {captainPreview.faceitNickname ? (
+                          <a
+                            href={`https://www.faceit.com/en/players/${encodeURIComponent(
+                              captainPreview.faceitNickname
+                            )}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="mt-2 inline-flex items-center gap-2 text-sm text-[#39FF14] hover:underline"
+                          >
+                            <span aria-hidden>🎮</span>
+                            Faceit: {captainPreview.faceitNickname}
+                          </a>
+                        ) : (
+                          <p className="mt-2 text-sm text-slate-500">
+                            Faceit nick není vyplněný
+                          </p>
+                        )}
+                      </div>
+
+                      {teammates.map((player, index) => (
+                        <div
+                          key={`preview-main-${index}`}
+                          className="rounded-lg border border-white/10 bg-black/30 px-4 py-3"
+                        >
+                          <p className="text-xs uppercase tracking-wide text-slate-500">
+                            Hráč #{index + 1}
+                          </p>
+                          <p className="mt-2 text-sm font-medium text-white">
+                            {[player.firstName, player.lastName].filter(Boolean).join(" ") ||
+                              "Jméno neuvedeno"}
+                          </p>
+                          {player.faceitNickname ? (
+                            <a
+                              href={`https://www.faceit.com/en/players/${encodeURIComponent(
+                                player.faceitNickname
+                              )}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="mt-2 inline-flex items-center gap-2 text-sm text-[#39FF14] hover:underline"
+                            >
+                              <span aria-hidden>🎮</span>
+                              Faceit: {player.faceitNickname}
+                            </a>
+                          ) : (
+                            <p className="mt-2 text-sm text-slate-500">
+                              Faceit nick není vyplněný
+                            </p>
+                          )}
+                        </div>
+                      ))}
+
+                      {subs.map((player, index) => (
+                        <div
+                          key={`preview-sub-${index}`}
+                          className="rounded-lg border border-white/10 bg-black/30 px-4 py-3"
+                        >
+                          <p className="text-xs uppercase tracking-wide text-slate-500">
+                            Náhradník #{index + 1}
+                          </p>
+                          <p className="mt-2 text-sm font-medium text-white">
+                            {[player.firstName, player.lastName].filter(Boolean).join(" ") ||
+                              "Jméno neuvedeno"}
+                          </p>
+                          {player.faceitNickname ? (
+                            <a
+                              href={`https://www.faceit.com/en/players/${encodeURIComponent(
+                                player.faceitNickname
+                              )}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="mt-2 inline-flex items-center gap-2 text-sm text-[#39FF14] hover:underline"
+                            >
+                              <span aria-hidden>🎮</span>
+                              Faceit: {player.faceitNickname}
+                            </a>
+                          ) : (
+                            <p className="mt-2 text-sm text-slate-500">
+                              Faceit nick není vyplněný
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>,
+              document.body
+            )
+          : null}
+      </>
     );
   }
 
@@ -550,29 +825,59 @@ export function TeamRegistrationForm({
         <div className="rounded-xl border border-[#39FF14]/25 bg-[#39FF14]/5 px-4 py-3 text-sm text-slate-300">
           <p className="font-semibold text-[#39FF14]">{game.label}</p>
           <p className="mt-1 text-xs text-slate-400">
-            Soupiska 4 hráčů + až 2 náhradníci + trenér. Přesný formát zápasů a
+            Kapitán se přidává automaticky z profilu. Doplň 4 hráče + až 2 náhradníky +
+            trenéra. Přesný formát zápasů a
             počty slotů může upřesnit organizátor na Discordu.
           </p>
           <p className="mt-2 text-xs text-slate-500">{game.playerNickHint}</p>
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
-            <label>Název týmu</label>
-            <input
-              value={teamName}
-              onChange={(e) => setTeamName(e.target.value)}
-              className="mt-1"
-              required
-            />
-          </div>
-          <div>
-            <label>Název školy</label>
+            <label>Zkratka školy (zobrazí se veřejně)</label>
             <input
               value={schoolName}
               onChange={(e) => setSchoolName(e.target.value)}
               className="mt-1"
+              placeholder="např. SPŠ MV Sokolov"
               required
             />
+          </div>
+          <div className="sm:col-span-2">
+            <label>Plný název školy</label>
+            <input
+              value={schoolFullName}
+              onChange={(e) => setSchoolFullName(e.target.value)}
+              className="mt-1"
+              placeholder="např. Střední policejní škola Ministerstva vnitra Sokolov"
+              required
+            />
+          </div>
+        </div>
+
+        <div>
+          <h3 className="font-[family-name:var(--font-bebas)] text-2xl text-white">
+            Kapitán týmu
+          </h3>
+          <div className="mt-4 rounded-xl border border-[#39FF14]/25 bg-[#39FF14]/5 p-4">
+            <p className="text-xs font-bold uppercase tracking-wider text-[#39FF14]">Kapitán</p>
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <div>
+                <label>Jméno</label>
+                <input value={profile.firstName ?? ""} className="mt-1 opacity-70" disabled />
+              </div>
+              <div>
+                <label>Příjmení</label>
+                <input value={profile.lastName ?? ""} className="mt-1 opacity-70" disabled />
+              </div>
+              <div>
+                <label>{nickLabel}</label>
+                <input value={profile.faceitNickname} className="mt-1 opacity-70" disabled />
+              </div>
+            </div>
+            <p className="mt-3 text-xs text-slate-400">
+              Údaje kapitána se berou automaticky z profilu kapitána a v registraci týmu je
+              nelze měnit.
+            </p>
           </div>
         </div>
 
@@ -586,82 +891,121 @@ export function TeamRegistrationForm({
                 key={i}
                 className="rounded-xl border border-white/10 bg-black/20 p-4"
               >
-                <p className="mb-3 text-xs font-bold uppercase tracking-wider text-[#39FF14]">
-                  Hráč {i + 1}
-                </p>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <div>
-                    <label>Jméno</label>
-                    <input
-                      value={t.firstName}
-                      onChange={(e) =>
-                        setTeammate(i, { firstName: e.target.value })
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+                  <p className="text-xs font-bold uppercase tracking-wider text-[#39FF14]">
+                    Hráč {i + 1}
+                  </p>
+                  <div className="flex gap-2">
+                    <GlowButton
+                      type="button"
+                      variant="ghost"
+                      className="!px-3 !py-1 !text-xs"
+                      onClick={() =>
+                        setExpandedTeammates((prev) =>
+                          prev.map((v, idx) => (idx === i ? !v : v))
+                        )
                       }
-                      className="mt-1"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label>Příjmení</label>
-                    <input
-                      value={t.lastName}
-                      onChange={(e) =>
-                        setTeammate(i, { lastName: e.target.value })
-                      }
-                      className="mt-1"
-                      required
-                    />
-                  </div>
-                  <div className="sm:col-span-2">
-                    <label>{nickLabel}</label>
-                    <input
-                      value={t.faceitNickname}
-                      onChange={(e) =>
-                        setTeammate(i, { faceitNickname: e.target.value })
-                      }
-                      className="mt-1"
-                      required
-                    />
+                    >
+                      Upravit hráče
+                    </GlowButton>
+                    <GlowButton
+                      type="button"
+                      variant="ghost"
+                      className="!px-3 !py-1 !text-xs text-red-300"
+                      onClick={() => {
+                        setTeammate(i, emptyDraft());
+                        setExpandedTeammates((prev) =>
+                          prev.map((v, idx) => (idx === i ? true : v))
+                        );
+                      }}
+                    >
+                      Smazat hráče
+                    </GlowButton>
                   </div>
                 </div>
-                <label className="mt-3 flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={t.isAdult}
-                    onChange={(e) =>
-                      setTeammate(i, { isAdult: e.target.checked })
-                    }
-                  />
-                  <span>18+</span>
-                </label>
-                <div className="mt-3">
-                  <label>Potvrzení studenta</label>
-                  <input
-                    type="file"
-                    accept="image/*,.pdf,application/pdf"
-                    onChange={(e) =>
-                      setTeammate(i, {
-                        studentFile: e.target.files?.[0] ?? null,
-                      })
-                    }
-                    className="mt-1 border-0 bg-transparent p-0 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-[#39FF14]/20 file:px-3 file:py-2 file:text-[#39FF14]"
-                  />
-                </div>
-                {!t.isAdult ? (
-                  <div className="mt-2">
-                    <label>Souhlas zákonného zástupce</label>
-                    <input
-                      type="file"
-                      accept="image/*,.pdf,application/pdf"
-                      onChange={(e) =>
-                        setTeammate(i, {
-                          parentFile: e.target.files?.[0] ?? null,
-                        })
-                      }
-                      className="mt-1 border-0 bg-transparent p-0 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-[#39FF14]/20 file:px-3 file:py-2 file:text-[#39FF14]"
-                    />
-                  </div>
-                ) : null}
+                {expandedTeammates[i] ? (
+                  <>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div>
+                        <label>Jméno</label>
+                        <input
+                          value={t.firstName}
+                          onChange={(e) =>
+                            setTeammate(i, { firstName: e.target.value })
+                          }
+                          className="mt-1"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label>Příjmení</label>
+                        <input
+                          value={t.lastName}
+                          onChange={(e) =>
+                            setTeammate(i, { lastName: e.target.value })
+                          }
+                          className="mt-1"
+                          required
+                        />
+                      </div>
+                      <div className="sm:col-span-2">
+                        <label>{nickLabel}</label>
+                        <input
+                          value={t.faceitNickname}
+                          onChange={(e) =>
+                            setTeammate(i, { faceitNickname: e.target.value })
+                          }
+                          className="mt-1"
+                          required
+                        />
+                      </div>
+                    </div>
+                    <label className="mt-3 flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={t.isAdult}
+                        onChange={(e) =>
+                          setTeammate(i, { isAdult: e.target.checked })
+                        }
+                      />
+                      <span>18+</span>
+                    </label>
+                    <div className="mt-3">
+                      <label>Potvrzení studenta</label>
+                      <input
+                        type="file"
+                        accept="image/*,.pdf,application/pdf"
+                        onChange={(e) =>
+                          setTeammate(i, {
+                            studentFile: e.target.files?.[0] ?? null,
+                          })
+                        }
+                        className="mt-1 border-0 bg-transparent p-0 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-[#39FF14]/20 file:px-3 file:py-2 file:text-[#39FF14]"
+                      />
+                    </div>
+                    {!t.isAdult ? (
+                      <div className="mt-2">
+                        <label>Souhlas zákonného zástupce</label>
+                        <input
+                          type="file"
+                          accept="image/*,.pdf,application/pdf"
+                          onChange={(e) =>
+                            setTeammate(i, {
+                              parentFile: e.target.files?.[0] ?? null,
+                            })
+                          }
+                          className="mt-1 border-0 bg-transparent p-0 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-[#39FF14]/20 file:px-3 file:py-2 file:text-[#39FF14]"
+                        />
+                      </div>
+                    ) : null}
+                  </>
+                ) : (
+                  <p className="text-sm text-slate-400">
+                    {t.faceitNickname
+                      ? `${nickLabel}: ${t.faceitNickname}`
+                      : "Hráč zatím není vyplněný."}
+                  </p>
+                )}
               </div>
             ))}
           </div>
@@ -677,7 +1021,10 @@ export function TeamRegistrationForm({
               variant="ghost"
               className="!py-1 !text-xs"
               disabled={subs.length >= 2}
-              onClick={() => setSubs((s) => [...s, emptyDraft()])}
+                onClick={() => {
+                  setSubs((s) => [...s, emptyDraft()]);
+                  setExpandedSubs((s) => [...s, true]);
+                }}
             >
               Přidat náhradníka
             </GlowButton>
@@ -686,7 +1033,10 @@ export function TeamRegistrationForm({
                 type="button"
                 variant="ghost"
                 className="!py-1 !text-xs"
-                onClick={() => setSubs((s) => s.slice(0, -1))}
+                  onClick={() => {
+                    setSubs((s) => s.slice(0, -1));
+                    setExpandedSubs((s) => s.slice(0, -1));
+                  }}
               >
                 Odebrat posledního
               </GlowButton>
@@ -698,74 +1048,111 @@ export function TeamRegistrationForm({
                 key={i}
                 className="rounded-xl border border-white/10 bg-black/20 p-4"
               >
-                <p className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-400">
-                  Náhradník {i + 1}
-                </p>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <div>
-                    <label>Jméno</label>
-                    <input
-                      value={t.firstName}
-                      onChange={(e) =>
-                        setSub(i, { firstName: e.target.value })
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+                  <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                    Náhradník {i + 1}
+                  </p>
+                  <div className="flex gap-2">
+                    <GlowButton
+                      type="button"
+                      variant="ghost"
+                      className="!px-3 !py-1 !text-xs"
+                      onClick={() =>
+                        setExpandedSubs((prev) =>
+                          prev.map((v, idx) => (idx === i ? !v : v))
+                        )
                       }
-                      className="mt-1"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label>Příjmení</label>
-                    <input
-                      value={t.lastName}
-                      onChange={(e) => setSub(i, { lastName: e.target.value })}
-                      className="mt-1"
-                      required
-                    />
-                  </div>
-                  <div className="sm:col-span-2">
-                    <label>{nickLabel}</label>
-                    <input
-                      value={t.faceitNickname}
-                      onChange={(e) =>
-                        setSub(i, { faceitNickname: e.target.value })
-                      }
-                      className="mt-1"
-                      required
-                    />
+                    >
+                      Upravit hráče
+                    </GlowButton>
+                    <GlowButton
+                      type="button"
+                      variant="ghost"
+                      className="!px-3 !py-1 !text-xs text-red-300"
+                      onClick={() => {
+                        setSubs((s) => s.filter((_, idx) => idx !== i));
+                        setExpandedSubs((s) => s.filter((_, idx) => idx !== i));
+                      }}
+                    >
+                      Smazat hráče
+                    </GlowButton>
                   </div>
                 </div>
-                <label className="mt-3 flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={t.isAdult}
-                    onChange={(e) => setSub(i, { isAdult: e.target.checked })}
-                  />
-                  <span>18+</span>
-                </label>
-                <div className="mt-3">
-                  <label>Potvrzení studenta</label>
-                  <input
-                    type="file"
-                    accept="image/*,.pdf,application/pdf"
-                    onChange={(e) =>
-                      setSub(i, { studentFile: e.target.files?.[0] ?? null })
-                    }
-                    className="mt-1 border-0 bg-transparent p-0 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-[#39FF14]/20 file:px-3 file:py-2 file:text-[#39FF14]"
-                  />
-                </div>
-                {!t.isAdult ? (
-                  <div className="mt-2">
-                    <label>Souhlas zákonného zástupce</label>
-                    <input
-                      type="file"
-                      accept="image/*,.pdf,application/pdf"
-                      onChange={(e) =>
-                        setSub(i, { parentFile: e.target.files?.[0] ?? null })
-                      }
-                      className="mt-1 border-0 bg-transparent p-0 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-[#39FF14]/20 file:px-3 file:py-2 file:text-[#39FF14]"
-                    />
-                  </div>
-                ) : null}
+                {expandedSubs[i] ? (
+                  <>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div>
+                        <label>Jméno</label>
+                        <input
+                          value={t.firstName}
+                          onChange={(e) =>
+                            setSub(i, { firstName: e.target.value })
+                          }
+                          className="mt-1"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label>Příjmení</label>
+                        <input
+                          value={t.lastName}
+                          onChange={(e) => setSub(i, { lastName: e.target.value })}
+                          className="mt-1"
+                          required
+                        />
+                      </div>
+                      <div className="sm:col-span-2">
+                        <label>{nickLabel}</label>
+                        <input
+                          value={t.faceitNickname}
+                          onChange={(e) =>
+                            setSub(i, { faceitNickname: e.target.value })
+                          }
+                          className="mt-1"
+                          required
+                        />
+                      </div>
+                    </div>
+                    <label className="mt-3 flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={t.isAdult}
+                        onChange={(e) => setSub(i, { isAdult: e.target.checked })}
+                      />
+                      <span>18+</span>
+                    </label>
+                    <div className="mt-3">
+                      <label>Potvrzení studenta</label>
+                      <input
+                        type="file"
+                        accept="image/*,.pdf,application/pdf"
+                        onChange={(e) =>
+                          setSub(i, { studentFile: e.target.files?.[0] ?? null })
+                        }
+                        className="mt-1 border-0 bg-transparent p-0 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-[#39FF14]/20 file:px-3 file:py-2 file:text-[#39FF14]"
+                      />
+                    </div>
+                    {!t.isAdult ? (
+                      <div className="mt-2">
+                        <label>Souhlas zákonného zástupce</label>
+                        <input
+                          type="file"
+                          accept="image/*,.pdf,application/pdf"
+                          onChange={(e) =>
+                            setSub(i, { parentFile: e.target.files?.[0] ?? null })
+                          }
+                          className="mt-1 border-0 bg-transparent p-0 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-[#39FF14]/20 file:px-3 file:py-2 file:text-[#39FF14]"
+                        />
+                      </div>
+                    ) : null}
+                  </>
+                ) : (
+                  <p className="text-sm text-slate-400">
+                    {t.faceitNickname
+                      ? `${nickLabel}: ${t.faceitNickname}`
+                      : "Náhradník zatím není vyplněný."}
+                  </p>
+                )}
               </div>
             ))}
           </div>
@@ -802,11 +1189,16 @@ export function TeamRegistrationForm({
             {error}
           </p>
         ) : null}
+        {info ? (
+          <p className="text-sm text-[#39FF14]" role="status">
+            {info}
+          </p>
+        ) : null}
 
         {status === "pending" ? (
           <p className="text-sm text-amber-200">
-            Tvůj tým čeká na schválení. Po změně soupisky znovu odešli formulář —
-            administrátoři dostanou upozornění na Discord.
+            Žádost o registraci týmu byla předána na posouzení adminům turnaje. Zkontroluj
+            status žádosti za 24 hodin.
           </p>
         ) : null}
 
@@ -814,6 +1206,44 @@ export function TeamRegistrationForm({
           {pending ? "Odesílám…" : teamId ? "Uložit soupisku" : "Registrovat tým"}
         </GlowButton>
       </form>
+
+      {registrationModal === "submitting" ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4">
+          <div className="w-full max-w-md rounded-xl border border-white/10 bg-[#111] p-6 text-center">
+            <div className="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-white/10 border-t-[#39FF14]" />
+            <h3 className="mt-5 font-[family-name:var(--font-bebas)] text-3xl text-white">
+              Odesílání registrace
+            </h3>
+            <p className="mt-2 text-sm text-slate-300">
+              Počkej chvíli, nahráváme dokumenty a odesíláme tým adminovi ke schválení.
+            </p>
+          </div>
+        </div>
+      ) : null}
+
+      {registrationModal === "success" ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4">
+          <div className="w-full max-w-md rounded-xl border border-white/10 bg-[#111] p-6">
+            <h3 className="font-[family-name:var(--font-bebas)] text-3xl text-[#39FF14]">
+              Registrace odeslána
+            </h3>
+            <p className="mt-2 text-sm text-slate-300">
+              Registrace týmu byla odeslána adminovi na schválení.
+            </p>
+            <p className="mt-2 text-sm text-slate-500">
+              Admin registraci zkontroluje do 24 hodin. Stav žádosti se následně ukáže v
+              přehledu týmů.
+            </p>
+            <GlowButton
+              type="button"
+              className="mt-5 w-full !justify-center"
+              onClick={() => setRegistrationModal(null)}
+            >
+              Rozumím
+            </GlowButton>
+          </div>
+        </div>
+      ) : null}
     </GlassCard>
   );
 }

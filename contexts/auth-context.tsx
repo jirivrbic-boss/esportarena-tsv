@@ -123,6 +123,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const db = getFirebaseDb();
       await setDoc(doc(db, "users", cred.user.uid), {
         email: cred.user.email,
+        firstName: "",
+        lastName: "",
         phone: "",
         discordUsername: "",
         faceitNickname: "",

@@ -33,13 +33,13 @@ export function HomePrizePool() {
             <div className="pointer-events-none absolute left-4 top-4 z-10 h-2 w-2 bg-[#39FF14] shadow-[0_0_12px_#39FF14]" />
             <div className="pointer-events-none absolute right-6 top-8 h-1 w-8 bg-[#39FF14]/40" />
 
-            <div className="absolute inset-0 flex items-end justify-center overflow-hidden pt-4 pb-[28%] sm:pb-[26%] lg:pb-[24%]">
+            <div className="absolute inset-0 flex items-end justify-center overflow-hidden pt-8 pb-[28%] sm:pb-[26%] sm:pt-10 lg:pb-[24%] lg:pt-12">
               <Image
                 src="/fotky/agent.png"
                 alt=""
                 width={900}
                 height={900}
-                className="h-[min(118%,560px)] w-auto max-w-[135%] origin-bottom object-contain object-bottom opacity-95 sm:h-[min(125%,640px)] sm:max-w-[145%] sm:-translate-y-5 lg:h-[min(132%,720px)] lg:max-w-[155%] lg:-translate-y-8"
+                className="h-[min(88%,420px)] w-auto max-w-[100%] origin-bottom object-contain object-bottom opacity-95 sm:h-[min(92%,460px)] sm:max-w-[105%] sm:-translate-y-1 lg:h-[min(96%,500px)] lg:max-w-[110%] lg:-translate-y-2"
                 sizes="(max-width: 1024px) 100vw, 50vw"
                 priority={false}
                 draggable={false}

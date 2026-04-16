@@ -1,4 +1,3 @@
-import { FieldValue } from "firebase-admin/firestore";
 import { NextResponse } from "next/server";
 import { verifyAdminBearer } from "@/lib/server-auth";
 import { adminDb } from "@/lib/firebase/admin";
@@ -18,10 +17,6 @@ export async function POST(
   }
 
   const { id } = await ctx.params;
-  const hubUrl =
-    process.env.NEXT_PUBLIC_FACEIT_HUB_URL ??
-    "https://www.faceit.com/";
-
   try {
     const ref = adminDb().collection("teams").doc(id);
     const snap = await ref.get();
@@ -39,9 +34,6 @@ export async function POST(
 
     await ref.update({
       status: "approved",
-      ...(isCs2
-        ? { faceitHubUrl: hubUrl }
-        : { faceitHubUrl: FieldValue.delete() }),
       updatedAt: new Date(),
     });
 
@@ -53,7 +45,7 @@ export async function POST(
       const sent = await sendTeamApprovedEmail(
         captainEmail,
         teamName,
-        isCs2 ? hubUrl : undefined,
+        undefined,
         gLabel
       );
       emailSent = sent.ok;
@@ -62,7 +54,7 @@ export async function POST(
 
     return NextResponse.json({
       ok: true,
-      faceitHubUrl: isCs2 ? hubUrl : null,
+      faceitHubUrl: null,
       emailSent,
       ...(emailError ? { emailError } : {}),
     });

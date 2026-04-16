@@ -24,10 +24,14 @@ export interface TeamDocument {
   captainId: string;
   /** Hra turnaje; chybějící u starších záznamů = považovat za CS2. */
   gameId?: GameId;
+  /** Zkratka školy (např. SPŠ MV Sokolov) používaná ve výpisech. */
   schoolName: string;
+  /** Plný název školy. */
+  schoolFullName?: string;
   teamName: string;
   status: TeamStatus;
   faceitHubUrl?: string;
+  captainPlayer?: RosterPlayer;
   teammates: RosterPlayer[];
   substitutes: RosterPlayer[];
   coach: CoachRoster;
@@ -42,6 +46,8 @@ export interface TeamDocument {
 
 export interface CaptainProfile {
   email: string;
+  firstName: string;
+  lastName: string;
   phone: string;
   discordUsername: string;
   faceitNickname: string;

@@ -43,6 +43,13 @@ export async function PATCH(request: Request, ctx: Ctx) {
       }
       patch.gameId = g;
     }
+    if (typeof body.backgroundImageUrl === "string") {
+      patch.backgroundImageUrl = body.backgroundImageUrl.trim();
+    }
+    if (typeof body.startsAt === "string") {
+      const raw = body.startsAt.trim();
+      patch.startsAt = raw ? new Date(raw) : null;
+    }
     if (typeof body.prizePoolText === "string") {
       patch.prizePoolText = body.prizePoolText.trim();
     }

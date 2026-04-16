@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { verifyAdminBearer } from "@/lib/server-auth";
 import { adminDb } from "@/lib/firebase/admin";
+import {
+  autoHighlightImportantText,
+  parseAnnouncementCategory,
+} from "@/lib/announcements";
+import { notifyDiscordAnnouncementCreated } from "@/lib/discord-webhook";
 
 async function requireAdminAuth(request: Request) {
   const auth = await verifyAdminBearer(request);
@@ -36,9 +41,11 @@ export async function POST(request: Request) {
   if (deny) return deny;
 
   let body: {
+    title?: string;
     content?: string;
     imageUrl?: string | null;
     authorName?: string;
+    category?: string;
   };
   try {
     body = await request.json();
@@ -46,21 +53,35 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, error: "Neplatné JSON." }, { status: 400 });
   }
 
+  const title = typeof body.title === "string" ? body.title.trim() : "";
   const content = typeof body.content === "string" ? body.content.trim() : "";
-  if (!content) {
-    return NextResponse.json({ ok: false, error: "Chybí text." }, { status: 400 });
+  const authorName = typeof body.authorName === "string" ? body.authorName.trim() : "";
+  if (!title || !content || !authorName) {
+    return NextResponse.json(
+      { ok: false, error: "Vyplň název, autora a obsah oznámení." },
+      { status: 400 }
+    );
   }
 
   try {
     const ref = await adminDb().collection("announcements").add({
+      title: title.slice(0, 180),
       content: content.slice(0, 8000),
+      highlightedContent: autoHighlightImportantText(content.slice(0, 8000)),
       imageUrl:
         body.imageUrl && typeof body.imageUrl === "string" && body.imageUrl.startsWith("https://")
           ? body.imageUrl
           : null,
-      authorName: (body.authorName ?? "Administrace").slice(0, 120),
+      authorName: authorName.slice(0, 120),
+      category: parseAnnouncementCategory(body.category),
       source: "admin",
       createdAt: new Date(),
+    });
+    await notifyDiscordAnnouncementCreated({
+      title: title.slice(0, 180),
+      authorName: authorName.slice(0, 120),
+      category: parseAnnouncementCategory(body.category),
+      announcementId: ref.id,
     });
     return NextResponse.json({ ok: true, id: ref.id });
   } catch (e) {

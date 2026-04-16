@@ -3,7 +3,9 @@ import { FieldValue } from "firebase-admin/firestore";
 import { verifyAdminBearer } from "@/lib/server-auth";
 import { adminDb } from "@/lib/firebase/admin";
 import { parseGameId } from "@/lib/games";
+import { gameLabel } from "@/lib/games";
 import type { TournamentDocument } from "@/lib/tournaments";
+import { notifyDiscordTournamentCreated } from "@/lib/discord-webhook";
 
 export async function GET(request: Request) {
   const auth = await verifyAdminBearer(request);
@@ -27,6 +29,8 @@ export async function GET(request: Request) {
         id: d.id,
         name: x.name ?? "",
         gameId: x.gameId ?? "cs2",
+        backgroundImageUrl: x.backgroundImageUrl ?? "",
+        startsAtMs: x.startsAt?.toMillis?.() ?? null,
         prizePoolText: x.prizePoolText ?? "",
         rulesText: x.rulesText ?? "",
         faceitUrl: x.faceitUrl ?? "",
@@ -60,9 +64,11 @@ export async function POST(request: Request) {
 
   const name = String(body.name ?? "").trim();
   const gameId = parseGameId(String(body.gameId ?? ""));
+  const backgroundImageUrl = String(body.backgroundImageUrl ?? "").trim();
   const prizePoolText = String(body.prizePoolText ?? "").trim();
   const rulesText = String(body.rulesText ?? "").trim();
   const faceitUrl = String(body.faceitUrl ?? "").trim();
+  const startsAtRaw = String(body.startsAt ?? "").trim();
   const published = Boolean(body.published);
 
   if (!name || !gameId) {
@@ -78,12 +84,23 @@ export async function POST(request: Request) {
     await ref.set({
       name,
       gameId,
+      backgroundImageUrl,
+      startsAt: startsAtRaw ? new Date(startsAtRaw) : null,
       prizePoolText,
       rulesText,
       faceitUrl,
       published,
       createdAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
+    });
+    await notifyDiscordTournamentCreated({
+      tournamentId: ref.id,
+      name,
+      gameLabel: gameLabel(gameId),
+      published,
+      startsAt: startsAtRaw
+        ? new Date(startsAtRaw).toLocaleString("cs-CZ")
+        : null,
     });
     return NextResponse.json({ ok: true, id: ref.id });
   } catch (e) {

@@ -9,6 +9,7 @@ import { useAdminTempBypass } from "@/contexts/admin-temp-context";
 const nav = [
   { href: "/admin", label: "Přehled", exact: true },
   { href: "/admin/turnaje", label: "Správa turnajů" },
+  { href: "/admin/tymy", label: "Všechny týmy" },
   { href: "/admin#sprava-oznameni", label: "Oznámení", hash: true },
   { href: "/admin#tymy", label: "Čekající týmy", hash: true },
   { href: "/edit", label: "Úvodní stránka (CMS)" },

@@ -98,3 +98,87 @@ export async function notifyDiscordFaceitHubEntry(input: {
     console.warn("[discord] faceit_entry:", r.error);
   }
 }
+
+export async function notifyDiscordAnnouncementCreated(input: {
+  title: string;
+  authorName: string;
+  category: string;
+  announcementId: string;
+}): Promise<void> {
+  const r = await sendDiscordWebhook({
+    content: "**Nové oznámení** · publikováno administrátorem",
+    embeds: [
+      {
+        title: input.title.slice(0, 256),
+        description: [
+          `**Autor:** ${input.authorName}`,
+          `**Kategorie:** ${input.category}`,
+          `**Announcement ID:** \`${input.announcementId}\``,
+        ].join("\n"),
+      },
+    ],
+  });
+  if (!r.ok && r.status !== 503) {
+    console.warn("[discord] announcement_created:", r.error);
+  }
+}
+
+export async function notifyDiscordTournamentCreated(input: {
+  tournamentId: string;
+  name: string;
+  gameLabel: string;
+  published: boolean;
+  startsAt?: string | null;
+}): Promise<void> {
+  const r = await sendDiscordWebhook({
+    content: "**Nový turnaj** · vytvořen v administraci",
+    embeds: [
+      {
+        title: input.name.slice(0, 256),
+        description: [
+          `**Hra:** ${input.gameLabel}`,
+          `**Stav:** ${input.published ? "Zveřejněný" : "Nezveřejněný"}`,
+          input.startsAt ? `**Start:** ${input.startsAt}` : null,
+          `**Tournament ID:** \`${input.tournamentId}\``,
+        ]
+          .filter(Boolean)
+          .join("\n"),
+      },
+    ],
+  });
+  if (!r.ok && r.status !== 503) {
+    console.warn("[discord] tournament_created:", r.error);
+  }
+}
+
+export async function notifyDiscordTournamentJoin(input: {
+  tournamentId: string;
+  tournamentName: string;
+  teamId: string;
+  teamName: string;
+  schoolName?: string;
+  captainEmail: string;
+  gameLabel?: string;
+}): Promise<void> {
+  const r = await sendDiscordWebhook({
+    content: "**Přihlášení týmu do turnaje** · nová registrace",
+    embeds: [
+      {
+        title: input.tournamentName.slice(0, 256),
+        description: [
+          input.gameLabel ? `**Hra:** ${input.gameLabel}` : null,
+          `**Tým:** ${input.teamName}`,
+          input.schoolName ? `**Škola:** ${input.schoolName}` : null,
+          `**Kapitán:** ${input.captainEmail}`,
+          `**Team ID:** \`${input.teamId}\``,
+          `**Tournament ID:** \`${input.tournamentId}\``,
+        ]
+          .filter(Boolean)
+          .join("\n"),
+      },
+    ],
+  });
+  if (!r.ok && r.status !== 503) {
+    console.warn("[discord] tournament_join:", r.error);
+  }
+}

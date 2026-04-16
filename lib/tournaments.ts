@@ -5,6 +5,10 @@ import type { GameId } from "@/lib/games";
 export type TournamentDocument = {
   name: string;
   gameId: GameId;
+  /** Volitelné pozadí hlavičky turnaje. */
+  backgroundImageUrl?: string;
+  /** Volitelné datum a čas startu turnaje. */
+  startsAt?: Timestamp;
   /** Zobrazení (např. „20 000 Kč“). */
   prizePoolText: string;
   /** Pravidla turnaje (prostý text / markdown-style). */

@@ -22,10 +22,31 @@ async function runStorageCleanup() {
   const now = Date.now();
   const db = adminDb();
   const bucket = adminStorage().bucket();
-
-  const snap = await db.collection("teams").get();
   let deleted = 0;
   const errors: string[] = [];
+  const deletedPaths = new Set<string>();
+
+  async function cleanupBucketPrefix(prefix: "teams/" | "users/") {
+    const [files] = await bucket.getFiles({ prefix });
+    for (const file of files) {
+      const createdAt = file.metadata.timeCreated
+        ? new Date(file.metadata.timeCreated).getTime()
+        : 0;
+      if (!createdAt || now - createdAt < HOURS_48_MS) continue;
+      try {
+        await file.delete({ ignoreNotFound: true });
+        deleted++;
+        deletedPaths.add(file.name);
+      } catch (e) {
+        errors.push(`${file.name}: ${e instanceof Error ? e.message : "err"}`);
+      }
+    }
+  }
+
+  await cleanupBucketPrefix("teams/");
+  await cleanupBucketPrefix("users/");
+
+  const snap = await db.collection("teams").get();
 
   for (const doc of snap.docs) {
     const data = doc.data() as {
@@ -49,13 +70,20 @@ async function runStorageCleanup() {
             : typeof raw?.toMillis === "function"
               ? raw.toMillis()
               : 0;
-      if (!uploaded || now - uploaded < HOURS_48_MS) {
+      if (
+        !deletedPaths.has(m.path) &&
+        (!uploaded || now - uploaded < HOURS_48_MS)
+      ) {
         keep.push(m);
+        continue;
+      }
+      if (deletedPaths.has(m.path)) {
         continue;
       }
       try {
         await bucket.file(m.path).delete({ ignoreNotFound: true });
         deleted++;
+        deletedPaths.add(m.path);
       } catch (e) {
         errors.push(`${m.path}: ${e instanceof Error ? e.message : "err"}`);
       }

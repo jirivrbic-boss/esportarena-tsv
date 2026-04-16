@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { verifyAdminBearer } from "@/lib/server-auth";
 import { adminDb } from "@/lib/firebase/admin";
+import {
+  autoHighlightImportantText,
+  parseAnnouncementCategory,
+} from "@/lib/announcements";
 
 async function requireAdminAuth(request: Request) {
   const auth = await verifyAdminBearer(request);
@@ -22,9 +26,11 @@ export async function PATCH(
 
   const { id } = await ctx.params;
   let body: {
+    title?: string;
     content?: string;
     imageUrl?: string | null;
     authorName?: string;
+    category?: string;
   };
   try {
     body = await request.json();
@@ -39,8 +45,13 @@ export async function PATCH(
   }
 
   const updates: Record<string, unknown> = {};
+  if (typeof body.title === "string") {
+    updates.title = body.title.trim().slice(0, 180);
+  }
   if (typeof body.content === "string") {
-    updates.content = body.content.trim().slice(0, 8000);
+    const trimmed = body.content.trim().slice(0, 8000);
+    updates.content = trimmed;
+    updates.highlightedContent = autoHighlightImportantText(trimmed);
   }
   if (body.imageUrl === null) {
     updates.imageUrl = null;
@@ -49,6 +60,9 @@ export async function PATCH(
   }
   if (typeof body.authorName === "string") {
     updates.authorName = body.authorName.slice(0, 120);
+  }
+  if (body.category !== undefined) {
+    updates.category = parseAnnouncementCategory(body.category);
   }
 
   if (Object.keys(updates).length === 0) {
