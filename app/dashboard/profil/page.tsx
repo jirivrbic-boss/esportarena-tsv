@@ -1,8 +1,19 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
+import { deleteUser } from "firebase/auth";
+import {
+  collection,
+  doc,
+  getDocs,
+  query,
+  serverTimestamp,
+  updateDoc,
+  where,
+  deleteDoc,
+} from "firebase/firestore";
 import { useAuth } from "@/contexts/auth-context";
 import { getFirebaseDb } from "@/lib/firebase/client";
 import { isFirebaseConfigured } from "@/lib/firebase/config";
@@ -13,6 +24,7 @@ import { postCaptainEmail } from "@/lib/client-notifications";
 import Link from "next/link";
 
 export default function DashboardProfilPage() {
+  const router = useRouter();
   const { user, profile, refreshProfile, firebaseReady } = useAuth();
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -29,6 +41,7 @@ export default function DashboardProfilPage() {
   const [emailNotifyError, setEmailNotifyError] = useState<string | null>(null);
   const [discordHookError, setDiscordHookError] = useState<string | null>(null);
   const [accountSavedOk, setAccountSavedOk] = useState(false);
+  const [deletePending, setDeletePending] = useState(false);
 
   useEffect(() => {
     if (profile) {
@@ -165,6 +178,64 @@ export default function DashboardProfilPage() {
       setError(err instanceof Error ? err.message : "Uložení selhalo.");
     } finally {
       setPending(false);
+    }
+  }
+
+  async function onDeleteProfile() {
+    if (!user || !firebaseReady || pending || deletePending) return;
+    const ok = window.confirm(
+      "Opravdu chceš smazat profil? Tímto se smaže účet kapitána i jeho týmy."
+    );
+    if (!ok) return;
+
+    setError(null);
+    setEmailNotifyError(null);
+    setDiscordHookError(null);
+    setSentEmail(false);
+    setAccountSavedOk(false);
+    setDeletePending(true);
+
+    try {
+      const token = await user.getIdToken(true);
+      const db = getFirebaseDb();
+
+      // Nejdřív smaž všechny týmy kapitána přes API, aby nezůstaly sirotčí registrace.
+      const teamsSnap = await getDocs(
+        query(collection(db, "teams"), where("captainId", "==", user.uid))
+      );
+      for (const teamDoc of teamsSnap.docs) {
+        const res = await fetch(`/api/teams/${teamDoc.id}/captain-delete`, {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok && res.status !== 404) {
+          const j = (await res.json().catch(() => ({}))) as { error?: string };
+          throw new Error(j.error ?? `Smazání týmu selhalo (HTTP ${res.status}).`);
+        }
+      }
+
+      await deleteDoc(doc(db, "users", user.uid)).catch(() => {});
+      await fetch("/api/auth/session", {
+        method: "DELETE",
+        credentials: "include",
+      }).catch(() => {});
+      await deleteUser(user);
+
+      router.replace("/");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Smazání profilu selhalo.";
+      if (
+        msg.includes("auth/requires-recent-login") ||
+        msg.toLowerCase().includes("requires-recent-login")
+      ) {
+        setError(
+          "Pro smazání profilu je potřeba čerstvé přihlášení. Odhlas se, přihlas znovu a akci opakuj."
+        );
+      } else {
+        setError(msg);
+      }
+    } finally {
+      setDeletePending(false);
     }
   }
 
@@ -331,9 +402,20 @@ export default function DashboardProfilPage() {
               {emailNotifyError}
             </p>
           ) : null}
-          <GlowButton type="submit" disabled={pending} className="w-full">
-            {pending ? "Ukládám…" : "Uložit profil"}
-          </GlowButton>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <GlowButton type="submit" disabled={pending || deletePending} className="w-full">
+              {pending ? "Ukládám…" : "Uložit profil"}
+            </GlowButton>
+            <GlowButton
+              type="button"
+              variant="ghost"
+              disabled={pending || deletePending}
+              className="w-full"
+              onClick={() => void onDeleteProfile()}
+            >
+              {deletePending ? "Mažu profil…" : "Smazat profil"}
+            </GlowButton>
+          </div>
         </form>
       </GlassCard>
 
