@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { verifyAdminBearer } from "@/lib/server-auth";
 import { adminDb } from "@/lib/firebase/admin";
+import {
+  firebaseAdminUnavailableMessage,
+  isFirebaseAdminRuntimeError,
+} from "@/lib/firebase/runtime-errors";
 
 export async function GET(request: Request) {
   const auth = await verifyAdminBearer(request);
@@ -31,6 +35,9 @@ export async function GET(request: Request) {
       });
     return NextResponse.json({ ok: true, teams });
   } catch (e) {
+    if (isFirebaseAdminRuntimeError(e)) {
+      return NextResponse.json({ ok: true, teams: [], warning: firebaseAdminUnavailableMessage() });
+    }
     const msg = e instanceof Error ? e.message : "Chyba";
     return NextResponse.json(
       { ok: false, error: msg },

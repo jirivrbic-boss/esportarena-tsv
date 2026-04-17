@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { TournamentDocument, TournamentRegistrationDocument } from "@/lib/tournaments";
 import { adminDb } from "@/lib/firebase/admin";
+import { isFirebaseAdminRuntimeError } from "@/lib/firebase/runtime-errors";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -62,6 +63,12 @@ export async function GET(_request: Request, ctx: Ctx) {
       registrations,
     });
   } catch (e) {
+    if (isFirebaseAdminRuntimeError(e)) {
+      return NextResponse.json(
+        { ok: false, error: "Detail turnaje je dočasně nedostupný na tomto hostingu." },
+        { status: 503 }
+      );
+    }
     const msg = e instanceof Error ? e.message : "Chyba serveru";
     return NextResponse.json({ ok: false, error: msg }, { status: 500 });
   }

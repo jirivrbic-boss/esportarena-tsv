@@ -4,6 +4,10 @@ import {
   isFirebaseAdminConfigured,
 } from "@/lib/firebase/admin";
 import { verifyIdTokenFromRequest } from "@/lib/server-auth";
+import {
+  firebaseAdminUnavailableMessage,
+  isFirebaseAdminRuntimeError,
+} from "@/lib/firebase/runtime-errors";
 
 const COOKIE_NAME = "firebase_session";
 /** 5 dní (Firebase session cookie max ~2 týdny). */
@@ -72,6 +76,14 @@ export async function POST(request: Request) {
     res.headers.append("Set-Cookie", sessionCookieHeader(sessionCookie, MAX_AGE_SEC));
     return res;
   } catch (e) {
+    if (isFirebaseAdminRuntimeError(e)) {
+      // Na Cloudflare je session cookie best-effort; klientské přihlášení běží dál.
+      return NextResponse.json({
+        ok: true,
+        code: "session_cookie_unavailable",
+        warning: firebaseAdminUnavailableMessage(),
+      });
+    }
     const msg = e instanceof Error ? e.message : "Chyba session";
     return NextResponse.json({ ok: false, error: msg, code: "session_cookie_error" }, { status: 500 });
   }

@@ -6,6 +6,10 @@ import {
   parseAnnouncementCategory,
 } from "@/lib/announcements";
 import { notifyDiscordAnnouncementCreated } from "@/lib/discord-webhook";
+import {
+  firebaseAdminUnavailableMessage,
+  isFirebaseAdminRuntimeError,
+} from "@/lib/firebase/runtime-errors";
 
 async function requireAdminAuth(request: Request) {
   const auth = await verifyAdminBearer(request);
@@ -31,6 +35,9 @@ export async function GET(request: Request) {
     const items = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
     return NextResponse.json({ ok: true, items });
   } catch (e) {
+    if (isFirebaseAdminRuntimeError(e)) {
+      return NextResponse.json({ ok: true, items: [], warning: firebaseAdminUnavailableMessage() });
+    }
     const msg = e instanceof Error ? e.message : "Chyba";
     return NextResponse.json({ ok: false, error: msg }, { status: 500 });
   }

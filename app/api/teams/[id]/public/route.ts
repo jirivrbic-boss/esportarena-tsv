@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { TeamDocument } from "@/lib/types";
 import { adminDb } from "@/lib/firebase/admin";
+import { isFirebaseAdminRuntimeError } from "@/lib/firebase/runtime-errors";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -38,6 +39,12 @@ export async function GET(_request: Request, ctx: Ctx) {
       },
     });
   } catch (e) {
+    if (isFirebaseAdminRuntimeError(e)) {
+      return NextResponse.json(
+        { ok: false, error: "Detail týmu je dočasně nedostupný na tomto hostingu." },
+        { status: 503 }
+      );
+    }
     const msg = e instanceof Error ? e.message : "Chyba serveru";
     return NextResponse.json({ ok: false, error: msg }, { status: 500 });
   }

@@ -6,6 +6,10 @@ import { parseGameId } from "@/lib/games";
 import { gameLabel } from "@/lib/games";
 import type { TournamentDocument } from "@/lib/tournaments";
 import { notifyDiscordTournamentCreated } from "@/lib/discord-webhook";
+import {
+  firebaseAdminUnavailableMessage,
+  isFirebaseAdminRuntimeError,
+} from "@/lib/firebase/runtime-errors";
 
 export async function GET(request: Request) {
   const auth = await verifyAdminBearer(request);
@@ -41,6 +45,13 @@ export async function GET(request: Request) {
     });
     return NextResponse.json({ ok: true, tournaments });
   } catch (e) {
+    if (isFirebaseAdminRuntimeError(e)) {
+      return NextResponse.json({
+        ok: true,
+        tournaments: [],
+        warning: firebaseAdminUnavailableMessage(),
+      });
+    }
     const msg = e instanceof Error ? e.message : "Chyba";
     return NextResponse.json({ ok: false, error: msg }, { status: 500 });
   }
