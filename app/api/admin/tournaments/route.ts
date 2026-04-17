@@ -2,12 +2,8 @@ import { NextResponse } from "next/server";
 import { verifyAdminBearer } from "@/lib/server-auth";
 import { parseGameId } from "@/lib/games";
 import { gameLabel } from "@/lib/games";
-import type { TournamentDocument } from "@/lib/tournaments";
 import { notifyDiscordTournamentCreated } from "@/lib/discord-webhook";
-import {
-  firebaseAdminUnavailableMessage,
-  isFirebaseAdminRuntimeError,
-} from "@/lib/firebase/runtime-errors";
+import { createTournamentRest, listTournamentsAdminRest } from "@/lib/firebase/firestore-rest-admin";
 
 export async function GET(request: Request) {
   const auth = await verifyAdminBearer(request);
@@ -19,38 +15,9 @@ export async function GET(request: Request) {
   }
 
   try {
-    const { adminDb } = await import("@/lib/firebase/admin");
-    const db = adminDb();
-    const snap = await db
-      .collection("tournaments")
-      .orderBy("createdAt", "desc")
-      .limit(100)
-      .get();
-    const tournaments = snap.docs.map((d) => {
-      const x = d.data() as Partial<TournamentDocument>;
-      return {
-        id: d.id,
-        name: x.name ?? "",
-        gameId: x.gameId ?? "cs2",
-        backgroundImageUrl: x.backgroundImageUrl ?? "",
-        startsAtMs: x.startsAt?.toMillis?.() ?? null,
-        prizePoolText: x.prizePoolText ?? "",
-        rulesText: x.rulesText ?? "",
-        faceitUrl: x.faceitUrl ?? "",
-        published: Boolean(x.published),
-        createdAtMs: x.createdAt?.toMillis?.() ?? null,
-        updatedAtMs: x.updatedAt?.toMillis?.() ?? null,
-      };
-    });
+    const tournaments = await listTournamentsAdminRest();
     return NextResponse.json({ ok: true, tournaments });
   } catch (e) {
-    if (isFirebaseAdminRuntimeError(e)) {
-      return NextResponse.json({
-        ok: true,
-        tournaments: [],
-        warning: firebaseAdminUnavailableMessage(),
-      });
-    }
     const msg = e instanceof Error ? e.message : "Chyba";
     return NextResponse.json({ ok: false, error: msg }, { status: 500 });
   }
@@ -89,27 +56,18 @@ export async function POST(request: Request) {
   }
 
   try {
-    const [{ adminDb }, firestore] = await Promise.all([
-      import("@/lib/firebase/admin"),
-      import("firebase-admin/firestore"),
-    ]);
-    const { FieldValue } = firestore;
-    const db = adminDb();
-    const ref = db.collection("tournaments").doc();
-    await ref.set({
+    const { id } = await createTournamentRest({
       name,
       gameId,
       backgroundImageUrl,
-      startsAt: startsAtRaw ? new Date(startsAtRaw) : null,
+      startsAt: startsAtRaw,
       prizePoolText,
       rulesText,
       faceitUrl,
       published,
-      createdAt: FieldValue.serverTimestamp(),
-      updatedAt: FieldValue.serverTimestamp(),
     });
     await notifyDiscordTournamentCreated({
-      tournamentId: ref.id,
+      tournamentId: id,
       name,
       gameLabel: gameLabel(gameId),
       published,
@@ -117,7 +75,7 @@ export async function POST(request: Request) {
         ? new Date(startsAtRaw).toLocaleString("cs-CZ")
         : null,
     });
-    return NextResponse.json({ ok: true, id: ref.id });
+    return NextResponse.json({ ok: true, id });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Chyba";
     return NextResponse.json({ ok: false, error: msg }, { status: 500 });
