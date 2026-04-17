@@ -15,13 +15,14 @@ function authorizeCron(request: Request): boolean {
 
 async function runStorageCleanup() {
   const now = Date.now();
-  const bucket = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET?.trim();
-  if (!bucket) {
+  const bucketRaw = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET?.trim();
+  if (!bucketRaw) {
     return NextResponse.json(
       { ok: false, error: "Chybí NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET." },
       { status: 503 }
     );
   }
+  const bucketName: string = bucketRaw;
   const token = await getGoogleAccessToken();
   let deleted = 0;
   const errors: string[] = [];
@@ -29,7 +30,7 @@ async function runStorageCleanup() {
 
   async function deleteObject(path: string) {
     const res = await fetch(
-      `https://storage.googleapis.com/storage/v1/b/${encodeURIComponent(bucket)}/o/${encodeURIComponent(path)}`,
+      `https://storage.googleapis.com/storage/v1/b/${encodeURIComponent(bucketName)}/o/${encodeURIComponent(path)}`,
       { method: "DELETE", headers: { Authorization: `Bearer ${token}` } }
     );
     if (res.status === 404) return;
@@ -41,7 +42,7 @@ async function runStorageCleanup() {
 
   async function cleanupBucketPrefix(prefix: "teams/" | "users/") {
     const listRes = await fetch(
-      `https://storage.googleapis.com/storage/v1/b/${encodeURIComponent(bucket)}/o?prefix=${encodeURIComponent(prefix)}&maxResults=1000`,
+      `https://storage.googleapis.com/storage/v1/b/${encodeURIComponent(bucketName)}/o?prefix=${encodeURIComponent(prefix)}&maxResults=1000`,
       { headers: { Authorization: `Bearer ${token}` } }
     );
     if (!listRes.ok) {

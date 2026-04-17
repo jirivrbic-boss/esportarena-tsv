@@ -204,7 +204,7 @@ export type RestTournamentRow = {
   updatedAtMs: number | null;
 };
 
-function mapTournamentDoc(doc: FirestoreDoc): RestTournamentRow {
+function mapTournamentDoc(doc: FirestoreDocResponse): RestTournamentRow {
   const f = doc.fields;
   return {
     id: parseDocId(doc.name),
