@@ -13,17 +13,7 @@ export function isAdminEmail(email: string | undefined): boolean {
 export async function verifyIdTokenFromRequest(
   request: Request
 ): Promise<{ uid: string; email: string | undefined } | null> {
-  const authHeader = request.headers.get("authorization");
-  if (!authHeader?.startsWith("Bearer ")) return null;
-  const token = authHeader.slice(7);
-  try {
-    const { adminAuth } = await import("@/lib/firebase/admin");
-    const app = adminAuth();
-    const decoded = await app.verifyIdToken(token);
-    return { uid: decoded.uid, email: decoded.email };
-  } catch {
-    return null;
-  }
+  return verifyFirebaseClientIdTokenFromRequest(request);
 }
 
 export async function requireAdmin(request: Request) {

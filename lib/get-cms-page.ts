@@ -5,6 +5,7 @@ import {
   type OznameniCms,
   type PravidlaCms,
 } from "@/lib/cms-defaults";
+import { getDocRest } from "@/lib/firebase/firestore-rest-admin";
 
 function deepMerge<T extends Record<string, unknown>>(
   base: T,
@@ -21,19 +22,19 @@ function deepMerge<T extends Record<string, unknown>>(
 export async function getPageContent(slug: CmsSlug): Promise<HomeCms | PravidlaCms | OznameniCms> {
   const defaults = CMS_DEFAULTS[slug];
   try {
-    const { adminDb } = await import("@/lib/firebase/admin");
-    const snap = await adminDb().collection("page_content").doc(slug).get();
-    if (snap.exists) {
-      const data = snap.data() as Record<string, unknown> | undefined;
-      if (data && Object.keys(data).length > 0) {
-        return deepMerge(defaults as Record<string, unknown>, data) as
+    const data = await getDocRest(`page_content/${slug}`);
+    if (data) {
+      const patch = { ...data } as Record<string, unknown>;
+      delete patch.id;
+      if (Object.keys(patch).length > 0) {
+        return deepMerge(defaults as Record<string, unknown>, patch) as
           | HomeCms
           | PravidlaCms
           | OznameniCms;
       }
     }
   } catch {
-    /* Cloudflare Workers nebo build bez firebase-admin => použij default CMS */
+    /* Při chybě API nech default CMS obsah */
   }
   return defaults;
 }
