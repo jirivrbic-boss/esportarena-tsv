@@ -1,4 +1,3 @@
-import { adminDb } from "@/lib/firebase/admin";
 import {
   CMS_DEFAULTS,
   type CmsSlug,
@@ -22,6 +21,7 @@ function deepMerge<T extends Record<string, unknown>>(
 export async function getPageContent(slug: CmsSlug): Promise<HomeCms | PravidlaCms | OznameniCms> {
   const defaults = CMS_DEFAULTS[slug];
   try {
+    const { adminDb } = await import("@/lib/firebase/admin");
     const snap = await adminDb().collection("page_content").doc(slug).get();
     if (snap.exists) {
       const data = snap.data() as Record<string, unknown> | undefined;
@@ -33,7 +33,7 @@ export async function getPageContent(slug: CmsSlug): Promise<HomeCms | PravidlaC
       }
     }
   } catch {
-    /* chybí Admin SDK nebo síť při buildu */
+    /* Cloudflare Workers nebo build bez firebase-admin => použij default CMS */
   }
   return defaults;
 }
