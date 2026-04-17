@@ -8,20 +8,27 @@ type ServiceAccount = {
   project_id?: string;
 };
 
-type FirestoreValue =
+type FirestorePrimitive =
   | { stringValue: string }
   | { booleanValue: boolean }
   | { timestampValue: string }
-  | { nullValue: null };
+  | { nullValue: null }
+  | { integerValue: string }
+  | { doubleValue: number };
 
-type FirestoreDoc = {
+type FirestoreValue =
+  | FirestorePrimitive
+  | { arrayValue: { values?: FirestoreValue[] } }
+  | { mapValue: { fields?: Record<string, FirestoreValue> } };
+
+type FirestoreDocResponse = {
   name: string;
   fields?: Record<string, FirestoreValue>;
   createTime?: string;
   updateTime?: string;
 };
 
-let cachedToken: { value: string; expiresAtMs: number } | null = null;
+let cachedToken: { value: string; expiresAtMs: number; scopeKey: string } | null = null;
 
 function readServiceAccount(): ServiceAccount {
   const raw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON?.trim();
@@ -46,9 +53,19 @@ function readServiceAccount(): ServiceAccount {
   };
 }
 
-async function getGoogleAccessToken(): Promise<string> {
+export async function getGoogleAccessToken(
+  scopes: string[] = [
+    "https://www.googleapis.com/auth/datastore",
+    "https://www.googleapis.com/auth/devstorage.full_control",
+  ]
+): Promise<string> {
   const now = Date.now();
-  if (cachedToken && cachedToken.expiresAtMs - 60_000 > now) {
+  const scopeKey = scopes.slice().sort().join(" ");
+  if (
+    cachedToken &&
+    cachedToken.scopeKey === scopeKey &&
+    cachedToken.expiresAtMs - 60_000 > now
+  ) {
     return cachedToken.value;
   }
 
@@ -58,7 +75,7 @@ async function getGoogleAccessToken(): Promise<string> {
   const exp = iat + 3600;
 
   const assertion = await new SignJWT({
-    scope: "https://www.googleapis.com/auth/datastore",
+    scope: scopes.join(" "),
   })
     .setProtectedHeader({ alg: "RS256", typ: "JWT" })
     .setIssuer(sa.client_email)
@@ -90,6 +107,7 @@ async function getGoogleAccessToken(): Promise<string> {
   cachedToken = {
     value: tokenJson.access_token,
     expiresAtMs: now + (tokenJson.expires_in ?? 3600) * 1000,
+    scopeKey,
   };
   return tokenJson.access_token;
 }
@@ -106,6 +124,51 @@ function firestoreBaseUrl(): string {
 function parseDocId(fullName: string): string {
   const parts = fullName.split("/");
   return parts[parts.length - 1] ?? "";
+}
+
+function encodeFirestoreValue(value: unknown): FirestoreValue {
+  if (value === null || value === undefined) return { nullValue: null };
+  if (value instanceof Date) return { timestampValue: value.toISOString() };
+  if (Array.isArray(value)) {
+    return { arrayValue: { values: value.map((v) => encodeFirestoreValue(v)) } };
+  }
+  if (typeof value === "string") return { stringValue: value };
+  if (typeof value === "boolean") return { booleanValue: value };
+  if (typeof value === "number") {
+    return Number.isInteger(value)
+      ? { integerValue: String(value) }
+      : { doubleValue: value };
+  }
+  if (typeof value === "object") {
+    const fields: Record<string, FirestoreValue> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      fields[k] = encodeFirestoreValue(v);
+    }
+    return { mapValue: { fields } };
+  }
+  return { stringValue: String(value) };
+}
+
+function decodeFirestoreValue(value: FirestoreValue | undefined): unknown {
+  if (!value) return null;
+  if ("nullValue" in value) return null;
+  if ("stringValue" in value) return value.stringValue;
+  if ("booleanValue" in value) return value.booleanValue;
+  if ("timestampValue" in value) return value.timestampValue;
+  if ("integerValue" in value) return Number(value.integerValue);
+  if ("doubleValue" in value) return value.doubleValue;
+  if ("arrayValue" in value) {
+    return (value.arrayValue.values ?? []).map((v) => decodeFirestoreValue(v));
+  }
+  if ("mapValue" in value) {
+    const out: Record<string, unknown> = {};
+    const fields = value.mapValue.fields ?? {};
+    for (const [k, v] of Object.entries(fields)) {
+      out[k] = decodeFirestoreValue(v);
+    }
+    return out;
+  }
+  return null;
 }
 
 function getString(fields: Record<string, FirestoreValue> | undefined, key: string): string {
@@ -165,18 +228,124 @@ function authHeader(token: string): HeadersInit {
   };
 }
 
-export async function listTournamentsAdminRest(): Promise<RestTournamentRow[]> {
+function docUrl(docPath: string): string {
+  return `${firestoreBaseUrl()}/${docPath}`;
+}
+
+function collectionUrl(collectionPath: string): string {
+  return `${firestoreBaseUrl()}/${collectionPath}`;
+}
+
+function mapDocToJson(doc: FirestoreDocResponse): Record<string, unknown> & { id: string } {
+  const out: Record<string, unknown> = { id: parseDocId(doc.name) };
+  const fields = doc.fields ?? {};
+  for (const [k, v] of Object.entries(fields)) out[k] = decodeFirestoreValue(v);
+  return out as Record<string, unknown> & { id: string };
+}
+
+export async function listCollectionDocsRest(
+  collectionPath: string,
+  pageSize = 200
+): Promise<Array<Record<string, unknown> & { id: string }>> {
   const token = await getGoogleAccessToken();
-  const res = await fetch(`${firestoreBaseUrl()}/tournaments?pageSize=200`, {
+  const res = await fetch(`${collectionUrl(collectionPath)}?pageSize=${pageSize}`, {
     headers: authHeader(token),
   });
   if (!res.ok) {
     const t = await res.text().catch(() => "");
     throw new Error(`Firestore list failed (${res.status}): ${t.slice(0, 300)}`);
   }
-  const data = (await res.json()) as { documents?: FirestoreDoc[] };
-  return (data.documents ?? [])
-    .map(mapTournamentDoc)
+  const data = (await res.json()) as { documents?: FirestoreDocResponse[] };
+  return (data.documents ?? []).map(mapDocToJson);
+}
+
+export async function getDocRest(
+  docPath: string
+): Promise<(Record<string, unknown> & { id: string }) | null> {
+  const token = await getGoogleAccessToken();
+  const res = await fetch(docUrl(docPath), { headers: authHeader(token) });
+  if (res.status === 404) return null;
+  if (!res.ok) {
+    const t = await res.text().catch(() => "");
+    throw new Error(`Firestore get failed (${res.status}): ${t.slice(0, 300)}`);
+  }
+  const doc = (await res.json()) as FirestoreDocResponse;
+  return mapDocToJson(doc);
+}
+
+export async function createDocRest(
+  collectionPath: string,
+  data: Record<string, unknown>
+): Promise<{ id: string }> {
+  const token = await getGoogleAccessToken();
+  const fields: Record<string, FirestoreValue> = {};
+  for (const [k, v] of Object.entries(data)) fields[k] = encodeFirestoreValue(v);
+  const res = await fetch(collectionUrl(collectionPath), {
+    method: "POST",
+    headers: authHeader(token),
+    body: JSON.stringify({ fields }),
+  });
+  if (!res.ok) {
+    const t = await res.text().catch(() => "");
+    throw new Error(`Firestore create failed (${res.status}): ${t.slice(0, 300)}`);
+  }
+  const doc = (await res.json()) as FirestoreDocResponse;
+  return { id: parseDocId(doc.name) };
+}
+
+export async function upsertDocRest(
+  docPath: string,
+  data: Record<string, unknown>
+): Promise<void> {
+  const token = await getGoogleAccessToken();
+  const fields: Record<string, FirestoreValue> = {};
+  for (const [k, v] of Object.entries(data)) fields[k] = encodeFirestoreValue(v);
+  const params = new URLSearchParams();
+  for (const key of Object.keys(data)) params.append("updateMask.fieldPaths", key);
+  const res = await fetch(`${docUrl(docPath)}?${params.toString()}`, {
+    method: "PATCH",
+    headers: authHeader(token),
+    body: JSON.stringify({ fields }),
+  });
+  if (!res.ok) {
+    const t = await res.text().catch(() => "");
+    throw new Error(`Firestore patch failed (${res.status}): ${t.slice(0, 300)}`);
+  }
+}
+
+export async function deleteDocRest(docPath: string): Promise<boolean> {
+  const token = await getGoogleAccessToken();
+  const res = await fetch(docUrl(docPath), {
+    method: "DELETE",
+    headers: authHeader(token),
+  });
+  if (res.status === 404) return false;
+  if (!res.ok) {
+    const t = await res.text().catch(() => "");
+    throw new Error(`Firestore delete failed (${res.status}): ${t.slice(0, 300)}`);
+  }
+  return true;
+}
+
+export async function listTournamentsAdminRest(): Promise<RestTournamentRow[]> {
+  const rows = await listCollectionDocsRest("tournaments", 200);
+  return rows
+    .map((r) => ({
+      id: r.id,
+      name: String(r.name ?? ""),
+      gameId: String(r.gameId ?? "cs2"),
+      backgroundImageUrl: String(r.backgroundImageUrl ?? ""),
+      startsAtMs:
+        typeof r.startsAt === "string" ? Date.parse(r.startsAt) || null : null,
+      prizePoolText: String(r.prizePoolText ?? ""),
+      rulesText: String(r.rulesText ?? ""),
+      faceitUrl: String(r.faceitUrl ?? ""),
+      published: Boolean(r.published),
+      createdAtMs:
+        typeof r.createdAt === "string" ? Date.parse(r.createdAt) || null : null,
+      updatedAtMs:
+        typeof r.updatedAt === "string" ? Date.parse(r.updatedAt) || null : null,
+    }))
     .sort((a, b) => (b.createdAtMs ?? 0) - (a.createdAtMs ?? 0));
 }
 
@@ -195,32 +364,16 @@ export async function createTournamentRest(input: {
   faceitUrl: string;
   published: boolean;
 }): Promise<{ id: string }> {
-  const token = await getGoogleAccessToken();
-  const body = {
-    fields: {
-      name: { stringValue: input.name },
-      gameId: { stringValue: input.gameId },
-      backgroundImageUrl: { stringValue: input.backgroundImageUrl },
-      startsAt: input.startsAt
-        ? { timestampValue: new Date(input.startsAt).toISOString() }
-        : { nullValue: null },
-      prizePoolText: { stringValue: input.prizePoolText },
-      rulesText: { stringValue: input.rulesText },
-      faceitUrl: { stringValue: input.faceitUrl },
-      published: { booleanValue: input.published },
-      createdAt: { timestampValue: new Date().toISOString() },
-      updatedAt: { timestampValue: new Date().toISOString() },
-    },
-  };
-  const res = await fetch(`${firestoreBaseUrl()}/tournaments`, {
-    method: "POST",
-    headers: authHeader(token),
-    body: JSON.stringify(body),
+  return createDocRest("tournaments", {
+    name: input.name,
+    gameId: input.gameId,
+    backgroundImageUrl: input.backgroundImageUrl,
+    startsAt: input.startsAt ? new Date(input.startsAt).toISOString() : null,
+    prizePoolText: input.prizePoolText,
+    rulesText: input.rulesText,
+    faceitUrl: input.faceitUrl,
+    published: input.published,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
   });
-  if (!res.ok) {
-    const t = await res.text().catch(() => "");
-    throw new Error(`Firestore create failed (${res.status}): ${t.slice(0, 300)}`);
-  }
-  const doc = (await res.json()) as FirestoreDoc;
-  return { id: parseDocId(doc.name) };
 }

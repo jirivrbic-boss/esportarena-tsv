@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { verifyAdminBearer } from "@/lib/server-auth";
-import { adminDb } from "@/lib/firebase/admin";
 import {
   autoHighlightImportantText,
   parseAnnouncementCategory,
 } from "@/lib/announcements";
+import { deleteDocRest, getDocRest, upsertDocRest } from "@/lib/firebase/firestore-rest-admin";
 
 async function requireAdminAuth(request: Request) {
   const auth = await verifyAdminBearer(request);
@@ -38,9 +38,8 @@ export async function PATCH(
     return NextResponse.json({ ok: false, error: "Neplatné JSON." }, { status: 400 });
   }
 
-  const ref = adminDb().collection("announcements").doc(id);
-  const snap = await ref.get();
-  if (!snap.exists) {
+  const existing = await getDocRest(`announcements/${id}`);
+  if (!existing) {
     return NextResponse.json({ ok: false, error: "Nenalezeno." }, { status: 404 });
   }
 
@@ -70,7 +69,7 @@ export async function PATCH(
   }
 
   try {
-    await ref.update(updates);
+    await upsertDocRest(`announcements/${id}`, updates);
     return NextResponse.json({ ok: true });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Chyba";
@@ -86,14 +85,13 @@ export async function DELETE(
   if (deny) return deny;
 
   const { id } = await ctx.params;
-  const ref = adminDb().collection("announcements").doc(id);
-  const snap = await ref.get();
-  if (!snap.exists) {
+  const exists = await getDocRest(`announcements/${id}`);
+  if (!exists) {
     return NextResponse.json({ ok: false, error: "Nenalezeno." }, { status: 404 });
   }
 
   try {
-    await ref.delete();
+    await deleteDocRest(`announcements/${id}`);
     return NextResponse.json({ ok: true });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Chyba";

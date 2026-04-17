@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
-import { adminDb, adminStorage, getAdminApp } from "@/lib/firebase/admin";
+import {
+  getGoogleAccessToken,
+  listCollectionDocsRest,
+  upsertDocRest,
+} from "@/lib/firebase/firestore-rest-admin";
 
 const HOURS_48_MS = 48 * 60 * 60 * 1000;
 
@@ -10,31 +14,48 @@ function authorizeCron(request: Request): boolean {
 }
 
 async function runStorageCleanup() {
-  try {
-    getAdminApp();
-  } catch {
+  const now = Date.now();
+  const bucket = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET?.trim();
+  if (!bucket) {
     return NextResponse.json(
-      { ok: false, error: "Firebase Admin není nakonfigurováno." },
+      { ok: false, error: "Chybí NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET." },
       { status: 503 }
     );
   }
-
-  const now = Date.now();
-  const db = adminDb();
-  const bucket = adminStorage().bucket();
+  const token = await getGoogleAccessToken();
   let deleted = 0;
   const errors: string[] = [];
   const deletedPaths = new Set<string>();
 
+  async function deleteObject(path: string) {
+    const res = await fetch(
+      `https://storage.googleapis.com/storage/v1/b/${encodeURIComponent(bucket)}/o/${encodeURIComponent(path)}`,
+      { method: "DELETE", headers: { Authorization: `Bearer ${token}` } }
+    );
+    if (res.status === 404) return;
+    if (!res.ok) {
+      const txt = await res.text().catch(() => "");
+      throw new Error(`delete ${res.status}: ${txt.slice(0, 200)}`);
+    }
+  }
+
   async function cleanupBucketPrefix(prefix: "teams/" | "users/") {
-    const [files] = await bucket.getFiles({ prefix });
-    for (const file of files) {
-      const createdAt = file.metadata.timeCreated
-        ? new Date(file.metadata.timeCreated).getTime()
-        : 0;
+    const listRes = await fetch(
+      `https://storage.googleapis.com/storage/v1/b/${encodeURIComponent(bucket)}/o?prefix=${encodeURIComponent(prefix)}&maxResults=1000`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    if (!listRes.ok) {
+      const txt = await listRes.text().catch(() => "");
+      errors.push(`list ${prefix}: ${listRes.status} ${txt.slice(0, 120)}`);
+      return;
+    }
+    const list = (await listRes.json()) as { items?: Array<{ name?: string; timeCreated?: string }> };
+    for (const file of list.items ?? []) {
+      if (!file.name) continue;
+      const createdAt = file.timeCreated ? new Date(file.timeCreated).getTime() : 0;
       if (!createdAt || now - createdAt < HOURS_48_MS) continue;
       try {
-        await file.delete({ ignoreNotFound: true });
+        await deleteObject(file.name);
         deleted++;
         deletedPaths.add(file.name);
       } catch (e) {
@@ -46,30 +67,23 @@ async function runStorageCleanup() {
   await cleanupBucketPrefix("teams/");
   await cleanupBucketPrefix("users/");
 
-  const snap = await db.collection("teams").get();
-
-  for (const doc of snap.docs) {
-    const data = doc.data() as {
-      storageMeta?: { path: string; uploadedAt: { toMillis?: () => number } | Date }[];
-    };
-    const meta = data.storageMeta;
+  const teams = await listCollectionDocsRest("teams", 500);
+  for (const team of teams) {
+    const meta = Array.isArray(team.storageMeta)
+      ? (team.storageMeta as Array<{ path?: string; uploadedAt?: string | number }>)
+      : [];
     if (!meta?.length) continue;
 
     const keep: typeof meta = [];
     for (const m of meta) {
-      const raw = m.uploadedAt as
-        | number
-        | Date
-        | { toMillis?: () => number }
-        | undefined;
+      if (!m.path) continue;
+      const raw = m.uploadedAt;
       const uploaded =
         typeof raw === "number"
           ? raw
-          : raw instanceof Date
-            ? raw.getTime()
-            : typeof raw?.toMillis === "function"
-              ? raw.toMillis()
-              : 0;
+          : typeof raw === "string"
+            ? Date.parse(raw) || 0
+            : 0;
       if (
         !deletedPaths.has(m.path) &&
         (!uploaded || now - uploaded < HOURS_48_MS)
@@ -81,7 +95,7 @@ async function runStorageCleanup() {
         continue;
       }
       try {
-        await bucket.file(m.path).delete({ ignoreNotFound: true });
+        await deleteObject(m.path);
         deleted++;
         deletedPaths.add(m.path);
       } catch (e) {
@@ -89,7 +103,10 @@ async function runStorageCleanup() {
       }
     }
     if (keep.length !== meta.length) {
-      await doc.ref.update({ storageMeta: keep, updatedAt: new Date() });
+      await upsertDocRest(`teams/${team.id}`, {
+        storageMeta: keep,
+        updatedAt: new Date().toISOString(),
+      });
     }
   }
 

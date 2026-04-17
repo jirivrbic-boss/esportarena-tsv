@@ -1,8 +1,12 @@
 import { NextResponse } from "next/server";
-import { FieldValue } from "firebase-admin/firestore";
 import { verifyAdminBearer } from "@/lib/server-auth";
-import { adminDb } from "@/lib/firebase/admin";
 import { parseGameId } from "@/lib/games";
+import {
+  deleteDocRest,
+  getDocRest,
+  listCollectionDocsRest,
+  upsertDocRest,
+} from "@/lib/firebase/firestore-rest-admin";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -25,15 +29,13 @@ export async function PATCH(request: Request, ctx: Ctx) {
   }
 
   try {
-    const db = adminDb();
-    const ref = db.collection("tournaments").doc(id);
-    const snap = await ref.get();
-    if (!snap.exists) {
+    const existing = await getDocRest(`tournaments/${id}`);
+    if (!existing) {
       return NextResponse.json({ ok: false, error: "Turnaj nenalezen." }, { status: 404 });
     }
 
     const patch: Record<string, unknown> = {
-      updatedAt: FieldValue.serverTimestamp(),
+      updatedAt: new Date().toISOString(),
     };
     if (typeof body.name === "string") patch.name = body.name.trim();
     if (body.gameId !== undefined) {
@@ -48,7 +50,7 @@ export async function PATCH(request: Request, ctx: Ctx) {
     }
     if (typeof body.startsAt === "string") {
       const raw = body.startsAt.trim();
-      patch.startsAt = raw ? new Date(raw) : null;
+      patch.startsAt = raw ? new Date(raw).toISOString() : null;
     }
     if (typeof body.prizePoolText === "string") {
       patch.prizePoolText = body.prizePoolText.trim();
@@ -57,7 +59,7 @@ export async function PATCH(request: Request, ctx: Ctx) {
     if (typeof body.faceitUrl === "string") patch.faceitUrl = body.faceitUrl.trim();
     if (typeof body.published === "boolean") patch.published = body.published;
 
-    await ref.update(patch);
+    await upsertDocRest(`tournaments/${id}`, patch);
     return NextResponse.json({ ok: true });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Chyba";
@@ -77,20 +79,16 @@ export async function DELETE(request: Request, ctx: Ctx) {
   const { id } = await ctx.params;
 
   try {
-    const db = adminDb();
-    const tRef = db.collection("tournaments").doc(id);
-    const snap = await tRef.get();
-    if (!snap.exists) {
+    const exists = await getDocRest(`tournaments/${id}`);
+    if (!exists) {
       return NextResponse.json({ ok: false, error: "Turnaj nenalezen." }, { status: 404 });
     }
 
-    const regs = await tRef.collection("registrations").get();
-    const batch = db.batch();
-    for (const d of regs.docs) {
-      batch.delete(d.ref);
-    }
-    batch.delete(tRef);
-    await batch.commit();
+    const regs = await listCollectionDocsRest(`tournaments/${id}/registrations`, 500);
+    await Promise.all(
+      regs.map((r) => deleteDocRest(`tournaments/${id}/registrations/${r.id}`))
+    );
+    await deleteDocRest(`tournaments/${id}`);
     return NextResponse.json({ ok: true });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Chyba";

@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { verifyAdminBearer } from "@/lib/server-auth";
-import { adminDb } from "@/lib/firebase/admin";
 import { sendTeamApprovedEmail } from "@/lib/resend-team-status";
 import { gameLabel, type GameId } from "@/lib/games";
+import { getDocRest, upsertDocRest } from "@/lib/firebase/firestore-rest-admin";
 
 export async function POST(
   request: Request,
@@ -18,12 +18,11 @@ export async function POST(
 
   const { id } = await ctx.params;
   try {
-    const ref = adminDb().collection("teams").doc(id);
-    const snap = await ref.get();
-    if (!snap.exists) {
+    const team = await getDocRest(`teams/${id}`);
+    if (!team) {
       return NextResponse.json({ ok: false, error: "Tým nenalezen." }, { status: 404 });
     }
-    const data = snap.data() as {
+    const data = team as {
       teamName?: string;
       captainEmail?: string;
       gameId?: GameId;
@@ -32,9 +31,9 @@ export async function POST(
     const gLabel = gameLabel(gid);
     const isCs2 = gid === "cs2";
 
-    await ref.update({
+    await upsertDocRest(`teams/${id}`, {
       status: "approved",
-      updatedAt: new Date(),
+      updatedAt: new Date().toISOString(),
     });
 
     const captainEmail = (data.captainEmail ?? "").trim();

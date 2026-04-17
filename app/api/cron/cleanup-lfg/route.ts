@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
-import { Timestamp } from "firebase-admin/firestore";
-import { adminDb, getAdminApp } from "@/lib/firebase/admin";
+import {
+  deleteDocRest,
+  listCollectionDocsRest,
+} from "@/lib/firebase/firestore-rest-admin";
 
 const DAYS_60_MS = 60 * 24 * 60 * 60 * 1000;
 
@@ -11,29 +13,18 @@ function authorizeCron(request: Request): boolean {
 }
 
 async function runCleanup() {
-  try {
-    getAdminApp();
-  } catch {
-    return NextResponse.json(
-      { ok: false, error: "Firebase Admin není nakonfigurováno." },
-      { status: 503 }
-    );
-  }
-
-  const cutoff = Timestamp.fromMillis(Date.now() - DAYS_60_MS);
-  const db = adminDb();
+  const cutoffMs = Date.now() - DAYS_60_MS;
   let deleted = 0;
-
-  for (;;) {
-    const snap = await db
-      .collection("free_agents")
-      .where("createdAt", "<", cutoff)
-      .limit(50)
-      .get();
-    if (snap.empty) break;
-    for (const doc of snap.docs) {
-      await doc.ref.delete();
-      deleted++;
+  const docs = await listCollectionDocsRest("free_agents", 1000);
+  for (const doc of docs) {
+    const createdAtRaw = typeof doc.createdAt === "string" ? doc.createdAt : "";
+    const createdAtMs = createdAtRaw ? Date.parse(createdAtRaw) : NaN;
+    if (!Number.isFinite(createdAtMs) || createdAtMs >= cutoffMs) continue;
+    try {
+      const removed = await deleteDocRest(`free_agents/${doc.id}`);
+      if (removed) deleted++;
+    } catch {
+      // nejlepší úsilí, cron má pokračovat
     }
   }
 

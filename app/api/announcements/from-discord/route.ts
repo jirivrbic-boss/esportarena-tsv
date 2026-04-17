@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
-import { getAdminApp, adminDb } from "@/lib/firebase/admin";
-import { verifyIdTokenFromRequest, isSuperAdminEmail } from "@/lib/server-auth";
+import { isSuperAdminEmail } from "@/lib/server-auth";
 import { autoHighlightImportantText } from "@/lib/announcements";
+import { verifyFirebaseClientIdTokenFromRequest } from "@/lib/firebase/verify-client-id-token";
+import { createDocRest } from "@/lib/firebase/firestore-rest-admin";
 
 type Body = {
   content: string;
@@ -16,7 +17,7 @@ async function isAuthorized(request: Request): Promise<boolean> {
   const bearer = authHeader.slice(7);
   const secret = process.env.DISCORD_ANNOUNCEMENTS_SECRET;
   if (secret && bearer === secret) return true;
-  const user = await verifyIdTokenFromRequest(request);
+  const user = await verifyFirebaseClientIdTokenFromRequest(request);
   return Boolean(user?.email && isSuperAdminEmail(user.email));
 }
 
@@ -47,22 +48,12 @@ export async function POST(request: Request) {
     body.imageUrls?.find((u) => typeof u === "string" && u.startsWith("https://")) ??
     null;
 
-  try {
-    getAdminApp();
-  } catch {
-    return NextResponse.json(
-      { ok: false, error: "Firebase Admin není nakonfigurováno." },
-      { status: 503 }
-    );
-  }
-
-  const db = adminDb();
   const fallbackTitle = content
     .split("\n")
     .map((x) => x.trim())
     .find(Boolean)
     ?.slice(0, 180);
-  const ref = await db.collection("announcements").add({
+  const ref = await createDocRest("announcements", {
     title: fallbackTitle || "Oznámení z Discordu",
     content: content || "(příloha)",
     highlightedContent: autoHighlightImportantText(content || "(příloha)"),
@@ -71,7 +62,7 @@ export async function POST(request: Request) {
     category: "general",
     discordMessageId: body.discordMessageId ?? null,
     source: "discord",
-    createdAt: new Date(),
+    createdAt: new Date().toISOString(),
   });
 
   return NextResponse.json({ ok: true, id: ref.id });

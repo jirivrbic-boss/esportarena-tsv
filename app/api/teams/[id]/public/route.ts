@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import type { TeamDocument } from "@/lib/types";
-import { isFirebaseAdminRuntimeError } from "@/lib/firebase/runtime-errors";
+import { getDocRest } from "@/lib/firebase/firestore-rest-admin";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -11,13 +11,10 @@ export async function GET(_request: Request, ctx: Ctx) {
   }
 
   try {
-    const { adminDb } = await import("@/lib/firebase/admin");
-    const db = adminDb();
-    const snap = await db.collection("teams").doc(id).get();
-    if (!snap.exists) {
+    const team = (await getDocRest(`teams/${id}`)) as TeamDocument | null;
+    if (!team) {
       return NextResponse.json({ ok: false, error: "Tým neexistuje." }, { status: 404 });
     }
-    const team = snap.data() as TeamDocument;
     const legacy = team as TeamDocument & {
       players?: TeamDocument["teammates"];
       reserves?: TeamDocument["substitutes"];
@@ -39,12 +36,6 @@ export async function GET(_request: Request, ctx: Ctx) {
       },
     });
   } catch (e) {
-    if (isFirebaseAdminRuntimeError(e)) {
-      return NextResponse.json(
-        { ok: false, error: "Detail týmu je dočasně nedostupný na tomto hostingu." },
-        { status: 503 }
-      );
-    }
     const msg = e instanceof Error ? e.message : "Chyba serveru";
     return NextResponse.json({ ok: false, error: msg }, { status: 500 });
   }

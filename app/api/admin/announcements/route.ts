@@ -5,10 +5,7 @@ import {
   parseAnnouncementCategory,
 } from "@/lib/announcements";
 import { notifyDiscordAnnouncementCreated } from "@/lib/discord-webhook";
-import {
-  firebaseAdminUnavailableMessage,
-  isFirebaseAdminRuntimeError,
-} from "@/lib/firebase/runtime-errors";
+import { createDocRest, listCollectionDocsRest } from "@/lib/firebase/firestore-rest-admin";
 
 async function requireAdminAuth(request: Request) {
   const auth = await verifyAdminBearer(request);
@@ -26,18 +23,15 @@ export async function GET(request: Request) {
   if (deny) return deny;
 
   try {
-    const { adminDb } = await import("@/lib/firebase/admin");
-    const snap = await adminDb()
-      .collection("announcements")
-      .orderBy("createdAt", "desc")
-      .limit(100)
-      .get();
-    const items = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    const items = (await listCollectionDocsRest("announcements", 200))
+      .sort((a, b) => {
+        const ta = typeof a.createdAt === "string" ? Date.parse(a.createdAt) || 0 : 0;
+        const tb = typeof b.createdAt === "string" ? Date.parse(b.createdAt) || 0 : 0;
+        return tb - ta;
+      })
+      .slice(0, 100);
     return NextResponse.json({ ok: true, items });
   } catch (e) {
-    if (isFirebaseAdminRuntimeError(e)) {
-      return NextResponse.json({ ok: true, items: [], warning: firebaseAdminUnavailableMessage() });
-    }
     const msg = e instanceof Error ? e.message : "Chyba";
     return NextResponse.json({ ok: false, error: msg }, { status: 500 });
   }
@@ -71,8 +65,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { adminDb } = await import("@/lib/firebase/admin");
-    const ref = await adminDb().collection("announcements").add({
+    const data = {
       title: title.slice(0, 180),
       content: content.slice(0, 8000),
       highlightedContent: autoHighlightImportantText(content.slice(0, 8000)),
@@ -83,8 +76,9 @@ export async function POST(request: Request) {
       authorName: authorName.slice(0, 120),
       category: parseAnnouncementCategory(body.category),
       source: "admin",
-      createdAt: new Date(),
-    });
+      createdAt: new Date().toISOString(),
+    };
+    const ref = await createDocRest("announcements", data);
     await notifyDiscordAnnouncementCreated({
       title: title.slice(0, 180),
       authorName: authorName.slice(0, 120),

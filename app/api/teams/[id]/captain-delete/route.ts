@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { verifyFirebaseClientIdTokenFromRequest } from "@/lib/firebase/verify-client-id-token";
-import { adminDb } from "@/lib/firebase/admin";
 import type { TeamDocument } from "@/lib/types";
+import {
+  deleteDocRest,
+  getDocRest,
+  listCollectionDocsRest,
+} from "@/lib/firebase/firestore-rest-admin";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -20,25 +24,23 @@ export async function DELETE(request: Request, ctx: Ctx) {
   }
 
   try {
-    const db = adminDb();
-    const teamRef = db.collection("teams").doc(id);
-    const teamSnap = await teamRef.get();
-    if (!teamSnap.exists) {
+    const teamData = await getDocRest(`teams/${id}`);
+    if (!teamData) {
       return NextResponse.json({ ok: false, error: "Tým neexistuje." }, { status: 404 });
     }
-    const team = teamSnap.data() as TeamDocument;
+    const team = teamData as unknown as TeamDocument;
     if (team.captainId !== user.uid) {
       return NextResponse.json({ ok: false, error: "Nemáš právo smazat tento tým." }, { status: 403 });
     }
 
     // Smaž i registrace týmu ze všech turnajů, aby nezůstaly sirotčí záznamy.
-    const tournaments = await db.collection("tournaments").get();
-    const batch = db.batch();
-    tournaments.docs.forEach((t) => {
-      batch.delete(t.ref.collection("registrations").doc(id));
-    });
-    batch.delete(teamRef);
-    await batch.commit();
+    const tournaments = await listCollectionDocsRest("tournaments", 300);
+    await Promise.all(
+      tournaments.map((t) =>
+        deleteDocRest(`tournaments/${t.id}/registrations/${id}`).catch(() => false)
+      )
+    );
+    await deleteDocRest(`teams/${id}`);
 
     return NextResponse.json({ ok: true });
   } catch (e) {

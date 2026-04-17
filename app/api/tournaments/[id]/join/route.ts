@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server";
-import { FieldValue } from "firebase-admin/firestore";
 import { verifyFirebaseClientIdTokenFromRequest } from "@/lib/firebase/verify-client-id-token";
-import { adminDb } from "@/lib/firebase/admin";
 import type { TeamDocument } from "@/lib/types";
 import type { TournamentDocument } from "@/lib/tournaments";
 import { gameLabel } from "@/lib/games";
 import { notifyDiscordTournamentJoin } from "@/lib/discord-webhook";
+import {
+  getDocRest,
+  upsertDocRest,
+} from "@/lib/firebase/firestore-rest-admin";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -33,13 +35,10 @@ export async function POST(request: Request, ctx: Ctx) {
   }
 
   try {
-    const db = adminDb();
-    const tRef = db.collection("tournaments").doc(tournamentId);
-    const tSnap = await tRef.get();
-    if (!tSnap.exists) {
+    const tournament = (await getDocRest(`tournaments/${tournamentId}`)) as TournamentDocument | null;
+    if (!tournament) {
       return NextResponse.json({ ok: false, error: "Turnaj neexistuje." }, { status: 404 });
     }
-    const tournament = tSnap.data() as TournamentDocument;
     if (!tournament.published) {
       return NextResponse.json(
         { ok: false, error: "Turnaj není zveřejněný." },
@@ -47,11 +46,10 @@ export async function POST(request: Request, ctx: Ctx) {
       );
     }
 
-    const teamSnap = await db.collection("teams").doc(teamId).get();
-    if (!teamSnap.exists) {
+    const team = (await getDocRest(`teams/${teamId}`)) as TeamDocument | null;
+    if (!team) {
       return NextResponse.json({ ok: false, error: "Tým neexistuje." }, { status: 404 });
     }
-    const team = teamSnap.data() as TeamDocument;
     if (team.captainId !== user.uid) {
       return NextResponse.json(
         { ok: false, error: "Tento tým není pod tvým účtem." },
@@ -76,21 +74,20 @@ export async function POST(request: Request, ctx: Ctx) {
       );
     }
 
-    const regRef = tRef.collection("registrations").doc(teamId);
-    const existing = await regRef.get();
-    if (existing.exists) {
+    const existing = await getDocRest(`tournaments/${tournamentId}/registrations/${teamId}`);
+    if (existing) {
       return NextResponse.json(
         { ok: false, error: "Tým je v tomto turnaji už přihlášený." },
         { status: 409 }
       );
     }
 
-    await regRef.set({
+    await upsertDocRest(`tournaments/${tournamentId}/registrations/${teamId}`, {
       teamName: team.teamName,
       schoolName: team.schoolName,
       captainId: team.captainId,
       gameId: teamGame,
-      registeredAt: FieldValue.serverTimestamp(),
+      registeredAt: new Date().toISOString(),
     });
 
     await notifyDiscordTournamentJoin({

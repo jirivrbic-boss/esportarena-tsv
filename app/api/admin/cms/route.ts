@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { verifyAdminBearer } from "@/lib/server-auth";
-import { adminDb } from "@/lib/firebase/admin";
 import type { CmsSlug } from "@/lib/cms-defaults";
+import { upsertDocRest } from "@/lib/firebase/firestore-rest-admin";
 
 const SLUGS: CmsSlug[] = ["home", "pravidla", "oznameni"];
 
@@ -27,7 +27,7 @@ export async function PUT(request: Request) {
   }
 
   const { slug: _s, ...patch } = body;
-  await adminDb().collection("page_content").doc(slug).set(patch, { merge: true });
+  await upsertDocRest(`page_content/${slug}`, patch);
 
   return NextResponse.json({ ok: true });
 }

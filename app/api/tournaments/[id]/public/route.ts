@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
 import type { TournamentDocument, TournamentRegistrationDocument } from "@/lib/tournaments";
-import { isFirebaseAdminRuntimeError } from "@/lib/firebase/runtime-errors";
+import { getDocRest, listCollectionDocsRest } from "@/lib/firebase/firestore-rest-admin";
 
 type Ctx = { params: Promise<{ id: string }> };
 
-function fmtTs(t: { toDate?: () => Date } | undefined): string {
-  if (!t || typeof t.toDate !== "function") return "—";
+function fmtTs(t: string | undefined): string {
+  if (!t) return "—";
   try {
-    return t.toDate().toLocaleString("cs-CZ");
+    return new Date(t).toLocaleString("cs-CZ");
   } catch {
     return "—";
   }
@@ -20,14 +20,11 @@ export async function GET(_request: Request, ctx: Ctx) {
   }
 
   try {
-    const { adminDb } = await import("@/lib/firebase/admin");
-    const db = adminDb();
-    const tSnap = await db.collection("tournaments").doc(id).get();
-    if (!tSnap.exists) {
+    const t = (await getDocRest(`tournaments/${id}`)) as (TournamentDocument & { startsAt?: string }) | null;
+    if (!t) {
       return NextResponse.json({ ok: false, error: "Turnaj neexistuje." }, { status: 404 });
     }
 
-    const t = tSnap.data() as TournamentDocument;
     if (!t.published) {
       return NextResponse.json(
         { ok: false, error: "Turnaj není zveřejněný." },
@@ -35,15 +32,14 @@ export async function GET(_request: Request, ctx: Ctx) {
       );
     }
 
-    const rSnap = await db.collection("tournaments").doc(id).collection("registrations").get();
-    const registrations = rSnap.docs
-      .map((d) => {
-        const x = d.data() as TournamentRegistrationDocument;
+    const registrations = (await listCollectionDocsRest(`tournaments/${id}/registrations`, 300))
+      .map((x) => {
+        const row = x as TournamentRegistrationDocument & { id: string; registeredAt?: string };
         return {
-          teamId: d.id,
-          teamName: x.teamName,
-          schoolName: x.schoolName,
-          registeredAtLabel: fmtTs(x.registeredAt),
+          teamId: row.id,
+          teamName: row.teamName,
+          schoolName: row.schoolName,
+          registeredAtLabel: fmtTs(row.registeredAt),
         };
       })
       .sort((a, b) => a.teamName.localeCompare(b.teamName, "cs"));
@@ -55,7 +51,7 @@ export async function GET(_request: Request, ctx: Ctx) {
         name: t.name,
         gameId: t.gameId ?? "cs2",
         backgroundImageUrl: t.backgroundImageUrl ?? "",
-        startsAtMs: t.startsAt?.toMillis?.() ?? null,
+        startsAtMs: t.startsAt ? Date.parse(t.startsAt) || null : null,
         prizePoolText: t.prizePoolText ?? "",
         rulesText: t.rulesText ?? "",
         faceitUrl: t.faceitUrl ?? "",
@@ -63,12 +59,6 @@ export async function GET(_request: Request, ctx: Ctx) {
       registrations,
     });
   } catch (e) {
-    if (isFirebaseAdminRuntimeError(e)) {
-      return NextResponse.json(
-        { ok: false, error: "Detail turnaje je dočasně nedostupný na tomto hostingu." },
-        { status: 503 }
-      );
-    }
     const msg = e instanceof Error ? e.message : "Chyba serveru";
     return NextResponse.json({ ok: false, error: msg }, { status: 500 });
   }

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { verifyAdminBearer } from "@/lib/server-auth";
-import { adminDb, getAdminApp } from "@/lib/firebase/admin";
+import { createDocRest, listCollectionDocsRest } from "@/lib/firebase/firestore-rest-admin";
 
 const DEMOS = [
   {
@@ -31,28 +31,14 @@ export async function POST(request: Request) {
     );
   }
 
-  try {
-    getAdminApp();
-  } catch {
-    return NextResponse.json(
-      { ok: false, error: "Firebase Admin není nakonfigurováno." },
-      { status: 503 }
-    );
-  }
-
-  const db = adminDb();
   let added = 0;
+  const existing = await listCollectionDocsRest("free_agents", 500);
 
   for (const d of DEMOS) {
-    const snap = await db
-      .collection("free_agents")
-      .where("discordUsername", "==", d.discordUsername)
-      .limit(1)
-      .get();
-    if (!snap.empty) continue;
-    await db.collection("free_agents").add({
+    if (existing.some((item) => item.discordUsername === d.discordUsername)) continue;
+    await createDocRest("free_agents", {
       ...d,
-      createdAt: new Date(),
+      createdAt: new Date().toISOString(),
     });
     added++;
   }

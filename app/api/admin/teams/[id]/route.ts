@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { verifyAdminBearer } from "@/lib/server-auth";
-import { adminDb } from "@/lib/firebase/admin";
+import {
+  deleteDocRest,
+  getDocRest,
+  listCollectionDocsRest,
+} from "@/lib/firebase/firestore-rest-admin";
 
 export async function DELETE(
   request: Request,
@@ -20,20 +24,18 @@ export async function DELETE(
   }
 
   try {
-    const db = adminDb();
-    const teamRef = db.collection("teams").doc(id);
-    const teamSnap = await teamRef.get();
-    if (!teamSnap.exists) {
+    const team = await getDocRest(`teams/${id}`);
+    if (!team) {
       return NextResponse.json({ ok: false, error: "Tým neexistuje." }, { status: 404 });
     }
 
-    const tournaments = await db.collection("tournaments").get();
-    const batch = db.batch();
-    tournaments.docs.forEach((tournament) => {
-      batch.delete(tournament.ref.collection("registrations").doc(id));
-    });
-    batch.delete(teamRef);
-    await batch.commit();
+    const tournaments = await listCollectionDocsRest("tournaments", 300);
+    await Promise.all(
+      tournaments.map((t) =>
+        deleteDocRest(`tournaments/${t.id}/registrations/${id}`).catch(() => false)
+      )
+    );
+    await deleteDocRest(`teams/${id}`);
 
     return NextResponse.json({ ok: true });
   } catch (e) {

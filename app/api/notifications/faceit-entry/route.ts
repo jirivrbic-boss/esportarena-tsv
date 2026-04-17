@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
-import { adminDb, getAdminApp } from "@/lib/firebase/admin";
 import { notifyDiscordFaceitHubEntry } from "@/lib/discord-webhook";
 import { gameLabel, type GameId } from "@/lib/games";
 import { verifyFirebaseClientIdTokenFromRequest } from "@/lib/firebase/verify-client-id-token";
+import { getDocRest } from "@/lib/firebase/firestore-rest-admin";
 
 export async function POST(request: Request) {
   const user = await verifyFirebaseClientIdTokenFromRequest(request);
@@ -24,21 +24,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, error: "Chybí teamId." }, { status: 400 });
   }
 
-  try {
-    getAdminApp();
-  } catch {
-    return NextResponse.json(
-      { ok: false, error: "Firebase Admin není nakonfigurováno." },
-      { status: 503 }
-    );
-  }
-
-  const snap = await adminDb().collection("teams").doc(teamId).get();
-  if (!snap.exists) {
+  const teamData = await getDocRest(`teams/${teamId}`);
+  if (!teamData) {
     return NextResponse.json({ ok: false, error: "Tým nenalezen." }, { status: 404 });
   }
 
-  const data = snap.data() as {
+  const data = teamData as {
     captainId?: string;
     status?: string;
     faceitHubUrl?: string;
