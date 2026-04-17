@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { verifyAdminBearer } from "@/lib/server-auth";
-import { adminDb } from "@/lib/firebase/admin";
 import {
   firebaseAdminUnavailableMessage,
   isFirebaseAdminRuntimeError,
@@ -16,6 +15,7 @@ export async function GET(request: Request) {
   }
 
   try {
+    const { adminDb } = await import("@/lib/firebase/admin");
     const db = adminDb();
     const { searchParams } = new URL(request.url);
     const scope = searchParams.get("scope");

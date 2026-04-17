@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { verifyAdminBearer } from "@/lib/server-auth";
-import { adminDb } from "@/lib/firebase/admin";
 import {
   autoHighlightImportantText,
   parseAnnouncementCategory,
@@ -27,6 +26,7 @@ export async function GET(request: Request) {
   if (deny) return deny;
 
   try {
+    const { adminDb } = await import("@/lib/firebase/admin");
     const snap = await adminDb()
       .collection("announcements")
       .orderBy("createdAt", "desc")
@@ -71,6 +71,7 @@ export async function POST(request: Request) {
   }
 
   try {
+    const { adminDb } = await import("@/lib/firebase/admin");
     const ref = await adminDb().collection("announcements").add({
       title: title.slice(0, 180),
       content: content.slice(0, 8000),

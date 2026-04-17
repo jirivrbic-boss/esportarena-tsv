@@ -1,7 +1,5 @@
 import { NextResponse } from "next/server";
-import { FieldValue } from "firebase-admin/firestore";
 import { verifyAdminBearer } from "@/lib/server-auth";
-import { adminDb } from "@/lib/firebase/admin";
 import { parseGameId } from "@/lib/games";
 import { gameLabel } from "@/lib/games";
 import type { TournamentDocument } from "@/lib/tournaments";
@@ -21,6 +19,7 @@ export async function GET(request: Request) {
   }
 
   try {
+    const { adminDb } = await import("@/lib/firebase/admin");
     const db = adminDb();
     const snap = await db
       .collection("tournaments")
@@ -90,6 +89,11 @@ export async function POST(request: Request) {
   }
 
   try {
+    const [{ adminDb }, firestore] = await Promise.all([
+      import("@/lib/firebase/admin"),
+      import("firebase-admin/firestore"),
+    ]);
+    const { FieldValue } = firestore;
     const db = adminDb();
     const ref = db.collection("tournaments").doc();
     await ref.set({

@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import type { TournamentDocument } from "@/lib/tournaments";
-import { adminDb } from "@/lib/firebase/admin";
 import {
   firebaseAdminUnavailableMessage,
   isFirebaseAdminRuntimeError,
@@ -8,6 +7,7 @@ import {
 
 export async function GET() {
   try {
+    const { adminDb } = await import("@/lib/firebase/admin");
     const db = adminDb();
     const snap = await db.collection("tournaments").where("published", "==", true).get();
 

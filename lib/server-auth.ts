@@ -1,12 +1,13 @@
-import { adminAuth, isAdminEmailFromEnv } from "@/lib/firebase/admin";
 import { verifyFirebaseClientIdTokenFromRequest } from "@/lib/firebase/verify-client-id-token";
+import { parseAdminEmailsEnv } from "@/lib/admin-access";
 import { isSuperAdminEmail } from "@/lib/super-admin";
 
 export { isSuperAdminEmail, SUPER_ADMIN_EMAIL } from "@/lib/super-admin";
 
 /** Schválení týmů: Super Admin nebo e-maily z ADMIN_EMAILS. */
 export function isAdminEmail(email: string | undefined): boolean {
-  return isSuperAdminEmail(email) || isAdminEmailFromEnv(email);
+  if (!email) return false;
+  return isSuperAdminEmail(email) || parseAdminEmailsEnv().includes(email.toLowerCase());
 }
 
 export async function verifyIdTokenFromRequest(
@@ -16,6 +17,7 @@ export async function verifyIdTokenFromRequest(
   if (!authHeader?.startsWith("Bearer ")) return null;
   const token = authHeader.slice(7);
   try {
+    const { adminAuth } = await import("@/lib/firebase/admin");
     const app = adminAuth();
     const decoded = await app.verifyIdToken(token);
     return { uid: decoded.uid, email: decoded.email };

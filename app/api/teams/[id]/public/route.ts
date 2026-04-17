@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import type { TeamDocument } from "@/lib/types";
-import { adminDb } from "@/lib/firebase/admin";
 import { isFirebaseAdminRuntimeError } from "@/lib/firebase/runtime-errors";
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -12,6 +11,7 @@ export async function GET(_request: Request, ctx: Ctx) {
   }
 
   try {
+    const { adminDb } = await import("@/lib/firebase/admin");
     const db = adminDb();
     const snap = await db.collection("teams").doc(id).get();
     if (!snap.exists) {

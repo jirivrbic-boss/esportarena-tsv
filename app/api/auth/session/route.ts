@@ -1,9 +1,5 @@
 import { NextResponse } from "next/server";
-import {
-  adminAuth,
-  isFirebaseAdminConfigured,
-} from "@/lib/firebase/admin";
-import { verifyIdTokenFromRequest } from "@/lib/server-auth";
+import { verifyFirebaseClientIdTokenFromRequest } from "@/lib/firebase/verify-client-id-token";
 import {
   firebaseAdminUnavailableMessage,
   isFirebaseAdminRuntimeError,
@@ -28,18 +24,6 @@ function sessionCookieHeader(value: string, maxAge: number): string {
 }
 
 export async function POST(request: Request) {
-  if (!isFirebaseAdminConfigured()) {
-    return NextResponse.json(
-      {
-        ok: false,
-        error:
-          "Na hostingu chybí nebo je neplatný FIREBASE_SERVICE_ACCOUNT_JSON. Bez něj server neověří přihlášení a nelze nastavit cookie pro /admin. V Netlify: Site settings → Environment variables → vlož celý JSON klíče služby (Project settings → Service accounts) na jeden řádek.",
-        code: "admin_not_configured",
-      },
-      { status: 503 }
-    );
-  }
-
   const authHeader = request.headers.get("authorization");
   const idToken = authHeader?.startsWith("Bearer ")
     ? authHeader.slice(7)
@@ -56,7 +40,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const user = await verifyIdTokenFromRequest(request);
+    const user = await verifyFirebaseClientIdTokenFromRequest(request);
     if (!user) {
       return NextResponse.json(
         {
@@ -67,6 +51,15 @@ export async function POST(request: Request) {
         },
         { status: 401 }
       );
+    }
+
+    const { adminAuth, isFirebaseAdminConfigured } = await import("@/lib/firebase/admin");
+    if (!isFirebaseAdminConfigured()) {
+      return NextResponse.json({
+        ok: true,
+        code: "session_cookie_unavailable",
+        warning: "FIREBASE_SERVICE_ACCOUNT_JSON není nastavený; session cookie se nevytvoří.",
+      });
     }
 
     const sessionCookie = await adminAuth().createSessionCookie(idToken, {

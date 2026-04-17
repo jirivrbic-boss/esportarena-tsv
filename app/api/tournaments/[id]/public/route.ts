@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import type { TournamentDocument, TournamentRegistrationDocument } from "@/lib/tournaments";
-import { adminDb } from "@/lib/firebase/admin";
 import { isFirebaseAdminRuntimeError } from "@/lib/firebase/runtime-errors";
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -21,6 +20,7 @@ export async function GET(_request: Request, ctx: Ctx) {
   }
 
   try {
+    const { adminDb } = await import("@/lib/firebase/admin");
     const db = adminDb();
     const tSnap = await db.collection("tournaments").doc(id).get();
     if (!tSnap.exists) {
