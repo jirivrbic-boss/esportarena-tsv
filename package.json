@@ -3,22 +3,17 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "build": "node scripts/netlify-firebase-env-check.mjs && next build",
     "dev": "next dev",
+    "build": "node scripts/netlify-firebase-env-check.mjs && next build",
     "start": "next start",
     "lint": "eslint",
     "discord-bot:announce": "node scripts/discord-announce-bot.mjs",
     "seed:lfg": "node scripts/seed-free-agents.mjs",
     "seed:tournament": "node scripts/seed-test-tournament.mjs",
     "dokumenty:pdf": "node scripts/docx-to-pdf.mjs",
-    "test:discord-webhook": "node scripts/test-discord-webhook.mjs",
-    "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
-    "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
-    "upload": "opennextjs-cloudflare build && opennextjs-cloudflare upload",
-    "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts"
+    "test:discord-webhook": "node scripts/test-discord-webhook.mjs"
   },
   "dependencies": {
-    "@opennextjs/cloudflare": "^1.19.1",
     "@opentelemetry/api": "^1.9.1",
     "firebase": "^12.12.0",
     "firebase-admin": "^13.8.0",
@@ -42,7 +37,6 @@
     "mammoth": "^1.12.0",
     "playwright": "^1.59.1",
     "tailwindcss": "^4",
-    "typescript": "^5",
-    "wrangler": "^4.83.0"
+    "typescript": "^5"
   }
 }
