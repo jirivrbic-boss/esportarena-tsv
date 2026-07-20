@@ -20,7 +20,7 @@ export function PortalPageHeader({
       >
         ← {backLabel}
       </Link>
-      <h1 className="mt-3 font-[family-name:var(--font-bebas)] text-4xl tracking-wide text-white sm:text-5xl">
+      <h1 className="mt-3 font-[family-name:var(--font-bebas)] text-3xl tracking-wide text-white sm:text-5xl">
         {title}
       </h1>
       {description ? (

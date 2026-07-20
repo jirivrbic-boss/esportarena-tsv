@@ -11,7 +11,13 @@ import { isClientAdminEmail } from "@/lib/admin-client";
 import { sidebarNavForPath } from "@/lib/portal-hub";
 import { TOURNAMENT_BRAND_LOGO } from "@/lib/tournament-game-logos";
 
-export function SiteSidebar() {
+export function SiteSidebar({
+  open,
+  onClose,
+}: {
+  open: boolean;
+  onClose: () => void;
+}) {
   const pathname = usePathname();
   const { user, signOut } = useAuth();
   const { items, brandHref, brandTitle, brandSubtitle } = sidebarNavForPath(pathname);
@@ -21,32 +27,49 @@ export function SiteSidebar() {
   const portalHref = showAdmin ? "/admin" : "/dashboard";
 
   return (
-    <aside className="fixed inset-y-0 left-0 z-40 flex h-dvh w-56 flex-col border-r border-white/10 bg-[#080808] sm:w-60">
-      <Link
-        href={brandHref}
-        className="flex shrink-0 items-center gap-2 border-b border-white/10 px-4 py-4"
-      >
-        <div className="relative h-9 w-9 overflow-hidden rounded-lg border border-white/10">
-          <Image
-            src={TOURNAMENT_BRAND_LOGO}
-            alt=""
-            fill
-            className="object-contain p-0.5"
-            sizes="36px"
-            priority
-          />
-        </div>
-        <div className="leading-tight">
-          <span className="font-[family-name:var(--font-bebas)] text-lg tracking-wider text-white">
-            {brandTitle}
-          </span>
-          <span className="block text-[10px] uppercase tracking-widest text-[#39FF14]">
-            {brandSubtitle}
-          </span>
-        </div>
-      </Link>
+    <aside
+      id="site-sidebar"
+      aria-hidden={!open}
+      className={`fixed inset-y-0 left-0 z-50 flex h-dvh w-[min(18rem,88vw)] flex-col border-r border-white/10 bg-[#080808] transition-transform duration-200 ease-out lg:z-40 lg:w-60 lg:translate-x-0 ${
+        open ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+      }`}
+    >
+      <div className="flex shrink-0 items-center gap-2 border-b border-white/10 px-3 py-3 sm:px-4 sm:py-4">
+        <Link
+          href={brandHref}
+          onClick={onClose}
+          className="flex min-w-0 flex-1 items-center gap-2"
+        >
+          <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-lg border border-white/10">
+            <Image
+              src={TOURNAMENT_BRAND_LOGO}
+              alt=""
+              fill
+              className="object-contain p-0.5"
+              sizes="36px"
+              priority
+            />
+          </div>
+          <div className="min-w-0 leading-tight">
+            <span className="block truncate font-[family-name:var(--font-bebas)] text-lg tracking-wider text-white">
+              {brandTitle}
+            </span>
+            <span className="block truncate text-[10px] uppercase tracking-widest text-[#39FF14]">
+              {brandSubtitle}
+            </span>
+          </div>
+        </Link>
+        <button
+          type="button"
+          aria-label="Zavřít menu"
+          onClick={onClose}
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-white/15 text-slate-300 hover:bg-white/5 hover:text-white lg:hidden"
+        >
+          ✕
+        </button>
+      </div>
 
-      <PortalSidebarNav items={items} />
+      <PortalSidebarNav items={items} onNavigate={onClose} />
 
       <div className="shrink-0 border-t border-white/10 px-3 py-3">
         <p className="mb-2 text-center text-[10px] font-medium uppercase tracking-widest text-slate-600">
@@ -55,12 +78,13 @@ export function SiteSidebar() {
         <SiteSocialLinks compact />
       </div>
 
-      <div className="flex shrink-0 flex-col gap-2 border-t border-white/10 p-3">
+      <div className="flex shrink-0 flex-col gap-2 border-t border-white/10 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         {user ? (
           <>
             {!isPortal ? (
               <Link
                 href={portalHref}
+                onClick={onClose}
                 className="rounded-md px-2 py-1.5 text-center text-xs font-medium text-[#39FF14] transition-colors hover:bg-[#39FF14]/10"
               >
                 {showAdmin ? "Admin přehled" : "Kapitánský přehled"}
@@ -69,6 +93,7 @@ export function SiteSidebar() {
             {!isPortal ? (
               <Link
                 href="/dashboard/profil"
+                onClick={onClose}
                 className="rounded-md px-2 py-1.5 text-center text-xs text-slate-400 transition-colors hover:bg-white/5 hover:text-white"
               >
                 Profil kapitána
@@ -77,6 +102,7 @@ export function SiteSidebar() {
             {isPortal ? (
               <Link
                 href="/"
+                onClick={onClose}
                 className="rounded-md px-2 py-1.5 text-center text-xs text-slate-500 transition-colors hover:bg-white/5 hover:text-white"
               >
                 Veřejná úvodní stránka
@@ -84,7 +110,10 @@ export function SiteSidebar() {
             ) : null}
             <button
               type="button"
-              onClick={() => void signOut()}
+              onClick={() => {
+                onClose();
+                void signOut();
+              }}
               className="rounded-lg border border-red-500/45 bg-red-950/50 px-3 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-red-200 shadow-[0_0_0_1px_rgba(0,0,0,0.3)_inset] transition-colors hover:border-red-400/70 hover:bg-red-950/80 hover:text-white"
             >
               Odhlásit se
@@ -92,10 +121,19 @@ export function SiteSidebar() {
           </>
         ) : (
           <>
-            <GlowButton href="/prihlaseni" variant="ghost" className="w-full !justify-center !text-xs">
+            <GlowButton
+              href="/prihlaseni"
+              variant="ghost"
+              className="w-full !justify-center !text-xs"
+              onClick={onClose}
+            >
               Přihlášení
             </GlowButton>
-            <GlowButton href="/registrace" className="w-full !justify-center !text-xs">
+            <GlowButton
+              href="/registrace"
+              className="w-full !justify-center !text-xs"
+              onClick={onClose}
+            >
               Registrace kapitána
             </GlowButton>
           </>

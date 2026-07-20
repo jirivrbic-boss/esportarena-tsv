@@ -48,7 +48,7 @@ function LoadingSkeleton() {
         <div className="h-4 w-40 rounded bg-white/10" />
         <div className="h-16 w-2/3 rounded bg-white/10" />
         <div className="h-24 w-full rounded-2xl bg-white/5" />
-        <div className="grid gap-4 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
           {[1, 2, 3, 4].map((i) => (
             <div key={i} className="h-20 rounded-xl bg-white/5" />
           ))}

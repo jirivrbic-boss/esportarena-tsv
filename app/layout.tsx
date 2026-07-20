@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { Providers } from "./providers";
 import { AppChrome } from "@/components/app-chrome";
@@ -19,6 +19,13 @@ export const metadata: Metadata = {
   },
 };
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#050505",
+};
+
 export default async function RootLayout({
   children,
 }: Readonly<{
@@ -28,7 +35,7 @@ export default async function RootLayout({
 
   return (
     <html lang="cs" className="h-full antialiased" data-scroll-behavior="smooth">
-      <body className="flex min-h-screen flex-col bg-[#050505] text-white">
+      <body className="flex min-h-dvh min-w-0 flex-col overflow-x-clip bg-[#050505] text-white">
         <FirebaseRuntimeInit config={firebasePublic} />
         <Providers>
           <div className="flex flex-1 flex-col">

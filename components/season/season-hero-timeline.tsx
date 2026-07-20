@@ -255,7 +255,7 @@ export function SeasonHero({
           <p className="text-xs font-bold uppercase tracking-[0.35em] text-[#39FF14]">
             Školní turnaj · Česko & Slovensko
           </p>
-          <h1 className="mt-3 font-[family-name:var(--font-bebas)] text-5xl leading-[0.95] tracking-wide text-white sm:text-7xl md:text-8xl">
+          <h1 className="mt-3 font-[family-name:var(--font-bebas)] text-4xl leading-[0.95] tracking-wide text-white sm:text-7xl md:text-8xl">
             {season.label}
           </h1>
           {season.intro ? (
@@ -316,7 +316,7 @@ export function SeasonHero({
           ))}
         </motion.div>
 
-        <div className="mt-10 flex flex-wrap gap-3">
+        <div className="mt-10 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
           {gameIds.map((g) => {
             const active = g === gameId;
             return (
@@ -324,7 +324,7 @@ export function SeasonHero({
                 key={g}
                 type="button"
                 onClick={() => onGameChange(g)}
-                className={`relative flex items-center gap-3 overflow-hidden rounded-2xl border px-4 py-3 transition-all ${
+                className={`relative flex w-full items-center gap-3 overflow-hidden rounded-2xl border px-4 py-3 transition-all touch-manipulation sm:w-auto ${
                   active
                     ? "border-[#39FF14]/60 bg-[#39FF14]/10 shadow-[0_0_30px_rgba(57,255,20,0.15)]"
                     : "border-white/10 bg-black/30 hover:border-white/25"
@@ -365,7 +365,7 @@ export function SeasonHero({
                 ? "Registrace běží · konec za"
                 : "Do otevření registrace · " + gameLabel(gameId)}
             </p>
-            <div className="mt-4 grid grid-cols-4 gap-3 sm:max-w-md">
+            <div className="mt-4 grid grid-cols-4 gap-2 sm:max-w-md sm:gap-3">
               {(
                 [
                   ["Dní", countdown.days],
@@ -376,13 +376,13 @@ export function SeasonHero({
               ).map(([label, value]) => (
                 <div
                   key={label}
-                  className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-4 text-center"
+                  className="rounded-xl border border-white/10 bg-white/[0.03] px-1.5 py-3 text-center sm:px-3 sm:py-4"
                 >
                   <motion.span
                     key={value}
                     initial={reduced ? false : { scale: 1.1, opacity: 0.5 }}
                     animate={{ scale: 1, opacity: 1 }}
-                    className="block font-[family-name:var(--font-bebas)] text-3xl tabular-nums text-white sm:text-4xl"
+                    className="block font-[family-name:var(--font-bebas)] text-2xl tabular-nums text-white sm:text-4xl"
                   >
                     {String(value).padStart(2, "0")}
                   </motion.span>
@@ -392,9 +392,15 @@ export function SeasonHero({
                 </div>
               ))}
             </div>
-            <div className="mt-5 flex flex-wrap gap-3">
-              <GlowButton href="#season-enroll">Zapsat tým do sezóny</GlowButton>
-              <GlowButton href="#season-timeline" variant="ghost">
+            <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+              <GlowButton href="#season-enroll" className="w-full !justify-center sm:w-auto">
+                Zapsat tým do sezóny
+              </GlowButton>
+              <GlowButton
+                href="#season-timeline"
+                variant="ghost"
+                className="w-full !justify-center sm:w-auto"
+              >
                 Celý harmonogram
               </GlowButton>
             </div>
