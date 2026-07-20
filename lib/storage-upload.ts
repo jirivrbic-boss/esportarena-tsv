@@ -1,5 +1,6 @@
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { getFirebaseStorage } from "@/lib/firebase/client";
+import { compressImageFile } from "@/lib/image-compress";
 
 function safeName(name: string) {
   return name.replace(/[^\w.\-]+/g, "_").slice(0, 120);
@@ -42,4 +43,27 @@ export async function uploadTeamFile(
   await uploadBytes(r, file, { contentType: contentTypeForUpload(file) });
   const url = await getDownloadURL(r);
   return { url, path: r.fullPath, uploadedAt: Date.now() };
+}
+
+/**
+ * Cover obrázek oznámení: komprese → `announcements/` (mimo GDPR 48h mazání users/teams).
+ */
+export async function uploadAnnouncementImage(
+  file: File
+): Promise<{
+  url: string;
+  path: string;
+  originalBytes: number;
+  compressedBytes: number;
+}> {
+  const { file: compressed, originalBytes, compressedBytes } =
+    await compressImageFile(file);
+  const storage = getFirebaseStorage();
+  const path = `announcements/${Date.now()}-${safeName(compressed.name)}`;
+  const r = ref(storage, path);
+  await uploadBytes(r, compressed, {
+    contentType: contentTypeForUpload(compressed),
+  });
+  const url = await getDownloadURL(r);
+  return { url, path: r.fullPath, originalBytes, compressedBytes };
 }
