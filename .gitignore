@@ -46,15 +46,6 @@ yarn-error.log*
 # lokální kopie fotek mimo public/ (assety patří do public/fotky/)
 /fotky/
 
-# OpenNext
-.open-next
-
-# wrangler files
-.wrangler
-.dev.vars*
-!.dev.vars.example
-!.env.example
-
 # Local Firebase service account (never commit)
 .firebase-service-account.json
 .env.local.bak-firebase

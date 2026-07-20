@@ -4,25 +4,9 @@ import { fileURLToPath } from "node:url";
 
 const projectRoot = path.dirname(fileURLToPath(import.meta.url));
 
-/**
- * Volitelné: lokální dev režim pro OpenNext + Cloudflare (Wrangler).
- * Zapni explicitně jen když to potřebuješ:
- *   CLOUDFLARE_LOCAL_DEV=true npm run dev
- */
-if (process.env.CLOUDFLARE_LOCAL_DEV === "true") {
-  void import("@opennextjs/cloudflare")
-    .then((m) => m.initOpenNextCloudflareForDev())
-    .catch((e) => {
-      console.warn("[opennext/cloudflare] init failed:", e);
-    });
-}
-
 const nextConfig: NextConfig = {
-  // Cloudflare Worker runtime zakazuje dynamické vyhodnocování kódu (eval/new Function),
-  // které React Compiler v našem stacku vyžaduje.
-  reactCompiler: false,
-  // jose má workerd entrypoint — musí být external, jinak OpenNext CF build padá (jwks-rsa / firebase-admin)
-  serverExternalPackages: ["firebase-admin", "jose"],
+  reactCompiler: true,
+  serverExternalPackages: ["firebase-admin"],
   experimental: {
     optimizePackageImports: [
       "framer-motion",
