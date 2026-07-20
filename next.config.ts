@@ -21,7 +21,8 @@ const nextConfig: NextConfig = {
   // Cloudflare Worker runtime zakazuje dynamické vyhodnocování kódu (eval/new Function),
   // které React Compiler v našem stacku vyžaduje.
   reactCompiler: false,
-  serverExternalPackages: ["firebase-admin"],
+  // jose má workerd entrypoint — musí být external, jinak OpenNext CF build padá (jwks-rsa / firebase-admin)
+  serverExternalPackages: ["firebase-admin", "jose"],
   experimental: {
     optimizePackageImports: [
       "framer-motion",
