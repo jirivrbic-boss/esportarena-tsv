@@ -1,12 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ChangeEvent } from "react";
 import { useAuth } from "@/contexts/auth-context";
 import {
   ANNOUNCEMENT_CATEGORIES,
   ANNOUNCEMENT_CATEGORY_LABEL,
   type AnnouncementCategory,
 } from "@/lib/announcements";
+import { formatBytes } from "@/lib/image-compress";
+import { uploadAnnouncementImage } from "@/lib/storage-upload";
 import { GlassCard } from "@/components/glass-card";
 import { GlowButton } from "@/components/glow-button";
 
@@ -31,6 +33,7 @@ export function AdminAnnouncementsPanel() {
   const [newAuthor, setNewAuthor] = useState("Administrace");
   const [newCategory, setNewCategory] = useState<AnnouncementCategory>("general");
   const [okMsg, setOkMsg] = useState<string | null>(null);
+  const [uploadHint, setUploadHint] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const [editContent, setEditContent] = useState("");
@@ -61,6 +64,32 @@ export function AdminAnnouncementsPanel() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  async function handleImagePick(
+    e: ChangeEvent<HTMLInputElement>,
+    setUrl: (url: string) => void
+  ) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setBusy(true);
+    setErr(null);
+    setUploadHint("Komprimuji a nahrávám obrázek…");
+    try {
+      const up = await uploadAnnouncementImage(file);
+      setUrl(up.url);
+      const saved =
+        up.compressedBytes < up.originalBytes
+          ? `${formatBytes(up.originalBytes)} → ${formatBytes(up.compressedBytes)}`
+          : formatBytes(up.compressedBytes);
+      setUploadHint(`Obrázek nahrán (${saved}).`);
+    } catch (error) {
+      setErr(error instanceof Error ? error.message : "Nahrání obrázku selhalo.");
+      setUploadHint(null);
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function createAnnouncement() {
     if (!user || !newTitle.trim() || !newAuthor.trim() || !newContent.trim()) return;
@@ -100,6 +129,7 @@ export function AdminAnnouncementsPanel() {
       setNewTitle("");
       setNewContent("");
       setNewImage("");
+      setUploadHint(null);
       const email = j.email;
       if (email?.skippedNoResend) {
         setOkMsg(
@@ -148,6 +178,7 @@ export function AdminAnnouncementsPanel() {
         return;
       }
       setEditingId(null);
+      setUploadHint(null);
       await load();
     } finally {
       setBusy(false);
@@ -182,6 +213,7 @@ export function AdminAnnouncementsPanel() {
     setEditImage(row.imageUrl ?? "");
     setEditAuthor(row.authorName ?? "");
     setEditCategory(row.category ?? "general");
+    setUploadHint(null);
   }
 
   return (
@@ -195,6 +227,10 @@ export function AdminAnnouncementsPanel() {
         kapitánům podle kategorie: hra = týmy dané hry, Obecné = všichni kapitáni s
         registrovaným týmem.
       </p>
+      <p className="mt-2 text-sm text-slate-500">
+        Obrázek můžeš nahrát z PC — automaticky se zmenší (max. cca 1600 px, JPEG ~400 KB),
+        aby ve Firebase Storage zabral co nejméně místa. Alternativně vložíš hotové HTTPS URL.
+      </p>
 
       {err ? (
         <p className="mt-4 text-sm text-red-400" role="alert">
@@ -204,6 +240,11 @@ export function AdminAnnouncementsPanel() {
       {okMsg ? (
         <p className="mt-4 text-sm text-[#39FF14]" role="status">
           {okMsg}
+        </p>
+      ) : null}
+      {uploadHint ? (
+        <p className="mt-2 text-sm text-slate-400" role="status">
+          {uploadHint}
         </p>
       ) : null}
 
@@ -224,12 +265,32 @@ export function AdminAnnouncementsPanel() {
           className="w-full rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-slate-600"
           placeholder="Obsah oznámení…"
         />
-        <input
-          value={newImage}
-          onChange={(e) => setNewImage(e.target.value)}
-          className="w-full rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-slate-600"
-          placeholder="URL obrázku (https://, volitelné)"
-        />
+        <div className="space-y-2">
+          <label className="block text-xs font-medium text-slate-400">
+            Obrázek z počítače (volitelné)
+          </label>
+          <input
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/*"
+            disabled={busy}
+            onChange={(e) => void handleImagePick(e, setNewImage)}
+            className="block w-full min-w-0 max-w-full text-sm"
+          />
+          <input
+            value={newImage}
+            onChange={(e) => setNewImage(e.target.value)}
+            className="w-full rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-slate-600"
+            placeholder="nebo URL obrázku (https://…)"
+          />
+          {newImage ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={newImage}
+              alt=""
+              className="mt-1 max-h-40 w-auto max-w-full rounded-lg border border-white/10 object-contain"
+            />
+          ) : null}
+        </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <input
             value={newAuthor}
@@ -284,12 +345,29 @@ export function AdminAnnouncementsPanel() {
                     rows={5}
                     className="w-full rounded-md border border-white/15 bg-black/50 px-2 py-2 text-slate-200"
                   />
-                  <input
-                    value={editImage}
-                    onChange={(e) => setEditImage(e.target.value)}
-                    className="mt-2 w-full rounded-md border border-white/15 bg-black/50 px-2 py-2 text-slate-200"
-                    placeholder="URL obrázku (https://, volitelné)"
-                  />
+                  <div className="mt-2 space-y-2">
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,image/*"
+                      disabled={busy}
+                      onChange={(e) => void handleImagePick(e, setEditImage)}
+                      className="block w-full min-w-0 max-w-full text-sm"
+                    />
+                    <input
+                      value={editImage}
+                      onChange={(e) => setEditImage(e.target.value)}
+                      className="w-full rounded-md border border-white/15 bg-black/50 px-2 py-2 text-slate-200"
+                      placeholder="URL obrázku (https://, volitelné)"
+                    />
+                    {editImage ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={editImage}
+                        alt=""
+                        className="max-h-32 w-auto max-w-full rounded-md border border-white/10 object-contain"
+                      />
+                    ) : null}
+                  </div>
                   <div className="mt-2 grid gap-2 sm:grid-cols-2">
                     <input
                       value={editAuthor}
