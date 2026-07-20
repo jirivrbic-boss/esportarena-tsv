@@ -20,7 +20,7 @@ export function GlowButton({
   ...rest
 }: Props) {
   const base =
-    "relative box-border inline-flex max-w-full items-center justify-center whitespace-nowrap rounded-lg px-4 py-3 text-xs font-semibold uppercase leading-tight tracking-wider transition-shadow touch-manipulation focus:outline-none focus-visible:ring-2 focus-visible:ring-[#39FF14] focus-visible:ring-offset-2 focus-visible:ring-offset-[#050505] sm:px-6 sm:text-sm";
+    "relative box-border inline-flex max-w-full items-center justify-center text-balance rounded-lg px-4 py-3 text-center text-xs font-semibold uppercase leading-snug tracking-wider transition-shadow touch-manipulation focus:outline-none focus-visible:ring-2 focus-visible:ring-[#39FF14] focus-visible:ring-offset-2 focus-visible:ring-offset-[#050505] sm:px-6 sm:text-sm sm:leading-tight";
   const styles =
     variant === "primary"
       ? "border border-[#39FF14]/40 bg-[#39FF14] text-black shadow-[0_0_14px_rgba(57,255,20,0.28)] hover:shadow-[0_0_22px_rgba(57,255,20,0.42)]"

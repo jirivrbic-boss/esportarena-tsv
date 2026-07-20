@@ -20,14 +20,14 @@ function teamLine(team: BracketTeamRef | null, fallback: string, isWinner: boole
           TBA
         </span>
         {team.schoolName ? (
-          <span className="mt-0.5 block text-xs text-slate-500">{team.schoolName}</span>
+          <span className="mt-0.5 block break-words text-xs text-slate-500">{team.schoolName}</span>
         ) : null}
       </span>
     );
   }
   return (
-    <span className={isWinner ? "text-[#39FF14]" : ""}>
-      <strong className="text-white">{team.teamName}</strong>
+    <span className={`min-w-0 ${isWinner ? "text-[#39FF14]" : ""}`}>
+      <strong className="break-words text-white">{team.teamName}</strong>
       {team.schoolName ? (
         <span className="block truncate text-[11px] text-slate-500">{team.schoolName}</span>
       ) : null}

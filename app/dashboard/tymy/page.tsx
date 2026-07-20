@@ -138,7 +138,7 @@ export default function DashboardTymyPage() {
                   </div>
                 ) : (
                 <>
-                <div className="flex flex-wrap items-center gap-3 px-5 py-4 sm:flex-nowrap">
+                <div className="flex flex-wrap items-center gap-3 px-4 py-4 sm:px-5">
                   {locked ? (
                     <div className="flex min-w-0 flex-1 items-center gap-4">
                       <span

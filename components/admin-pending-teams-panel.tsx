@@ -229,7 +229,11 @@ export function AdminPendingTeamsPanel() {
                   </p>
                   <p className="text-slate-400">{t.schoolName}</p>
                   <p className="mt-2 text-sm text-slate-500">
-                    Kapitán: {t.captainEmail} · Discord: {t.captainDiscord}
+                    <p className="mt-1 break-all text-xs text-slate-500">
+                      Kapitán: {t.captainEmail}
+                      <span className="text-slate-600"> · </span>
+                      Discord: {t.captainDiscord}
+                    </p>
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2">

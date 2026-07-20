@@ -204,11 +204,11 @@ export default function AdminPodporaPage() {
         description="Žádosti z webu (/podpora) a doplňkové FAQ položky (základní články zůstávají v kódu)."
       />
 
-      <div className="mt-8 flex gap-2 border-b border-white/10 pb-2">
+      <div className="mt-8 flex flex-wrap gap-2 border-b border-white/10 pb-2">
         <button
           type="button"
           onClick={() => setTab("tickets")}
-          className={`rounded-lg px-4 py-2 text-sm font-medium ${
+          className={`shrink-0 rounded-lg px-4 py-2 text-sm font-medium touch-manipulation ${
             tab === "tickets"
               ? "bg-[#39FF14]/15 text-[#39FF14]"
               : "text-slate-400 hover:bg-white/5"
@@ -219,7 +219,7 @@ export default function AdminPodporaPage() {
         <button
           type="button"
           onClick={() => setTab("faq")}
-          className={`rounded-lg px-4 py-2 text-sm font-medium ${
+          className={`shrink-0 rounded-lg px-4 py-2 text-sm font-medium touch-manipulation ${
             tab === "faq"
               ? "bg-[#39FF14]/15 text-[#39FF14]"
               : "text-slate-400 hover:bg-white/5"

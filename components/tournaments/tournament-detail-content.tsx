@@ -278,17 +278,17 @@ export function TournamentDetailContent({
         </p>
       </div>
 
-      <section className="relative left-1/2 right-1/2 mt-4 w-screen -translate-x-1/2 overflow-hidden border-y border-white/10 bg-[#0a0a0a]">
+      <section className="relative mt-4 w-full overflow-hidden border-y border-white/10 bg-[#0a0a0a]">
         <div
-          className="relative min-h-[290px] bg-cover bg-center bg-no-repeat sm:min-h-[360px]"
+          className="relative min-h-[260px] bg-cover bg-center bg-no-repeat sm:min-h-[360px]"
           style={{ backgroundImage: `url("${bannerBg}")` }}
         >
           <div className="absolute inset-0 bg-black/35 backdrop-blur-[1px]" />
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_35%,rgba(0,0,0,0.55)_100%)]" />
           <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-black/65 to-[#050505]" />
-          <div className="relative mx-auto flex min-h-[290px] max-w-6xl flex-col justify-end px-4 pb-8 pt-16 sm:min-h-[360px] sm:px-6">
+          <div className="relative mx-auto flex min-h-[260px] max-w-6xl flex-col justify-end px-4 pb-8 pt-12 sm:min-h-[360px] sm:px-6 sm:pt-16">
             <p className="text-xs uppercase tracking-[0.25em] text-[#39FF14]">Turnaj</p>
-            <h1 className="mt-3 font-[family-name:var(--font-bebas)] text-5xl tracking-wide text-white sm:text-7xl">
+            <h1 className="mt-3 break-words font-[family-name:var(--font-bebas)] text-4xl tracking-wide text-white sm:text-7xl">
               {name}
             </h1>
             <p className="mt-2 text-sm text-slate-300">
@@ -433,7 +433,7 @@ export function TournamentDetailContent({
               <p className="mt-4 text-sm text-slate-500">Zatím žádný přihlášený tým.</p>
             ) : (
               <div className="mt-4 overflow-hidden rounded-lg border border-white/10">
-                <div className="grid grid-cols-[minmax(0,1fr)_130px_110px] bg-black/40 px-4 py-2 text-xs uppercase tracking-wide text-slate-500">
+                <div className="hidden grid-cols-[minmax(0,1fr)_7.5rem_6.5rem] bg-black/40 px-4 py-2 text-xs uppercase tracking-wide text-slate-500 sm:grid">
                   <p>Tým</p>
                   <p>Stav</p>
                   <p>Akce</p>
@@ -442,20 +442,22 @@ export function TournamentDetailContent({
                   {registrations.map((r) => (
                     <li
                       key={r.teamId}
-                      className="grid grid-cols-[minmax(0,1fr)_130px_110px] items-center gap-3 border-t border-white/10 px-4 py-3 text-sm text-slate-200"
+                      className="flex flex-col gap-3 border-t border-white/10 px-4 py-3 text-sm text-slate-200 sm:grid sm:grid-cols-[minmax(0,1fr)_7.5rem_6.5rem] sm:items-center"
                     >
                       <div className="min-w-0">
-                        <p className="truncate font-medium">{r.teamName}</p>
+                        <p className="break-words font-medium">{r.teamName}</p>
                         <p className="truncate text-xs text-slate-500">{r.schoolName}</p>
                       </div>
-                      <p className="text-xs uppercase tracking-wide text-slate-400">Přihlášen</p>
-                      <button
-                        type="button"
-                        onClick={() => setSelectedTeam(r)}
-                        className="rounded-md border border-white/15 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-200 transition hover:border-[#39FF14]/40 hover:text-[#39FF14]"
-                      >
-                        Detail
-                      </button>
+                      <div className="flex items-center justify-between gap-3 sm:contents">
+                        <p className="text-xs uppercase tracking-wide text-slate-400">Přihlášen</p>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedTeam(r)}
+                          className="shrink-0 rounded-md border border-white/15 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-200 transition hover:border-[#39FF14]/40 hover:text-[#39FF14]"
+                        >
+                          Detail
+                        </button>
+                      </div>
                     </li>
                   ))}
                 </ul>
@@ -507,12 +509,12 @@ export function TournamentDetailContent({
           onClick={() => setSelectedTeam(null)}
         >
           <div
-            className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-xl border border-white/10 bg-[#111] p-5"
+            className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-xl border border-white/10 bg-[#111] p-4 sm:p-5"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-start justify-between gap-3">
-              <div>
-                <h3 className="text-xl font-semibold text-white">{selectedTeam.teamName}</h3>
+              <div className="min-w-0 pr-2">
+                <h3 className="break-words text-xl font-semibold text-white">{selectedTeam.teamName}</h3>
                 <p className="mt-1 text-xs text-slate-500">{selectedTeam.schoolName}</p>
                 {teamDetail?.schoolFullName ? (
                   <p className="mt-1 text-xs text-slate-600">{teamDetail.schoolFullName}</p>

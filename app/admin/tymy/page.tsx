@@ -452,12 +452,12 @@ export default function AdminTeamsPage() {
           onClick={() => setSelectedTeam(null)}
         >
           <div
-            className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-xl border border-white/10 bg-[#111] p-6"
+            className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-xl border border-white/10 bg-[#111] p-4 sm:p-6"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <h3 className="font-[family-name:var(--font-bebas)] text-3xl text-[#39FF14]">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <div className="min-w-0">
+                <h3 className="break-words font-[family-name:var(--font-bebas)] text-2xl text-[#39FF14] sm:text-3xl">
                   {selectedTeam.teamName ?? selectedTeam.schoolName ?? "Bez názvu"}
                 </h3>
                 <p className="mt-1 text-sm text-slate-300">
@@ -465,14 +465,14 @@ export default function AdminTeamsPage() {
                     ? gameLabel(selectedTeam.gameId)
                     : "CS2 (starý záznam)"}
                 </p>
-                <p className="mt-1 text-sm text-slate-400">
+                <p className="mt-1 break-words text-sm text-slate-400">
                   {selectedTeam.schoolFullName ?? selectedTeam.schoolName ?? "Škola neuvedena"}
                 </p>
                 <p className="mt-2 text-xs uppercase tracking-wide text-slate-500">
                   {getStatusLabel(selectedTeam.status)}
                 </p>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2 sm:justify-end">
                 <GlowButton
                   type="button"
                   className="!px-4 !py-2 !text-xs"
@@ -498,7 +498,7 @@ export default function AdminTeamsPage() {
                 <button
                   type="button"
                   onClick={() => setSelectedTeam(null)}
-                  className="text-slate-400 hover:text-white"
+                  className="ml-auto rounded-md px-2 py-1 text-slate-400 hover:text-white sm:ml-0"
                 >
                   ✕
                 </button>
@@ -612,7 +612,9 @@ export default function AdminTeamsPage() {
                   Kontakty
                 </p>
                 <p className="mt-3 text-sm text-slate-300">
+                  <p className="break-all text-sm text-slate-300">
                   Kapitán: {selectedTeam.captainEmail ?? "Neuvedeno"}
+                  </p>
                 </p>
                 <p className="mt-1 text-sm text-slate-300">
                   Discord: {selectedTeam.captainDiscord ?? "Neuvedeno"}
@@ -746,15 +748,15 @@ export default function AdminTeamsPage() {
           onClick={() => setMessageTeam(null)}
         >
           <div
-            className="w-full max-w-xl rounded-xl border border-white/10 bg-[#111] p-6"
+            className="max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-xl border border-white/10 bg-[#111] p-4 sm:p-6"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-start justify-between gap-3">
-              <div>
-                <h3 className="font-[family-name:var(--font-bebas)] text-3xl text-[#39FF14]">
+              <div className="min-w-0">
+                <h3 className="font-[family-name:var(--font-bebas)] text-2xl text-[#39FF14] sm:text-3xl">
                   Poslat zprávu
                 </h3>
-                <p className="mt-1 text-sm text-slate-400">
+                <p className="mt-1 break-all text-sm text-slate-400">
                   Příjemce: {messageTeam.captainEmail ?? "E-mail není uložený"}
                 </p>
               </div>

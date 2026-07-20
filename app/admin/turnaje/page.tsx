@@ -124,9 +124,9 @@ function PlayoffTeamPicker({
               type="checkbox"
               checked={selectedIds.includes(t.id)}
               onChange={() => toggle(t.id)}
-              className="mt-1"
+              className="mt-1 shrink-0"
             />
-            <span>
+            <span className="min-w-0 break-words">
               <strong className="text-white">{t.teamName}</strong>
               <span className="text-slate-500"> · {t.schoolName}</span>
             </span>

@@ -71,8 +71,8 @@ select:disabled {
   @apply cursor-not-allowed border-slate-600/40 bg-[#0d0d0d] text-slate-400 opacity-100;
 }
 
-input[type="checkbox"] {
-  @apply h-4 w-4 rounded border-slate-500/60 bg-[#141414] text-[#39FF14] focus:ring-2 focus:ring-[#39FF14]/40;
+input[type="file"] {
+  @apply max-w-full min-w-0 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-[#39FF14]/20 file:px-3 file:py-2 file:text-[#39FF14];
 }
 
 label {

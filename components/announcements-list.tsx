@@ -202,7 +202,7 @@ export function AnnouncementsList() {
         <GlassCard key={a.id} delay={i * 0.04}>
           <Link
             href={`/oznameni/${a.id}`}
-            className="grid items-start gap-4 transition-opacity hover:opacity-90 md:grid-cols-[360px_minmax(0,1fr)] md:gap-6"
+            className="grid items-start gap-4 transition-opacity hover:opacity-90 md:grid-cols-[minmax(0,240px)_minmax(0,1fr)] md:gap-6 lg:grid-cols-[minmax(0,320px)_minmax(0,1fr)]"
           >
             {a.imageUrl ? (
               <div className="relative aspect-[16/9] w-full overflow-hidden rounded-xl border border-white/10 bg-black">

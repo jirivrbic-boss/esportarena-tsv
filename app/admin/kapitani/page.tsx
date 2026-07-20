@@ -537,7 +537,7 @@ export default function AdminCaptainsPage() {
                       : "border-white/10 bg-[#0a0f16] hover:border-white/20"
                   }`}
                 >
-                  <p className="font-medium text-white">{c.email || "bez e-mailu"}</p>
+                  <p className="truncate font-medium text-white">{c.email || "bez e-mailu"}</p>
                   <p className="mt-1 text-sm text-slate-400">
                     {[c.firstName, c.lastName].filter(Boolean).join(" ") || "—"}
                   </p>
@@ -575,10 +575,10 @@ export default function AdminCaptainsPage() {
           ) : (
             <GlassCard className="space-y-6">
               <div>
-                <h2 className="font-[family-name:var(--font-bebas)] text-2xl text-white">
+                <h2 className="break-all font-[family-name:var(--font-bebas)] text-xl text-white sm:text-2xl">
                   {selected.email}
                 </h2>
-                <p className="mt-1 font-mono text-xs text-slate-500">UID: {selected.uid}</p>
+                <p className="mt-1 break-all font-mono text-xs text-slate-500">UID: {selected.uid}</p>
                 {authInfo ? (
                   <ul className="mt-3 space-y-1 text-xs text-slate-400">
                     <li>
