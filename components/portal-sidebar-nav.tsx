@@ -33,7 +33,7 @@ export function PortalSidebarNav({
             key={item.href + item.label}
             href={item.href}
             onClick={onNavigate}
-            className={`rounded-lg px-3 py-2.5 text-sm font-medium transition-colors touch-manipulation ${
+            className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors touch-manipulation ${
               active
                 ? "bg-[#39FF14]/15 text-[#39FF14]"
                 : "text-slate-400 hover:bg-white/5 hover:text-white"

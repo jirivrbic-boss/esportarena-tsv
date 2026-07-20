@@ -35,7 +35,7 @@ export default async function RootLayout({
 
   return (
     <html lang="cs" className="h-full antialiased" data-scroll-behavior="smooth">
-      <body className="flex min-h-dvh min-w-0 flex-col overflow-x-clip bg-[#050505] text-white">
+      <body className="flex min-h-dvh min-w-0 flex-col bg-[#050505] text-white max-lg:overflow-x-clip">
         <FirebaseRuntimeInit config={firebasePublic} />
         <Providers>
           <div className="flex flex-1 flex-col">

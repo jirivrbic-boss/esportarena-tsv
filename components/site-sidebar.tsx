@@ -29,12 +29,11 @@ export function SiteSidebar({
   return (
     <aside
       id="site-sidebar"
-      aria-hidden={!open}
-      className={`fixed inset-y-0 left-0 z-50 flex h-dvh w-[min(18rem,88vw)] flex-col border-r border-white/10 bg-[#080808] transition-transform duration-200 ease-out lg:z-40 lg:w-60 lg:translate-x-0 ${
+      className={`fixed inset-y-0 left-0 z-50 flex h-dvh w-[min(17.5rem,88vw)] flex-col border-r border-white/10 bg-[#080808] transition-transform duration-200 ease-out lg:z-40 lg:w-60 lg:translate-x-0 ${
         open ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
       }`}
     >
-      <div className="flex shrink-0 items-center gap-2 border-b border-white/10 px-3 py-3 sm:px-4 sm:py-4">
+      <div className="flex shrink-0 items-center gap-2 border-b border-white/10 px-4 py-4">
         <Link
           href={brandHref}
           onClick={onClose}
@@ -78,7 +77,7 @@ export function SiteSidebar({
         <SiteSocialLinks compact />
       </div>
 
-      <div className="flex shrink-0 flex-col gap-2 border-t border-white/10 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+      <div className="flex shrink-0 flex-col gap-2 border-t border-white/10 p-3">
         {user ? (
           <>
             {!isPortal ? (
@@ -124,14 +123,14 @@ export function SiteSidebar({
             <GlowButton
               href="/prihlaseni"
               variant="ghost"
-              className="w-full !justify-center !text-xs"
+              className="w-full !justify-center !px-3 !text-xs"
               onClick={onClose}
             >
               Přihlášení
             </GlowButton>
             <GlowButton
               href="/registrace"
-              className="w-full !justify-center !text-xs"
+              className="w-full !justify-center !px-3 !text-xs"
               onClick={onClose}
             >
               Registrace kapitána

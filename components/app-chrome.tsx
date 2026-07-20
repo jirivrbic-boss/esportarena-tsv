@@ -8,18 +8,33 @@ import { SiteSidebar } from "@/components/site-sidebar";
 import { SiteFooter } from "@/components/site-footer";
 import { TOURNAMENT_BRAND_LOGO } from "@/lib/tournament-game-logos";
 
+const LG_MQ = "(min-width: 1024px)";
+
 export function AppChrome({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const [navOpen, setNavOpen] = useState(false);
+  const [isDesktop, setIsDesktop] = useState(false);
   const isPortal =
     pathname.startsWith("/dashboard") || pathname.startsWith("/admin");
+
+  useEffect(() => {
+    const mq = window.matchMedia(LG_MQ);
+    const sync = () => setIsDesktop(mq.matches);
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
 
   useEffect(() => {
     setNavOpen(false);
   }, [pathname]);
 
   useEffect(() => {
-    if (!navOpen) return;
+    if (isDesktop && navOpen) setNavOpen(false);
+  }, [isDesktop, navOpen]);
+
+  useEffect(() => {
+    if (!navOpen || isDesktop) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setNavOpen(false);
     };
@@ -30,10 +45,10 @@ export function AppChrome({ children }: { children: ReactNode }) {
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = prev;
     };
-  }, [navOpen]);
+  }, [navOpen, isDesktop]);
 
   return (
-    <div className="min-h-screen min-w-0 overflow-x-clip bg-[#050505]">
+    <div className="min-h-screen min-w-0 bg-[#050505] max-lg:overflow-x-clip">
       <header className="sticky top-0 z-50 flex h-14 items-center gap-3 border-b border-white/10 bg-[#050505]/92 px-3 backdrop-blur-xl safe-px lg:hidden">
         <button
           type="button"
@@ -81,7 +96,7 @@ export function AppChrome({ children }: { children: ReactNode }) {
         </Link>
       </header>
 
-      {navOpen ? (
+      {navOpen && !isDesktop ? (
         <button
           type="button"
           aria-label="Zavřít menu"
@@ -92,7 +107,7 @@ export function AppChrome({ children }: { children: ReactNode }) {
 
       <SiteSidebar open={navOpen} onClose={() => setNavOpen(false)} />
 
-      <div className="flex min-h-[calc(100dvh-3.5rem)] min-w-0 flex-col lg:min-h-screen lg:pl-60">
+      <div className="flex min-h-screen min-w-0 flex-col max-lg:min-h-[calc(100dvh-3.5rem)] lg:pl-60">
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">{children}</div>
         {!isPortal ? <SiteFooter /> : null}
       </div>

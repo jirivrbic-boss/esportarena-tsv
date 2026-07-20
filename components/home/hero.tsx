@@ -129,7 +129,7 @@ export function Hero({
       <div className="pointer-events-none absolute inset-0 z-[2] bg-[radial-gradient(ellipse_at_center,rgba(57,255,20,0.08),transparent_55%)]" />
       <div className="pointer-events-none absolute inset-0 z-[2] bg-[linear-gradient(to_top,#050505_0%,transparent_45%)]" />
 
-      <div className="relative z-10 mx-auto flex min-h-[min(88vh,100dvh)] max-w-6xl flex-col items-center justify-center px-4 pb-20 pt-16 text-center sm:px-6 sm:pb-24 sm:pt-24 lg:pt-28">
+      <div className="relative z-10 mx-auto flex min-h-[88vh] max-w-6xl flex-col items-center justify-center px-4 pb-24 pt-20 text-center sm:px-6 sm:pt-28">
         <motion.div
           initial={{ opacity: 0, scale: 0.94 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -159,7 +159,7 @@ export function Hero({
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2, duration: 0.55 }}
-          className="font-[family-name:var(--font-bebas)] text-[2.65rem] leading-none tracking-wide text-white sm:text-7xl md:text-8xl"
+          className="font-[family-name:var(--font-bebas)] text-5xl leading-none tracking-wide text-white sm:text-7xl md:text-8xl"
         >
           {heroTitle}
           <span className="block text-[#39FF14] drop-shadow-[0_0_20px_rgba(57,255,20,0.5)]">
@@ -170,7 +170,7 @@ export function Hero({
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3, duration: 0.55 }}
-          className="mt-6 max-w-2xl text-base text-slate-400 whitespace-pre-line sm:text-lg"
+          className="mt-6 max-w-2xl text-lg text-slate-400 whitespace-pre-line"
         >
           {heroSubtitle}
           <br />
