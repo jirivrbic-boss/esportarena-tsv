@@ -104,8 +104,17 @@ export function autoHighlightImportantText(input: string): string {
   return out;
 }
 
+/** Odstraní značky tučného / kurzívy / odkazů pro výpis v seznamu. */
+export function stripAnnouncementMarkup(content: string): string {
+  return content
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    .replace(/\*\*([^*]+)\*\*/g, "$1")
+    .replace(/\*([^*]+)\*/g, "$1")
+    .replace(/_([^_]+)_/g, "$1");
+}
+
 export function toAnnouncementExcerpt(content: string, maxLen = 180): string {
-  const oneLine = content.replace(/\s+/g, " ").trim();
+  const oneLine = stripAnnouncementMarkup(content).replace(/\s+/g, " ").trim();
   if (oneLine.length <= maxLen) return oneLine;
   return `${oneLine.slice(0, maxLen).trimEnd()}…`;
 }

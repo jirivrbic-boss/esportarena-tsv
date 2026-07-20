@@ -11,6 +11,7 @@ import { formatBytes } from "@/lib/image-compress";
 import { uploadAnnouncementImage } from "@/lib/storage-upload";
 import { GlassCard } from "@/components/glass-card";
 import { GlowButton } from "@/components/glow-button";
+import { AnnouncementRichEditor } from "@/components/announcement-rich-text";
 
 type Row = {
   id: string;
@@ -258,12 +259,12 @@ export function AdminAnnouncementsPanel() {
           className="w-full rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-slate-600"
           placeholder="Nadpis (tučný titulek článku)"
         />
-        <textarea
+        <AnnouncementRichEditor
           value={newContent}
-          onChange={(e) => setNewContent(e.target.value)}
+          onChange={setNewContent}
           rows={8}
-          className="w-full rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white placeholder:text-slate-600"
-          placeholder="Obsah oznámení…"
+          disabled={busy}
+          placeholder="Obsah oznámení… Označ text a použij B / I / Odkaz."
         />
         <div className="space-y-2">
           <label className="block text-xs font-medium text-slate-400">
@@ -339,11 +340,13 @@ export function AdminAnnouncementsPanel() {
                     rows={2}
                     className="mb-2 w-full rounded-md border border-white/15 bg-black/50 px-2 py-2 text-slate-200"
                   />
-                  <textarea
+                  <AnnouncementRichEditor
                     value={editContent}
-                    onChange={(e) => setEditContent(e.target.value)}
+                    onChange={setEditContent}
                     rows={5}
+                    disabled={busy}
                     className="w-full rounded-md border border-white/15 bg-black/50 px-2 py-2 text-slate-200"
+                    placeholder="Obsah… Označ text → B / I / Odkaz"
                   />
                   <div className="mt-2 space-y-2">
                     <input

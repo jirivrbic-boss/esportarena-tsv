@@ -1,9 +1,6 @@
 import { NextResponse } from "next/server";
 import { verifyAdminBearer } from "@/lib/server-auth";
-import {
-  autoHighlightImportantText,
-  parseAnnouncementCategory,
-} from "@/lib/announcements";
+import { parseAnnouncementCategory } from "@/lib/announcements";
 import { deleteDocRest, getDocRest, upsertDocRest } from "@/lib/firebase/firestore-rest-admin";
 import { reportSiteAction } from "@/lib/discord-webhook";
 
@@ -45,7 +42,7 @@ export async function PATCH(
   if (typeof body.content === "string") {
     const trimmed = body.content.trim().slice(0, 8000);
     updates.content = trimmed;
-    updates.highlightedContent = autoHighlightImportantText(trimmed);
+    updates.highlightedContent = trimmed;
   }
   if (body.imageUrl === null) {
     updates.imageUrl = null;

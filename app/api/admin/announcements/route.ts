@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { verifyAdminBearer } from "@/lib/server-auth";
 import {
-  autoHighlightImportantText,
   ANNOUNCEMENT_CATEGORY_LABEL,
   parseAnnouncementCategory,
 } from "@/lib/announcements";
@@ -72,7 +71,8 @@ export async function POST(request: Request) {
     const data = {
       title: title.slice(0, 180),
       content: content.slice(0, 8000),
-      highlightedContent: autoHighlightImportantText(content.slice(0, 8000)),
+      // Zachovat admin značky (**tučné**, *kurzíva*, [odkaz](url))
+      highlightedContent: content.slice(0, 8000),
       imageUrl:
         body.imageUrl && typeof body.imageUrl === "string" && body.imageUrl.startsWith("https://")
           ? body.imageUrl

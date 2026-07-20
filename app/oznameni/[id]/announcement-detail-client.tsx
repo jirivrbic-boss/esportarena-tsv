@@ -13,6 +13,7 @@ import {
   formatAnnouncementDate,
   parseAnnouncementCategory,
 } from "@/lib/announcements";
+import { AnnouncementRichText } from "@/components/announcement-rich-text";
 
 type AnnouncementDetail = {
   title: string;
@@ -23,20 +24,6 @@ type AnnouncementDetail = {
   category: string;
   createdAtMs: number;
 };
-
-function renderHighlightedText(content: string) {
-  const parts = content.split(/(\*\*[^*]+\*\*)/g);
-  return parts.map((part, i) => {
-    if (part.startsWith("**") && part.endsWith("**")) {
-      return (
-        <strong key={i} className="font-bold text-white">
-          {part.slice(2, -2)}
-        </strong>
-      );
-    }
-    return <span key={i}>{part}</span>;
-  });
-}
 
 export function AnnouncementDetailClient() {
   const params = useParams();
@@ -98,7 +85,8 @@ export function AnnouncementDetailClient() {
   }
 
   const category = ANNOUNCEMENT_CATEGORY_LABEL[parseAnnouncementCategory(item.category)];
-  const highlighted = item.highlightedContent?.trim() ? item.highlightedContent : item.content;
+  // Preferuj content (admin značky); highlightedContent jen jako fallback (starší / Discord)
+  const body = item.content.trim() ? item.content : item.highlightedContent ?? "";
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-12 sm:px-6">
@@ -140,9 +128,10 @@ export function AnnouncementDetailClient() {
         </div>
       ) : null}
 
-      <article className="mt-8 max-w-4xl whitespace-pre-wrap text-[1.12rem] leading-relaxed text-slate-200">
-        {renderHighlightedText(highlighted)}
-      </article>
+      <AnnouncementRichText
+        content={body}
+        className="mt-8 max-w-4xl text-[1.12rem] leading-relaxed text-slate-200"
+      />
     </main>
   );
 }
