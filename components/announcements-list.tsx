@@ -14,6 +14,8 @@ import { getFirebaseDb } from "@/lib/firebase/client";
 import { isFirebaseConfigured } from "@/lib/firebase/config";
 import {
   ANNOUNCEMENT_CATEGORY_LABEL,
+  announcementCreatedAtMs,
+  formatAnnouncementDate,
   parseAnnouncementCategory,
   toAnnouncementExcerpt,
 } from "@/lib/announcements";
@@ -29,13 +31,6 @@ export type AnnouncementItem = {
   category: string;
   createdAtMs: number;
 };
-
-function formatDate(ms: number) {
-  if (!ms) return "";
-  return new Intl.DateTimeFormat("cs-CZ", {
-    dateStyle: "long",
-  }).format(new Date(ms));
-}
 
 function firebaseMissingMessage(): string {
   if (process.env.NODE_ENV === "production") {
@@ -66,9 +61,7 @@ export function AnnouncementsList() {
       .then((snap) => {
         const list: AnnouncementItem[] = snap.docs.map((d) => {
           const x = d.data();
-          const ts = x.createdAt;
-          const createdAtMs =
-            ts && typeof ts.toMillis === "function" ? ts.toMillis() : 0;
+          const createdAtMs = announcementCreatedAtMs(x.createdAt);
           const legacyImage =
             Array.isArray(x.imageUrls) && typeof x.imageUrls[0] === "string"
               ? String(x.imageUrls[0])
@@ -222,8 +215,14 @@ export function AnnouncementsList() {
             )}
             <div>
               <div className="flex flex-wrap items-center gap-2 text-xs uppercase tracking-wider text-slate-500">
-                <time>{formatDate(a.createdAtMs)}</time>
-                <span>|</span>
+                {a.createdAtMs ? (
+                  <>
+                    <time dateTime={new Date(a.createdAtMs).toISOString()}>
+                      {formatAnnouncementDate(a.createdAtMs)}
+                    </time>
+                    <span>|</span>
+                  </>
+                ) : null}
                 <span>{ANNOUNCEMENT_CATEGORY_LABEL[parseAnnouncementCategory(a.category)]}</span>
                 <span>|</span>
                 <span className="text-slate-400">{a.authorName}</span>

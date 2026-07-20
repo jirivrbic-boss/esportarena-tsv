@@ -9,6 +9,8 @@ import { getFirebaseDb } from "@/lib/firebase/client";
 import { isFirebaseConfigured } from "@/lib/firebase/config";
 import {
   ANNOUNCEMENT_CATEGORY_LABEL,
+  announcementCreatedAtMs,
+  formatAnnouncementDate,
   parseAnnouncementCategory,
 } from "@/lib/announcements";
 
@@ -21,11 +23,6 @@ type AnnouncementDetail = {
   category: string;
   createdAtMs: number;
 };
-
-function formatDate(ms: number) {
-  if (!ms) return "";
-  return new Intl.DateTimeFormat("cs-CZ", { dateStyle: "long" }).format(new Date(ms));
-}
 
 function renderHighlightedText(content: string) {
   const parts = content.split(/(\*\*[^*]+\*\*)/g);
@@ -65,8 +62,7 @@ export function AnnouncementDetailClient() {
           return;
         }
         const x = snap.data();
-        const ts = x.createdAt;
-        const createdAtMs = ts && typeof ts.toMillis === "function" ? ts.toMillis() : 0;
+        const createdAtMs = announcementCreatedAtMs(x.createdAt);
         const legacyImage =
           Array.isArray(x.imageUrls) && typeof x.imageUrls[0] === "string"
             ? String(x.imageUrls[0])
@@ -118,8 +114,14 @@ export function AnnouncementDetailClient() {
         {item.title}
       </h1>
       <div className="mt-6 flex flex-wrap items-center gap-3 text-sm font-semibold uppercase tracking-wide text-slate-400">
-        <time>{formatDate(item.createdAtMs)}</time>
-        <span>|</span>
+        {item.createdAtMs ? (
+          <>
+            <time dateTime={new Date(item.createdAtMs).toISOString()}>
+              {formatAnnouncementDate(item.createdAtMs)}
+            </time>
+            <span>|</span>
+          </>
+        ) : null}
         <span>{category}</span>
         <span>|</span>
         <span className="text-slate-300 normal-case">{item.authorName}</span>

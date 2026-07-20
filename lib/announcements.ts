@@ -24,12 +24,70 @@ export type AnnouncementDocument = {
   authorName: string;
   category: AnnouncementCategory;
   source?: string;
-  createdAt: { toMillis?: () => number; toDate?: () => Date } | Date;
+  createdAt:
+    | { toMillis?: () => number; toDate?: () => Date; seconds?: number }
+    | Date
+    | string
+    | number
+    | null
+    | undefined;
 };
 
 export function parseAnnouncementCategory(input: unknown): AnnouncementCategory {
   const value = String(input ?? "").trim() as AnnouncementCategory;
   return ANNOUNCEMENT_CATEGORIES.includes(value) ? value : "general";
+}
+
+/** Firestore Timestamp, ISO string (REST admin) nebo Date/number → ms. */
+export function announcementCreatedAtMs(value: unknown): number {
+  if (value == null) return 0;
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value < 1e12 ? value * 1000 : value;
+  }
+  if (typeof value === "string") {
+    const parsed = Date.parse(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  if (value instanceof Date) {
+    const ms = value.getTime();
+    return Number.isFinite(ms) ? ms : 0;
+  }
+  if (typeof value === "object") {
+    const ts = value as {
+      toMillis?: () => number;
+      toDate?: () => Date;
+      seconds?: number;
+      _seconds?: number;
+    };
+    if (typeof ts.toMillis === "function") {
+      try {
+        const ms = ts.toMillis();
+        return Number.isFinite(ms) ? ms : 0;
+      } catch {
+        /* fall through */
+      }
+    }
+    if (typeof ts.toDate === "function") {
+      try {
+        const ms = ts.toDate().getTime();
+        return Number.isFinite(ms) ? ms : 0;
+      } catch {
+        /* fall through */
+      }
+    }
+    const seconds = ts.seconds ?? ts._seconds;
+    if (typeof seconds === "number" && Number.isFinite(seconds)) {
+      return seconds * 1000;
+    }
+  }
+  return 0;
+}
+
+export function formatAnnouncementDate(ms: number): string {
+  if (!ms) return "";
+  return new Intl.DateTimeFormat("cs-CZ", {
+    dateStyle: "long",
+  }).format(new Date(ms));
 }
 
 const IMPORTANT_PATTERNS: RegExp[] = [
