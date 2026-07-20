@@ -59,6 +59,6 @@ yarn-error.log*
 .firebase-service-account.json
 .env.local.bak-firebase
 
-# Lokální poznámky / velké soubory mimo GitHub limit (100 MB)
+# Lokální poznámky / originály velkých videí
 emaily*.txt
-public/fotky/X_ARENA_image_vid.mp4
+public/fotky/*.original.mp4
