@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { verifyAdminBearer } from "@/lib/server-auth";
 import { sendTeamRejectedEmail } from "@/lib/resend-team-status";
 import { getDocRest, upsertDocRest } from "@/lib/firebase/firestore-rest-admin";
+import { reportSiteAction } from "@/lib/discord-webhook";
 
 export async function POST(
   request: Request,
@@ -48,6 +49,23 @@ export async function POST(
       emailSent = sent.ok;
       if (!sent.ok) emailError = sent.error;
     }
+
+    void reportSiteAction({
+      content: "**Tým zamítnut** · admin",
+      title: teamName.slice(0, 256),
+      description: [
+        captainEmail ? `**Kapitán:** ${captainEmail}` : null,
+        reason.trim() ? `**Důvod:** ${reason.trim().slice(0, 800)}` : null,
+        `**Team ID:** \`${id}\``,
+      ]
+        .filter(Boolean)
+        .join("\n"),
+      fields: [
+        ...(auth.user.email
+          ? [{ name: "Admin", value: auth.user.email, inline: true }]
+          : []),
+      ],
+    });
 
     return NextResponse.json({
       ok: true,

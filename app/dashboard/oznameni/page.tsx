@@ -2,7 +2,6 @@
 
 import { motion } from "framer-motion";
 import { AnnouncementsList } from "@/components/announcements-list";
-import { GlassCard } from "@/components/glass-card";
 
 export default function DashboardOznameniPage() {
   return (
@@ -15,19 +14,10 @@ export default function DashboardOznameniPage() {
         Oznámení
       </h1>
       <p className="mt-3 text-sm text-slate-400">
-        Novinky zveřejňuje administrace. Příspěvky vznikají z vyhrazeného kanálu
-        na Discordu (text + volitelně obrázek) — viz skript{" "}
-        <code className="text-xs text-slate-500">scripts/discord-announce-bot.mjs</code>{" "}
-        v repozitáři.
+        Hlavní zdroj novinek turnaje. Každé oznámení zveřejníme tady — stejný obsah
+        posíláme i na Discord. Sleduj tuto sekci kvůli termínům, změnám a organizačním
+        pokynům.
       </p>
-      <GlassCard className="mt-6 border-[#39FF14]/20">
-        <p className="text-xs text-slate-500">
-          Ve Firebase konzoli vytvoř index pro kolekci{" "}
-          <code className="text-slate-400">announcements</code> — pole{" "}
-          <code className="text-slate-400">createdAt</code> sestupně, pokud ho
-          konzole po prvním načtení vyžádá.
-        </p>
-      </GlassCard>
       <div className="mt-8">
         <AnnouncementsList />
       </div>

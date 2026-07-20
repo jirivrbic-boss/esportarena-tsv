@@ -3,28 +3,24 @@ import { getAuth } from "firebase-admin/auth";
 import { getFirestore } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
 import { parseAdminEmailsEnv } from "@/lib/admin-access";
+import {
+  readFirebaseServiceAccountFromEnv,
+  tryReadFirebaseServiceAccountFromEnv,
+} from "@/lib/firebase/service-account";
 
 let adminApp: App | undefined;
 
-function getServiceAccount(): Record<string, unknown> | null {
-  const raw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
-  if (!raw?.trim()) return null;
-  try {
-    return JSON.parse(raw) as Record<string, unknown>;
-  } catch {
-    return null;
-  }
-}
-
-/** Ověření tokenu a session cookie vyžaduje platný service account na serveru (Netlify env). */
+/** Ověření tokenu a session cookie vyžaduje platný service account na serveru. */
 export function isFirebaseAdminConfigured(): boolean {
-  return getServiceAccount() !== null;
+  return tryReadFirebaseServiceAccountFromEnv() !== null;
 }
 
 export function getAdminApp(): App {
   if (adminApp) return adminApp;
-  const sa = getServiceAccount();
-  if (!sa) {
+  let sa;
+  try {
+    sa = readFirebaseServiceAccountFromEnv();
+  } catch {
     throw new Error("Chybí FIREBASE_SERVICE_ACCOUNT_JSON pro serverové operace.");
   }
   const bucket = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET;

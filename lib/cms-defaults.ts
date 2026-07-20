@@ -1,4 +1,5 @@
 import { RULES_SECTIONS } from "@/lib/rules-data";
+import { TOURNAMENT_SCHOOLS_BODY } from "@/lib/site-info";
 
 export type CmsSlug = "home" | "pravidla" | "oznameni";
 
@@ -24,28 +25,29 @@ export type OznameniCms = {
 
 const DEFAULT_ABOUT_CARDS: AboutCard[] = [
   {
-    title: "Pro koho",
+    title: "Pro koho je turnaj",
     body:
-      "Střední školy (SŠ), vysoké školy (VŠ) a nově i základní školy (ZŠ). Turnaj je vázán na IT vzdělávání — profesionální přístup k organizaci a pravidům.",
+      `${TOURNAMENT_SCHOOLS_BODY} Projekt navazuje na IT vzdělávání — férová pravidla, dokumentovaná registrace a novinky v Oznámeních na webu.`,
   },
   {
-    title: "Automatizace",
+    title: "Čtyři disciplíny",
     body:
-      "Faceit ELO pro férové nasazení, notifikace pro administrátory a e-maily pro kapitány. Schválené týmy získají odkaz do Faceit kvalifikace.",
+      "Counter-Strike 2, League of Legends, Brawl Stars a EA SPORTS FC 26. Každá hra má vlastní stránku pravidel — po přihlášení kapitána zakládáš tým zvlášť pro vybranou hru.",
   },
   {
     title: "Komunikace",
     body:
-      "Oficiální komunikace výhradně přes Discord — ne WhatsApp.",
+      "Oficiální informace zveřejňujeme v Oznámeních na webu (stejný obsah jde i na Discord). WhatsApp nepoužíváme.",
   },
 ];
 
 export const CMS_DEFAULTS: Record<CmsSlug, HomeCms | PravidlaCms | OznameniCms> = {
   home: {
-    heroTagline: "Counter-Strike 2 · České školy",
+    heroTagline: "Studentský turnaj · Česko & Slovensko",
     heroTitle: "ESPORTARENA",
     heroTitleAccent: "TSV",
-    heroSubtitle: "Sezóna 4 · Prize pool 120 000 Kč",
+    heroSubtitle:
+      "Sezóna 4 · CS2, LoL, Brawl Stars a FC 26 · Prize pool se oznámí během registrace",
     heroPoweredBy: "Powered by Cougar & EsportArena Plzeň",
     aboutCards: DEFAULT_ABOUT_CARDS,
   },
@@ -53,6 +55,7 @@ export const CMS_DEFAULTS: Record<CmsSlug, HomeCms | PravidlaCms | OznameniCms> 
     sections: RULES_SECTIONS.map((s) => ({ title: s.title, body: s.body })),
   },
   oznameni: {
-    intro: "Aktuality od pořadatelů.",
+    intro:
+      "Hlavní zdroj novinek turnaje. Každé oznámení zveřejníme tady na webu a stejný obsah pošleme i na Discord.",
   },
 };

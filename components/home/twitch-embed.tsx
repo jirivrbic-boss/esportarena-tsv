@@ -1,11 +1,13 @@
 "use client";
 
+import { useState } from "react";
 import { GlassCard } from "@/components/glass-card";
 
 const channel =
   process.env.NEXT_PUBLIC_TWITCH_CHANNEL?.trim() || "spajkk";
 
 export function TwitchHub() {
+  const [enabled, setEnabled] = useState(false);
   const parent =
     typeof window !== "undefined" ? window.location.hostname : "localhost";
 
@@ -25,15 +27,31 @@ export function TwitchHub() {
         </p>
         <GlassCard className="mt-8 overflow-hidden p-0">
           <div className="aspect-video w-full bg-black">
-            <iframe
-              title="Twitch — oficiální kanál"
-              src={src}
-              allowFullScreen
-              height="100%"
-              width="100%"
-              className="h-full min-h-[240px] w-full sm:min-h-[360px]"
-              suppressHydrationWarning
-            />
+            {enabled ? (
+              <iframe
+                title="Twitch — oficiální kanál"
+                src={src}
+                allowFullScreen
+                loading="lazy"
+                height="100%"
+                width="100%"
+                className="h-full min-h-[240px] w-full sm:min-h-[360px]"
+                suppressHydrationWarning
+              />
+            ) : (
+              <div className="flex h-full min-h-[240px] w-full flex-col items-center justify-center gap-3 px-4 text-center sm:min-h-[360px]">
+                <p className="text-sm text-slate-300">
+                  Twitch stream se načte až po kliknutí, aby byl web rychlejší.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setEnabled(true)}
+                  className="rounded-lg border border-[#39FF14]/50 bg-[#39FF14]/15 px-4 py-2 text-sm font-semibold text-[#39FF14] transition-colors hover:bg-[#39FF14]/25"
+                >
+                  Spustit stream
+                </button>
+              </div>
+            )}
           </div>
         </GlassCard>
         <p className="mt-3 text-center text-xs text-slate-500">

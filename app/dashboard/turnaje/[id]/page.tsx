@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import type { GameId } from "@/lib/games";
+import { parseTournamentPhase, type TournamentPhase } from "@/lib/tournaments";
 import {
   TournamentDetailContent,
   type RegistrationRow,
@@ -12,11 +13,13 @@ import { useAuth } from "@/contexts/auth-context";
 type PublicTournament = {
   name: string;
   gameId: string;
+  phase?: TournamentPhase;
   backgroundImageUrl?: string;
   startsAtMs?: number | null;
   prizePoolText: string;
   rulesText: string;
   faceitUrl: string;
+  viewerHasRegisteredTeam?: boolean;
 };
 
 export default function DashboardTurnajDetailPage() {
@@ -38,7 +41,15 @@ export default function DashboardTurnajDetailPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/tournaments/${id}/public`, { cache: "no-store" });
+      const headers: HeadersInit = {};
+      if (user) {
+        const token = await user.getIdToken();
+        headers.Authorization = `Bearer ${token}`;
+      }
+      const res = await fetch(`/api/tournaments/${id}/public`, {
+        cache: "no-store",
+        headers,
+      });
       const j = (await res.json().catch(() => ({}))) as {
         tournament?: PublicTournament;
         registrations?: RegistrationRow[];
@@ -56,7 +67,7 @@ export default function DashboardTurnajDetailPage() {
     } finally {
       setLoading(false);
     }
-  }, [id]);
+  }, [id, user]);
 
   useEffect(() => {
     void load();
@@ -79,17 +90,21 @@ export default function DashboardTurnajDetailPage() {
   }
 
   const gameId = (tournament.gameId ?? "cs2") as GameId;
+  const phase = parseTournamentPhase(tournament.phase);
 
   return (
     <TournamentDetailContent
       name={tournament.name}
       gameId={gameId}
+      phase={phase}
       backgroundImageUrl={tournament.backgroundImageUrl}
       startsAtMs={tournament.startsAtMs ?? null}
       prizePoolText={tournament.prizePoolText}
       rulesText={tournament.rulesText}
       faceitUrl={tournament.faceitUrl}
+      viewerHasRegisteredTeam={tournament.viewerHasRegisteredTeam}
       registrations={regs}
+      sharePath={`/turnaje/${id}`}
       backHref="/dashboard/turnaje"
       backLabel="← Zpět na turnaje"
       joinSlot={
@@ -97,6 +112,7 @@ export default function DashboardTurnajDetailPage() {
           <TournamentJoinPanel
             tournamentId={id}
             gameId={gameId}
+            phase={phase}
             faceitUrl={tournament.faceitUrl}
             startsAtMs={tournament.startsAtMs ?? null}
             registeredTeamIds={regs.map((r) => r.teamId)}

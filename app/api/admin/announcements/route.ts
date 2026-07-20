@@ -2,10 +2,13 @@ import { NextResponse } from "next/server";
 import { verifyAdminBearer } from "@/lib/server-auth";
 import {
   autoHighlightImportantText,
+  ANNOUNCEMENT_CATEGORY_LABEL,
   parseAnnouncementCategory,
 } from "@/lib/announcements";
 import { notifyDiscordAnnouncementCreated } from "@/lib/discord-webhook";
+import { notifyCaptainsAboutAnnouncement } from "@/lib/resend-announcement";
 import { createDocRest, listCollectionDocsRest } from "@/lib/firebase/firestore-rest-admin";
+import { getSitePublicUrl } from "@/lib/site-public-url";
 
 async function requireAdminAuth(request: Request) {
   const auth = await verifyAdminBearer(request);
@@ -65,6 +68,7 @@ export async function POST(request: Request) {
   }
 
   try {
+    const category = parseAnnouncementCategory(body.category);
     const data = {
       title: title.slice(0, 180),
       content: content.slice(0, 8000),
@@ -74,18 +78,41 @@ export async function POST(request: Request) {
           ? body.imageUrl
           : null,
       authorName: authorName.slice(0, 120),
-      category: parseAnnouncementCategory(body.category),
+      category,
       source: "admin",
       createdAt: new Date().toISOString(),
     };
     const ref = await createDocRest("announcements", data);
+    const siteUrl = getSitePublicUrl(request);
+    const publicUrl = `${siteUrl}/oznameni/${ref.id}`;
+
     await notifyDiscordAnnouncementCreated({
       title: title.slice(0, 180),
       authorName: authorName.slice(0, 120),
-      category: parseAnnouncementCategory(body.category),
+      category,
+      categoryLabel: ANNOUNCEMENT_CATEGORY_LABEL[category],
+      content: content.slice(0, 8000),
       announcementId: ref.id,
+      publicUrl,
     });
-    return NextResponse.json({ ok: true, id: ref.id });
+
+    const email = await notifyCaptainsAboutAnnouncement({
+      title: title.slice(0, 180),
+      content: content.slice(0, 8000),
+      category,
+      authorName: authorName.slice(0, 120),
+      publicUrl,
+    });
+
+    if (email.error || email.failed > 0 || email.skippedNoResend) {
+      console.warn("[announcement-email]", email);
+    }
+
+    return NextResponse.json({
+      ok: true,
+      id: ref.id,
+      email,
+    });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Chyba";
     return NextResponse.json({ ok: false, error: msg }, { status: 500 });

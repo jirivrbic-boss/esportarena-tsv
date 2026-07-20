@@ -1,184 +1,284 @@
 ================================================================================
-REPORT: ESPORTARENA TSV – WEBOVÁ PLATFORMA (Next.js)
-Soubor pro analýzu v Gemini / doplnění chybějících částí
-Datum kontextu: duben 2026
+REPORT: ESPORTARENA TSV — Studentský turnaj (webová aplikace)
+Účel dokumentu: přehled „co aplikace dělá a jak je postavená“ pro externí LLM / analýzu.
+Projektový název v package.json: esportarena-tsv
 ================================================================================
 
-1) ÚČEL A KONTEXT
+1) CO JE TO ZA APLIKACI
 --------------------------------------------------------------------------------
-Studentský turnaj CS2 „ESPORTARENA TSV“ (Sezóna 4). Web slouží kapitánům týmů:
-registrace účtu, profil s doklady, registrace soupisky (4+2+1 trenér), stav
-schválení, odkaz na Faceit po schválení. Veřejné části: úvod, pravidla, LFG,
-oznámení. Admin: skrytá stránka /admin + serverové API pro schvalování týmů.
-Jazyk UI: čeština. Design: dark + neon zelená, Framer Motion.
+Marketingový a registrační web studentského esport turnaje „ESPORTARENA TSV“ (Sezóna 4).
+Podporuje více her v jedné sezóně: Counter-Strike 2 (CS2), Brawl Stars, League of Legends,
+EA SPORTS FC 26.
 
-2) TECH STACK
+Hlavní funkce:
+  • Veřejná prezentace (hero, prize pool, roadmap turnaje, galerie, Twitch, síň slávy).
+  • Registrace kapitánů přes Firebase Auth (e-mail + heslo).
+  • Profil kapitána ve Firestore (`users/{uid}`) — doplnění osobních údajů, dokumentů.
+  • Registrace týmů (`teams/{teamId}`) — soupiska, škola, Discord, Faceit u CS2, upload
+    studentských průkazů / souhlasů rodičů do Firebase Storage.
+  • Workflow schválení týmu administrátorem: pending → approved / rejected.
+  • Po schválení může kapitán přihlásit schválený tým k konkrétnímu turnaji
+    (`tournaments/{tid}/registrations/{teamId}`).
+  • Oznamovací sekce (announcements) s kategoriemi podle her + obecné.
+  • CMS editovatelný obsah domovské stránky, pravidel a úvodu oznámení (Firestore
+    dokumenty pod `page_content/{slug}`).
+  • „Hledám tým / hráče“ (LFG / free agents) — nástěnka + GDPR cron na úklid starých záznamů.
+  • Notifikace: Discord webhooky, e-maily přes Resend (kapitán i admin alerty).
+  • Faceit API: stažení ELO pro CS2 nicky (nasazení / férovost).
+
+================================================================================
+2) TECHNOLOGICKÝ STACK
 --------------------------------------------------------------------------------
-- Next.js 16 (App Router), React 19, TypeScript
-- Tailwind CSS v4 (globals.css + @theme)
-- Framer Motion
-- Firebase: Auth (email/heslo), Firestore, Storage (klient + firebase-admin na serveru)
-- Resend: transakční e-maily + alert adminovi při novém účtu
-- Discord: webhook (notifikace při týmu), samostatný Node skript (discord.js) pro
-  oznámení z kanálu → REST API → Firestore
-- Faceit Data API (volitelné): server route pro ELO podle přezdívky
+  • Next.js 16 (App Router), React 19, TypeScript
+  • Tailwind CSS v4
+  • Firebase: Auth (klient), Firestore, Storage (klient pro upload)
+  • Server: firebase-admin tam, kde běží Node s plným SDK; paralelně REST API přístup
+    k Firestore přes Google OAuth JWT (`jose`) — soubor lib/firebase/firestore-rest-admin.ts
+    (vhodné pro prostředí bez klasického Admin SDK, např. některé edge/worker scénáře).
+  • E-maily: Resend (npm balíček resend)
+  • Animace: framer-motion
+  • Deploy: primárně dokumentován Netlify (@netlify/plugin-nextjs, OpenNext); v package.json
+    jsou také skripty pro Cloudflare (opennextjs-cloudflare, wrangler) — alternativní cesta.
 
-3) MAPA ROUT (STRÁNKY)
+================================================================================
+3) STRUKTURA ROUTINGU (app/)
 --------------------------------------------------------------------------------
-Veřejné (s hlavičkou + patičkou):
-  /                    Úvod, hero, síň slávy, Twitch embed (lazy)
-  /oznameni            Seznam oznámení z Firestore
-  /pravidla            Pravidla turnaje (sdílená data s dashboardem)
-  /hledam              Nástěnka LFG (free_agents)
-  /prihlaseni          Přihlášení + modal obnova hesla (Firebase)
-  /registrace          Registrace kapitána
+Veřejné:
+  /                    — domovská stránka (CMS + sekce turnaje, ceny, …)
+  /turnaje             — výpis turnajů
+  /turnaje/[id]        — detail turnaje (veřejný)
+  /tymy/[id]           — veřejný náhled týmu (kde implementováno)
+  /oznameni            — seznam oznámení
+  /oznameni/[id]       — detail oznámení
+  /pravidla            — pravidla (část z CMS + statická data)
+  /dokumenty           — oficiální dokumenty ke stažení
+  /gdpr                — informace k ochraně osobních údajů
+  /hledam              — nástěnka LFG (hledám tým/hráče)
+  /prihlaseni, /registrace — přihlášení kapitána
 
-Přesměrování (next.config):
-  /profil              → /dashboard/profil
-  /tym/registrace      → /dashboard/tym/registrace
+Kapitán (po přihlášení):
+  /dashboard           — rozcestník
+  /dashboard/profil    — profil (redirect z /profil díky next.config)
+  /dashboard/tymy      — moje týmy
+  /dashboard/tym/registrace — registrace nového týmu
+  /dashboard/turnaje   — turnaje pro přihlášení týmu
+  /dashboard/turnaje/[id]
+  /dashboard/oznameni, /dashboard/pravidla, /dashboard/hledam — přehledy v kontextu účtu
 
-Kapitánský dashboard (bez globální hlavičky, levé menu):
-  /dashboard                    Přehled + zkratky
-  /dashboard/oznameni           Stejná logika oznámení jako veřejná stránka
-  /dashboard/pravidla           Pravidla
-  /dashboard/hledam             LFG (stejná komponenta jako /hledam)
-  /dashboard/profil             Profil kapitána + uploady do Storage
-  /dashboard/tym/registrace     Formulář týmu + uploady, Discord notifikace
+Administrace:
+  /admin               — přehled týmů, schvalování, odkazy do pod-sekcí
+  /admin/turnaje       — správa turnajů
+  /admin/tymy          — další admin pohled na týmy (pokud routa existuje)
+  /edit, /edit/*       — CMS editor domovské stránky (chráněno CmsEditGuard)
+  /oznameni/edit, /pravidla/edit — editory CMS slugů
 
-Admin (veřejná URL, ochrana přes API + e-mail v ADMIN_EMAILS):
-  /admin                 Klient volá GET /api/admin/teams s Firebase ID tokenem;
-                         při 403 přesměrování na /. Schvalování/zamítnutí přes API.
+Speciální:
+  /admin-docasny-pristup — nastavením env lze povolit cookie „admin_temp“ pro náhled UI
+                           adminu bez Firebase role (rizikové; kombinuje se s přihlášením
+                           pro volání API).
 
-4) API ROUTY (SERVER)
+================================================================================
+4) AUTENTIZACE A ROLE
 --------------------------------------------------------------------------------
-POST /api/notifications/discord
-  - Tělo: tým, škola, kapitán, soupiska, odkazy na dokumenty
-  - Vyžaduje DISCORD_WEBHOOK_URL
+Klient:
+  • Firebase Auth — email/password.
+  • contexts/auth-context.tsx: při změně uživatele načítá profil z Firestore `users/{uid}`,
+    při registraci vytvoří dokument uživatele a volitelně welcome e-mail + notifikaci adminovi.
 
-POST /api/notifications/admin-new-user
-  - Bearer Firebase ID token; e-mail na ADMIN_ALERT_EMAIL přes Resend
+Server/API:
+  • Ověření Identity: Authorization: Bearer <Firebase ID token>
+    — lib/firebase/verify-client-id-token.ts (volá Admin verifyIdToken pokud je k dispozici SA).
 
-POST /api/notifications/captain-email
-  - Bearer token; typy: welcome | profile_update | team_submitted
+Admin oprávnění:
+  • Super Admin: jeden natvrdo definovaný e-mail v lib/super-admin.ts (SUPER_ADMIN_EMAIL).
+  • Další admini: proměnná prostředí ADMIN_EMAILS (čárkou oddělené e-maily, server).
+  • Klient musí znát stejný seznam pro navigaci na /admin: NEXT_PUBLIC_ADMIN_EMAILS
+    (viz lib/admin-client.ts — musí být synchronizované s ADMIN_EMAILS).
 
-GET  /api/faceit/elo?nickname=
-  - FACEIT_API_KEY; vrací elo / playerId
+Session cookie:
+  • app/api/auth/session/route.ts — na Cloudflare Workers explicitně neukládá HttpOnly cookie
+    (vrací session_cookie_skipped); DELETE stále maže cookie jménem firebase_session.
+  • Starší komentáře v kódu odkazují na Edge middleware pro /admin — v repu middleware.ts
+    aktuálně není; ochrana admin CMS stránek je přes CmsEditGuard + klientské přesměrování
+    a API vyžaduje Bearer token.
 
-GET  /api/admin/teams
-  - Bearer token; e-mail musí být v ADMIN_EMAILS; firebase-admin
+Dočasný admin náhled:
+  • Cookie admin_temp z /admin-docasny-pristup + env ADMIN_DOCASNY_TOKEN nebo
+    ADMIN_DOCASNY_JEN_CESTA.
 
-POST /api/admin/teams/[id]/approve
-POST /api/admin/teams/[id]/reject
-  - Stejná autorizace; mění Firestore přes Admin SDK
-
-POST /api/cron/cleanup-storage
-  - Bearer CRON_SECRET; maže soubory ve Storage podle teams.storageMeta starší 48h
-  - Musí běžet podle plánu (Vercel Cron / jiný scheduler); jinak se soubory nesmažou
-
-POST /api/announcements/from-discord
-  - Bearer DISCORD_ANNOUNCEMENTS_SECRET
-  - Vytvoří dokument v announcements (Admin SDK)
-  - Volá ho Discord bot (skript mimo Vercel – dlouhý proces)
-
-5) FIRESTORE – KOLEKCE (LOGICKY)
+================================================================================
+5) DATOVÝ MODEL (Firestore — logické kolekce)
 --------------------------------------------------------------------------------
 users/{uid}
-  - Profil kapitána: email, phone, discord, faceit, steam, isAdult, dokumenty URL,
-    profileComplete, timestamps
+  • CaptainProfile — e-mail, jméno, telefon, Discord, Faceit, Steam, isAdult, odkazy na
+    soubory ve Storage (studentCertUrl, parentConsentUrl), profileComplete, časové razítka.
 
 teams/{teamId}
-  - captainId, captainEmail, captainDiscord, teamName, schoolName, status
-    (pending|approved|rejected), teammates[], substitutes[], coach, faceitHubUrl?,
-    storageMeta[] (path + uploadedAt pro GDPR cron), rejectionReason?, timestamps
+  • TeamDocument — captainId, gameId (cs2|brawl_stars|lol|fc26), škola (zkratka + plný název),
+    název týmu, status pending|approved|rejected, Faceit hub URL, soupiska (kapitán jako hráč,
+    spoluhráči, náhradníci), trenér, e-mail a Discord kapitána, storageMeta[] pro GDPR úklid.
 
-free_agents/{id}
-  - type, discordUsername, hoursPlayed, faceitLevel, description, createdAt
+tournaments/{tournamentId}
+  • TournamentDocument — název, gameId, volitelné pozadí a startsAt, prizePoolText, rulesText,
+    faceitUrl, published, časové razítka.
 
-announcements/{id}
-  - content, imageUrl?, authorName, discordMessageId?, source, createdAt
-  - Čtení veřejné; zápis jen přes Admin API / bot
+tournaments/{tournamentId}/registrations/{teamId}
+  • TournamentRegistrationDocument — teamName, schoolName, captainId, gameId, registeredAt.
 
-6) FIREBASE STORAGE
---------------------------------------------------------------------------------
-users/{uid}/{soubor}     – dokumenty kapitána (PDF/JPG, max ~15 MB)
-teams/{teamId}/{soubor}  – dokumenty hráčů; zápis jen pokud tým pending a kapitán
+announcements (nebo ekvivalentní kolekce oznámení — názvy v kódu app/api/admin/announcements)
+  • title, content, imageUrl, authorName, category (cs2, lol, brawl_stars, fc26, general), …
 
-7) BEZPEČNOSTNÍ PRAVIDLA (SOUBORY V REPO)
---------------------------------------------------------------------------------
-firestore.rules – uživatelé, týmy, free_agents, announcements + závěrečný deny all
-storage.rules   – omezení typu souboru, velikosti, vazba na Firestore u týmů
+page_content/{slug}
+  • slug hodnoty: home | pravidla | oznameni — CMS patch nad výchozími hodnotami v lib/cms-defaults.ts
 
-Nutné nasadit přes Firebase CLI nebo konzoli (projekt musí odpovídat .env).
-
-8) CO JE HOTOVÉ (FUNKČNÍ OBLASTI)
---------------------------------------------------------------------------------
-[+] Registrace / přihlášení kapitána (Firebase Auth)
-[+] Obnova hesla (sendPasswordResetEmail + modal)
-[+] Profil kapitána + nahrání ISIC/souhlasů
-[+] Registrace týmu: 4 hráči, až 2 náhradníci, trenér, dokumenty, Faceit ELO fetch
-[+] Stav týmu pending → po schválení zobrazení Faceit hub URL
-[+] Admin panel + API schvalování (závislé na FIREBASE_SERVICE_ACCOUNT_JSON + ADMIN_EMAILS)
-[+] Discord webhook při vytvoření/úpravě soupisky (pokud je URL nastaveno)
-[+] Resend e-maily (pokud jsou klíče nastavené)
-[+] LFG board s filtry
-[+] Oznámení: čtení z Firestore + ingest z Discordu přes API + volitelný bot skript
-[+] Pravidla (text v lib/rules-data.ts)
-[+] Síň slávy S1–S3 (1.–3. místo; 3. místo uvedeno jako placeholder k doplnění)
-[+] Twitch embed (parent hostname; produkce vyžaduje doménu v Twitch dev konzoli)
-[+] GDPR: návrh cron mazání Storage po 48 h (nutné nasadit cron)
-
-9) CO TYPICKY CHYBÍ NEBO JE ZRANITELNÉ / K DOPLNĚNÍ
---------------------------------------------------------------------------------
-Nasazení a provoz:
-  - Chybí CI/CD popis (GitHub Actions, Vercel projekt, env proměnné na produkci)
-  - Chybí ověření, že všechny env jsou na hostingu nastavené
-  - Firebase: autorizované domény pro Auth, šablona e-mailu pro reset hesla
-  - Firestore composite index pro announcements (createdAt desc) – často vyžádá konzole
-    při prvním dotazu
-
-Discord bot:
-  - Bot neběží na Vercelu; potřeba VPS/Railway/PC nebo jiný hostitel
-  - Message Content Intent v Discord Developer Portal
-  - Kanál musí být chráněný (kdokoliv může spamovat ingest, pokud má přístup ke kanálu)
-
-Bezpečnost:
-  - /admin je „skryté“ jen URL – kdokoliv stránku otevře; skutečná ochrana je na API.
-    Chybí rate limiting na API, CAPTCHA u registrace/LFG, audit log
-  - POST /api/notifications/discord bez autentizace – kdokoliv může spamovat webhook,
-    pokud zná URL aplikace (mitigace: tajný header nebo podpis – zatím není)
-  - Faceit API route je veřejná GET – možné zneužití (rate limit / API key omezení)
-
-Produkt / obsah:
-  - Právní: GDPR (informace o zpracování, správce, účel dokumentů), souhlas se zpracováním
-  - Cookies / analytika (Firebase Analytics v konfiguraci uživatele – na webu nemusí být
-    zapojeno, ale pokud ano → cookie lišta)
-  - Chybí stránka „Kontakt“, „O turnaji“ detailněji, FAQ
-  - Síň slávy: doplnit skutečná 3. místa S1–S3
-  - Chybí notifikace kapitánovi e-mailem při schválení/zamítnutí týmu (jen stav na webu)
-  - Chybí mobilní menu (hamburger) pro hlavní navigaci na úzkých displejích
-  - Chybí testy (unit/e2e), monitoring chyb (Sentry), logování API
-
-Technické dluhy:
-  - Žádný middleware Next.js pro auth na úrovni serveru (vše client + Firebase rules)
-  - Duplicitní obsah LFG/pravidel na /hledam vs /dashboard/… (záměr, ale SEO duplicity)
-  - Team registration: složitá validace závislá na stavu „nový vs existující“ tým
-
-10) SKRIPTY NPM
---------------------------------------------------------------------------------
-npm run dev
-npm run build / start
-npm run lint
-npm run discord-bot:announce   → vyžaduje .env u bota (viz scripts/discord-announce-bot.mjs)
-
-11) DŮLEŽITÉ SOUBORY PRO ORIENTACI
---------------------------------------------------------------------------------
-app/layout.tsx              → Providers, AppChrome (header/footer vs dashboard)
-components/app-chrome.tsx
-components/captain-sidebar.tsx
-contexts/auth-context.tsx
-firestore.rules, storage.rules, firebase.json
-.env.example
+free agents / LFG
+  • Dokumenty pro nástěnku „hledám“; cron maže staré záznamy (viz api/cron/cleanup-lfg).
 
 ================================================================================
-KONEC REPORTU – použij tento text v Gemini k otázce „co ještě doplnit / zkontrolovat“
+6) FIREBASE STORAGE
+--------------------------------------------------------------------------------
+  • Prefixy users/{uid}/... a teams/{teamId}/... — upload z klienta (lib/storage-upload.ts).
+  • Typ souborů: obrázky a PDF (oprava content-type pro Safari).
+  • teams.storageMeta a GDPR cron: api/cron/cleanup-storage maže soubory starší 48 hodin
+    a synchronizuje metadata v dokumentech týmů.
+
+================================================================================
+7) API ROUTES (app/api/) — PŘEHLED
+--------------------------------------------------------------------------------
+/auth/session                    POST/DELETE — session cookie (viz výše)
+/auth/admin-temp-revoke          — revoke cookie admin_temp
+
+/admin/teams                     GET — seznam týmů (admin Bearer)
+/admin/teams/[id]                — detail / úpravy týmu
+/admin/teams/[id]/approve        POST — schválení + e-mail kapitánovi (Resend)
+/admin/teams/[id]/reject         POST
+/admin/teams/[id]/message        POST — zpráva kapitánovi?
+/admin/cms                       — uložení CMS (admin)
+
+/admin/tournaments               GET/POST
+/admin/tournaments/[id]          PATCH/DELETE
+/admin/announcements             CRUD oznámení
+/admin/announcements/[id]
+/admin/seed-lfg                  — seed LFG (admin)
+
+/teams/[id]/public               GET — veřejná data týmu
+/teams/[id]/captain-delete       — mazání týmem kapitána
+
+/tournaments/public              GET — zveřejněné turnaje
+/tournaments/[id]/public         GET
+/tournaments/[id]/join         POST — přihlášení schváleného týmu k turnaji (+ Discord notifikace)
+
+/notifications/captain-email     POST — šablony e-mailů pro kapitány (Resend)
+/notifications/captain-profile
+/notifications/discord
+/notifications/admin-new-user    — alert při nové registraci (RESEND + ADMIN_ALERT_EMAIL)
+/notifications/faceit-entry
+
+/faceit/elo                      — ELO podle nicku (FACEIT_API_KEY)
+
+/announcements/from-discord      — ingest z Discord bota (DISCORD_ANNOUNCEMENTS_SECRET)
+
+/cron/cleanup-storage            GET/POST + Bearer CRON_SECRET
+/cron/cleanup-lfg                — úklid LFG
+
+================================================================================
+8) EXTERNÍ SLUŽBY A PROMĚNNÉ PROSTŘEDÍ (jen názvy — bez hodnot)
+--------------------------------------------------------------------------------
+Firebase (klient / veřejné):
+  NEXT_PUBLIC_FIREBASE_API_KEY
+  NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+  NEXT_PUBLIC_FIREBASE_PROJECT_ID
+  NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+  NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+  NEXT_PUBLIC_FIREBASE_APP_ID
+
+Firebase (server):
+  FIREBASE_SERVICE_ACCOUNT_JSON   — JSON service account (Admin SDK + REST)
+  FIREBASE_PROJECT_ID / GOOGLE_CLOUD_PROJECT / GCLOUD_PROJECT — doplněk k určení project ID
+
+Administrace:
+  ADMIN_EMAILS
+  NEXT_PUBLIC_ADMIN_EMAILS
+  ADMIN_DOCASNY_TOKEN
+  ADMIN_DOCASNY_JEN_CESTA
+
+Resend (e-maily):
+  RESEND_API_KEY
+  RESEND_FROM
+  ADMIN_ALERT_EMAIL               — příjemce alertu při novém uživateli (default v kódu)
+
+Discord:
+  DISCORD_WEBHOOK_URL
+  DISCORD_BOT_TOKEN
+  DISCORD_ANNOUNCE_CHANNEL_ID
+  DISCORD_ANNOUNCEMENTS_SECRET
+  ANNOUNCEMENTS_INGEST_URL        — base URL pro discord-announce-bot.mjs
+
+Faceit:
+  FACEIT_API_KEY
+
+Cron (Netlify scheduled function volá API):
+  CRON_SECRET
+
+Frontend volitelné:
+  NEXT_PUBLIC_TWITCH_CHANNEL
+  NEXT_PUBLIC_HERO_VIDEO_URL
+
+Netlify build:
+  Skript scripts/netlify-firebase-env-check.mjs při buildu na Netlify kontroluje, že jsou
+  nastavené klíčové NEXT_PUBLIC_FIREBASE_* proměnné.
+
+================================================================================
+9) SKRIPTY (npm run …)
+--------------------------------------------------------------------------------
+  build          — env check + next build
+  dev / start    — vývoj / produkce
+  lint           — eslint
+  discord-bot:announce — node scripts/discord-announce-bot.mjs
+  seed:lfg       — seed-free-agents.mjs
+  seed:tournament — seed-test-tournament.mjs
+  dokumenty:pdf — konverze dokumentů
+  test:discord-webhook
+  preview / deploy / upload / cf-typegen — Cloudflare OpenNext workflow
+
+================================================================================
+10) DEPLOYMENT (Netlify)
+--------------------------------------------------------------------------------
+netlify.toml:
+  • Build: npm run build
+  • Plugin @netlify/plugin-nextjs
+  • Netlify Functions adresář netlify/functions
+  • Scheduled function cleanup-storage-cron — každé 4 hodiny volá produkční URL
+    /api/cron/cleanup-storage a /api/cron/cleanup-lfg s Authorization: Bearer CRON_SECRET
+
+================================================================================
+11) UI / DESIGN
+--------------------------------------------------------------------------------
+  • Tmavý motiv (#0500505 pozadí), fonty Inter + Bebas Neue.
+  • Komponenty: glass-card, glow-button, hero, roadmap, prize pool, hall of fame, atd.
+  • Framer Motion pro animace na vybraných místech.
+
+================================================================================
+12) BEZPEČNOST A GDPR (shrnutí z kódu)
+--------------------------------------------------------------------------------
+  • Citlivé dokumenty ve Storage mají být mazány po 48 h — automatizovaný cron + úprava
+    storageMeta u týmů.
+  • Admin API vždy ověřuje Firebase ID token a e-mail proti ADMIN_EMAILS / super admin.
+  • Dočasný přístup do admin UI přes cookie — pouze pro ladění; API stále vyžaduje oprávněný účet.
+
+================================================================================
+13) DŮLEŽITÉ SOUBORY PRO ORIENTACI
+--------------------------------------------------------------------------------
+  lib/types.ts              — TypeScript typy týmů a profilu
+  lib/games.ts              — výčet her GAME_IDS a popisky polí
+  lib/tournaments.ts      — typy turnajů a registrací
+  lib/cms-defaults.ts       — výchozí CMS
+  lib/get-cms-page.ts       — merge Firestore CMS s defaulty
+  lib/server-auth.ts        — requireAdmin, verifyAdminBearer, …
+  lib/firebase/firestore-rest-admin.ts — REST Firestore + OAuth
+  contexts/auth-context.tsx — stav přihlášení kapitána
+  components/cms-edit-guard.tsx — ochrana editorů
+
+================================================================================
+KONEC REPORTU
 ================================================================================

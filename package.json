@@ -2,9 +2,14 @@
   "name": "esportarena-tsv",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=20.9.0"
+  },
   "scripts": {
-    "build": "node scripts/netlify-firebase-env-check.mjs && next build",
+    "build": "next build --webpack",
     "dev": "next dev",
+    "dev:webpack": "next dev --webpack",
+    "dev:warm": "node scripts/warm-dev.mjs",
     "start": "next start",
     "lint": "eslint",
     "discord-bot:announce": "node scripts/discord-announce-bot.mjs",
@@ -24,13 +29,12 @@
     "firebase-admin": "^13.8.0",
     "framer-motion": "^12.38.0",
     "jose": "^6.2.2",
-    "next": "16.2.3",
+    "next": "^16.2.9",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "resend": "^6.10.0"
   },
   "devDependencies": {
-    "@netlify/plugin-nextjs": "^5.15.9",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
@@ -38,7 +42,7 @@
     "babel-plugin-react-compiler": "1.0.0",
     "discord.js": "^14.26.2",
     "eslint": "^9",
-    "eslint-config-next": "16.2.3",
+    "eslint-config-next": "^16.2.9",
     "mammoth": "^1.12.0",
     "playwright": "^1.59.1",
     "tailwindcss": "^4",

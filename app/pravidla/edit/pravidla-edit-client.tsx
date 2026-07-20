@@ -66,12 +66,18 @@ export function PravidlaEditClient({
         Režim úprav
       </p>
       <h1 className="mt-2 font-[family-name:var(--font-bebas)] text-4xl text-white">
-        Pravidla (CMS)
+        Pravidla CS2 (CMS)
       </h1>
       <p className="mt-2 text-sm text-slate-400">
-        <Link href="/pravidla" className="text-[#39FF14] hover:underline">
-          Zobrazit veřejnou stránku
+        Upravuješ texty pro Counter-Strike 2 na stránce{" "}
+        <Link href="/pravidla/cs2" className="text-[#39FF14] hover:underline">
+          /pravidla/cs2
         </Link>
+        . Rozcestník všech her je na{" "}
+        <Link href="/pravidla" className="text-[#39FF14] hover:underline">
+          /pravidla
+        </Link>
+        .
       </p>
 
       {msg ? (

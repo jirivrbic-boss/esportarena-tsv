@@ -1,19 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { deleteUser } from "firebase/auth";
-import {
-  collection,
-  doc,
-  getDocs,
-  query,
-  serverTimestamp,
-  updateDoc,
-  where,
-  deleteDoc,
-} from "firebase/firestore";
+import { doc, serverTimestamp, updateDoc } from "firebase/firestore";
 import { useAuth } from "@/contexts/auth-context";
 import { getFirebaseDb } from "@/lib/firebase/client";
 import { isFirebaseConfigured } from "@/lib/firebase/config";
@@ -22,9 +11,11 @@ import { GlassCard } from "@/components/glass-card";
 import { GlowButton } from "@/components/glow-button";
 import { postCaptainEmail } from "@/lib/client-notifications";
 import Link from "next/link";
+import { GAMES } from "@/lib/games";
+import { gameNickPlaceholder } from "@/lib/game-player-accounts";
+import { isSeasonActiveGame } from "@/lib/season-games";
 
 export default function DashboardProfilPage() {
-  const router = useRouter();
   const { user, profile, refreshProfile, firebaseReady } = useAuth();
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -32,6 +23,9 @@ export default function DashboardProfilPage() {
   const [discordUsername, setDiscordUsername] = useState("");
   const [faceitNickname, setFaceitNickname] = useState("");
   const [steamNickname, setSteamNickname] = useState("");
+  const [riotId, setRiotId] = useState("");
+  const [brawlPlayerTag, setBrawlPlayerTag] = useState("");
+  const [eaAccount, setEaAccount] = useState("");
   const [isAdult, setIsAdult] = useState(false);
   const [studentFile, setStudentFile] = useState<File | null>(null);
   const [parentFile, setParentFile] = useState<File | null>(null);
@@ -42,6 +36,7 @@ export default function DashboardProfilPage() {
   const [discordHookError, setDiscordHookError] = useState<string | null>(null);
   const [accountSavedOk, setAccountSavedOk] = useState(false);
   const [deletePending, setDeletePending] = useState(false);
+  const [deleteScheduledOk, setDeleteScheduledOk] = useState(false);
 
   useEffect(() => {
     if (profile) {
@@ -51,6 +46,9 @@ export default function DashboardProfilPage() {
       setDiscordUsername(profile.discordUsername ?? "");
       setFaceitNickname(profile.faceitNickname ?? "");
       setSteamNickname(profile.steamNickname ?? "");
+      setRiotId(profile.riotId ?? "");
+      setBrawlPlayerTag(profile.brawlPlayerTag ?? "");
+      setEaAccount(profile.eaAccount ?? "");
       setIsAdult(Boolean(profile.isAdult));
     }
   }, [profile]);
@@ -64,11 +62,9 @@ export default function DashboardProfilPage() {
       !firstName.trim() ||
       !lastName.trim() ||
       !phone.trim() ||
-      !discordUsername.trim() ||
-      !faceitNickname.trim() ||
-      !steamNickname.trim()
+      !discordUsername.trim()
     ) {
-      setError("Vyplň jméno, příjmení a všechny kontaktní údaje.");
+      setError("Vyplň jméno, příjmení a kontaktní údaje (telefon, Discord).");
       return;
     }
     if (!isAdult && !parentFile && !profile?.parentConsentUrl) {
@@ -85,6 +81,7 @@ export default function DashboardProfilPage() {
     setDiscordHookError(null);
     setSentEmail(false);
     setAccountSavedOk(false);
+    setDeleteScheduledOk(false);
     try {
       const db = getFirebaseDb();
       const uid = user.uid;
@@ -115,6 +112,9 @@ export default function DashboardProfilPage() {
         discordUsername: discordUsername.trim(),
         faceitNickname: faceitNickname.trim(),
         steamNickname: steamNickname.trim(),
+        riotId: riotId.trim(),
+        brawlPlayerTag: brawlPlayerTag.trim(),
+        eaAccount: eaAccount.trim(),
         isAdult,
         studentCertUrl,
         parentConsentUrl: isAdult ? null : parentConsentUrl,
@@ -139,6 +139,9 @@ export default function DashboardProfilPage() {
           discordUsername: discordUsername.trim(),
           faceitNickname: faceitNickname.trim(),
           steamNickname: steamNickname.trim(),
+          riotId: riotId.trim(),
+          brawlPlayerTag: brawlPlayerTag.trim(),
+          eaAccount: eaAccount.trim(),
           isAdult,
           profileComplete,
           studentCertUrl: studentCertUrl ?? null,
@@ -154,7 +157,7 @@ export default function DashboardProfilPage() {
         setDiscordHookError(
           discJson.error ??
             (discRes.status === 503
-              ? "Discord: na serveru není nastavený DISCORD_WEBHOOK_URL (Netlify → Environment variables)."
+              ? "Discord: na serveru není nastavený DISCORD_REPORTS_WEBHOOK_URL / DISCORD_WEBHOOK_URL."
               : discRes.status === 401
                 ? "Discord: server neověřil token — zkontroluj na Netlify proměnnou FIREBASE_PROJECT_ID (stejné ID projektu jako u Firebase), případně FIREBASE_SERVICE_ACCOUNT_JSON."
                 : `Discord hláška se neodeslala (HTTP ${discRes.status}).`)
@@ -167,10 +170,10 @@ export default function DashboardProfilPage() {
       } else {
         setEmailNotifyError(
           mail.status === 503
-            ? "Potvrzovací e-mail se neodeslal: na serveru chybí Resend (RESEND_API_KEY / RESEND_FROM) nebo není ověřená doména odesílatele."
+            ? "Profil je uložený. Potvrzovací e-mail teď není dostupný, zkus to prosím později."
             : mail.status === 401
-              ? `Odeslání e-mailu se nepodařilo (neověřený token na serveru). Údaje máš uložené v účtu. Zkontroluj FIREBASE_PROJECT_ID na Netlify. Detail: ${mail.error}`
-              : `E-mail se nepodařilo odeslat: ${mail.error}`
+              ? "Profil je uložený. Potvrzovací e-mail se nepodařilo ověřit."
+              : "Profil je uložený, ale potvrzovací e-mail se teď nepodařilo doručit."
         );
       }
       await refreshProfile();
@@ -184,7 +187,7 @@ export default function DashboardProfilPage() {
   async function onDeleteProfile() {
     if (!user || !firebaseReady || pending || deletePending) return;
     const ok = window.confirm(
-      "Opravdu chceš smazat profil? Tímto se smaže účet kapitána i jeho týmy."
+      "Opravdu chceš naplánovat smazání účtu kapitána i všech svých týmů? Na e-mail ti přijde odkaz — účet se definitivně smaže nejdříve po 24 hodinách, pokud smazání nezrušíš (odkaz v mailu nebo v portálu)."
     );
     if (!ok) return;
 
@@ -193,47 +196,23 @@ export default function DashboardProfilPage() {
     setDiscordHookError(null);
     setSentEmail(false);
     setAccountSavedOk(false);
+    setDeleteScheduledOk(false);
     setDeletePending(true);
 
     try {
       const token = await user.getIdToken(true);
-      const db = getFirebaseDb();
-
-      // Nejdřív smaž všechny týmy kapitána přes API, aby nezůstaly sirotčí registrace.
-      const teamsSnap = await getDocs(
-        query(collection(db, "teams"), where("captainId", "==", user.uid))
-      );
-      for (const teamDoc of teamsSnap.docs) {
-        const res = await fetch(`/api/teams/${teamDoc.id}/captain-delete`, {
-          method: "DELETE",
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!res.ok && res.status !== 404) {
-          const j = (await res.json().catch(() => ({}))) as { error?: string };
-          throw new Error(j.error ?? `Smazání týmu selhalo (HTTP ${res.status}).`);
-        }
+      const res = await fetch("/api/account/schedule-deletion", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const j = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+      if (!res.ok || !j.ok) {
+        throw new Error(j.error ?? `Nepodařilo se naplánovat smazání (HTTP ${res.status}).`);
       }
-
-      await deleteDoc(doc(db, "users", user.uid)).catch(() => {});
-      await fetch("/api/auth/session", {
-        method: "DELETE",
-        credentials: "include",
-      }).catch(() => {});
-      await deleteUser(user);
-
-      router.replace("/");
+      await refreshProfile();
+      setDeleteScheduledOk(true);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Smazání profilu selhalo.";
-      if (
-        msg.includes("auth/requires-recent-login") ||
-        msg.toLowerCase().includes("requires-recent-login")
-      ) {
-        setError(
-          "Pro smazání profilu je potřeba čerstvé přihlášení. Odhlas se, přihlas znovu a akci opakuj."
-        );
-      } else {
-        setError(msg);
-      }
+      setError(err instanceof Error ? err.message : "Naplánování smazání selhalo.");
     } finally {
       setDeletePending(false);
     }
@@ -261,8 +240,11 @@ export default function DashboardProfilPage() {
         Profil kapitána
       </h1>
       <p className="mt-2 text-sm text-slate-400">
-        Tyto údaje použijeme pro komunikaci a ověření. Oficiální kanál zůstává{" "}
-        <strong className="text-[#39FF14]">Discord</strong>.
+        Tyto údaje použijeme pro komunikaci a ověření. Novinky a termíny turnaje sleduj v{" "}
+        <Link href="/oznameni" className="text-[#39FF14] hover:underline">
+          Oznámeních
+        </Link>
+        .
       </p>
 
       <GlassCard className="mt-8">
@@ -272,6 +254,7 @@ export default function DashboardProfilPage() {
               <label htmlFor="firstName">Jméno</label>
               <input
                 id="firstName"
+                name="firstName"
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
                 className="mt-1"
@@ -282,6 +265,7 @@ export default function DashboardProfilPage() {
               <label htmlFor="lastName">Příjmení</label>
               <input
                 id="lastName"
+                name="lastName"
                 value={lastName}
                 onChange={(e) => setLastName(e.target.value)}
                 className="mt-1"
@@ -293,6 +277,7 @@ export default function DashboardProfilPage() {
             <label>E-mail</label>
             <input
               type="email"
+              name="email"
               value={user.email ?? ""}
               disabled
               className="mt-1"
@@ -302,6 +287,7 @@ export default function DashboardProfilPage() {
             <label htmlFor="phone">Telefon</label>
             <input
               id="phone"
+              name="phone"
               type="tel"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
@@ -313,6 +299,7 @@ export default function DashboardProfilPage() {
             <label htmlFor="discord">Discord uživatelské jméno</label>
             <input
               id="discord"
+              name="discordUsername"
               value={discordUsername}
               onChange={(e) => setDiscordUsername(e.target.value)}
               className="mt-1"
@@ -320,29 +307,72 @@ export default function DashboardProfilPage() {
               required
             />
           </div>
-          <div>
-            <label htmlFor="faceit">Faceit přezdívka</label>
-            <input
-              id="faceit"
-              value={faceitNickname}
-              onChange={(e) => setFaceitNickname(e.target.value)}
-              className="mt-1"
-              required
-            />
-          </div>
-          <div>
-            <label htmlFor="steam">Steam přezdívka</label>
-            <input
-              id="steam"
-              value={steamNickname}
-              onChange={(e) => setSteamNickname(e.target.value)}
-              className="mt-1"
-              required
-            />
+          <div className="rounded-xl border border-white/10 bg-black/20 p-4">
+            <h2 className="font-[family-name:var(--font-bebas)] text-xl text-white">
+              Herní účty
+            </h2>
+            <p className="mt-2 text-xs text-slate-400">
+              Vyplň účty pro hry, do kterých registruješ tým. Při registraci týmu se
+              předvyplní údaj pro danou hru — můžeš ho tam ještě upravit.
+            </p>
+            <div className="mt-4 space-y-4">
+              {GAMES.map((g) => {
+                const active = isSeasonActiveGame(g.id);
+                const value =
+                  g.id === "cs2"
+                    ? faceitNickname
+                    : g.id === "lol"
+                      ? riotId
+                      : g.id === "brawl_stars"
+                        ? brawlPlayerTag
+                        : eaAccount;
+                const onChange =
+                  g.id === "cs2"
+                    ? setFaceitNickname
+                    : g.id === "lol"
+                      ? setRiotId
+                      : g.id === "brawl_stars"
+                        ? setBrawlPlayerTag
+                        : setEaAccount;
+                return (
+                  <div key={g.id}>
+                    <label htmlFor={`game-nick-${g.id}`}>
+                      {g.playerNickLabel}
+                      {!active ? (
+                        <span className="ml-2 text-xs font-normal text-slate-500">
+                          (připravujeme)
+                        </span>
+                      ) : null}
+                    </label>
+                    <p className="mt-0.5 text-xs text-slate-500">{g.playerNickHint}</p>
+                    <input
+                      id={`game-nick-${g.id}`}
+                      name={`gameNick_${g.id}`}
+                      value={value}
+                      onChange={(e) => onChange(e.target.value)}
+                      className="mt-1"
+                      placeholder={gameNickPlaceholder(g.id)}
+                    />
+                  </div>
+                );
+              })}
+              <div>
+                <label htmlFor="steam">Steam přezdívka (CS2 — volitelné)</label>
+                <input
+                  id="steam"
+                  name="steamNickname"
+                  value={steamNickname}
+                  onChange={(e) => setSteamNickname(e.target.value)}
+                  className="mt-1"
+                  placeholder="doplňková identifikace pro CS2"
+                />
+              </div>
+            </div>
           </div>
           <label className="flex items-center gap-2">
             <input
               type="checkbox"
+              name="isAdult"
               checked={isAdult}
               onChange={(e) => setIsAdult(e.target.checked)}
             />
@@ -352,6 +382,7 @@ export default function DashboardProfilPage() {
             <label htmlFor="student">Potvrzení studenta (PDF / JPG)</label>
             <input
               id="student"
+              name="studentCert"
               type="file"
               accept="image/*,.pdf,application/pdf"
               onChange={(e) => setStudentFile(e.target.files?.[0] ?? null)}
@@ -370,6 +401,7 @@ export default function DashboardProfilPage() {
               </label>
               <input
                 id="parent"
+                name="parentConsent"
                 type="file"
                 accept="image/*,.pdf,application/pdf"
                 onChange={(e) => setParentFile(e.target.files?.[0] ?? null)}
@@ -385,6 +417,12 @@ export default function DashboardProfilPage() {
           {accountSavedOk ? (
             <p className="text-sm text-[#39FF14]">
               Profil je uložený v účtu (Firebase).
+            </p>
+          ) : null}
+          {deleteScheduledOk ? (
+            <p className="text-sm text-[#39FF14]">
+              Naplánování smazání proběhlo — na e-mail přišel odkaz na obnovení (24 h). Účet a týmy
+              se smažou až po uplynutí lhůty bez zrušení.
             </p>
           ) : null}
           {sentEmail ? (
@@ -413,7 +451,7 @@ export default function DashboardProfilPage() {
               className="w-full"
               onClick={() => void onDeleteProfile()}
             >
-              {deletePending ? "Mažu profil…" : "Smazat profil"}
+              {deletePending ? "Odesílám…" : "Smazat účet (24 h odklad)"}
             </GlowButton>
           </div>
         </form>
@@ -430,7 +468,8 @@ export default function DashboardProfilPage() {
         </p>
       ) : (
         <p className="mt-8 text-center text-sm text-slate-500">
-          Po dokončení profilu můžeš zakládat týmy v jednotlivých hrách.
+          Po dokončení profilu vyber hru v sekci Týmy a vyplň herní účet kapitána přímo
+          ve formuláři registrace.
         </p>
       )}
     </motion.main>

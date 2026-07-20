@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { verifyAdminBearer } from "@/lib/server-auth";
 import { sendTeamCustomEmail } from "@/lib/resend-team-status";
 import { getDocRest } from "@/lib/firebase/firestore-rest-admin";
+import { reportSiteAction } from "@/lib/discord-webhook";
 
 export async function POST(
   request: Request,
@@ -63,6 +64,23 @@ export async function POST(
         { status: 502 }
       );
     }
+
+    void reportSiteAction({
+      content: "**Zpráva kapitánovi** · admin e-mail",
+      title: subject.slice(0, 256),
+      description: [
+        `**Tým:** ${(data.teamName ?? "Tým").trim()}`,
+        `**Kapitán:** ${captainEmail}`,
+        `**Team ID:** \`${id}\``,
+        "",
+        message.slice(0, 900),
+      ].join("\n"),
+      fields: [
+        ...(auth.user.email
+          ? [{ name: "Admin", value: auth.user.email, inline: true }]
+          : []),
+      ],
+    });
 
     return NextResponse.json({ ok: true });
   } catch (e) {

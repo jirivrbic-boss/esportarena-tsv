@@ -3,6 +3,7 @@ import { verifyAdminBearer } from "@/lib/server-auth";
 import { sendTeamApprovedEmail } from "@/lib/resend-team-status";
 import { gameLabel, type GameId } from "@/lib/games";
 import { getDocRest, upsertDocRest } from "@/lib/firebase/firestore-rest-admin";
+import { reportSiteAction } from "@/lib/discord-webhook";
 
 export async function POST(
   request: Request,
@@ -50,6 +51,24 @@ export async function POST(
       emailSent = sent.ok;
       if (!sent.ok) emailError = sent.error;
     }
+
+    void reportSiteAction({
+      content: "**Tým schválen** · admin",
+      title: teamName.slice(0, 256),
+      description: [
+        `**Hra:** ${gLabel}`,
+        captainEmail ? `**Kapitán:** ${captainEmail}` : null,
+        `**Team ID:** \`${id}\``,
+      ]
+        .filter(Boolean)
+        .join("\n"),
+      fields: [
+        ...(auth.user.email
+          ? [{ name: "Admin", value: auth.user.email, inline: true }]
+          : []),
+        { name: "E-mail odeslán", value: emailSent ? "ano" : "ne", inline: true },
+      ],
+    });
 
     return NextResponse.json({
       ok: true,

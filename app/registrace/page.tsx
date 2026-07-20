@@ -9,12 +9,14 @@ import { GlowButton } from "@/components/glow-button";
 import { GlassCard } from "@/components/glass-card";
 import { completeAuthLanding } from "@/lib/auth-session-client";
 import { getFirebaseAuth } from "@/lib/firebase/client";
+import { toFriendlyAuthError } from "@/lib/firebase-auth-errors";
 
 export default function RegistracePage() {
   const { user, signUp, firebaseReady, loading } = useAuth();
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [passwordConfirm, setPasswordConfirm] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
@@ -34,6 +36,10 @@ export default function RegistracePage() {
       setError("Heslo musí mít alespoň 6 znaků.");
       return;
     }
+    if (password !== passwordConfirm) {
+      setError("Hesla se neshodují. Zkontroluj heslo a jeho potvrzení.");
+      return;
+    }
     setPending(true);
     try {
       await signUp(email, password);
@@ -42,7 +48,7 @@ export default function RegistracePage() {
         await completeAuthLanding(u, router);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Registrace selhala.");
+      setError(toFriendlyAuthError(err, "Registrace selhala."));
     } finally {
       setPending(false);
     }
@@ -87,6 +93,7 @@ export default function RegistracePage() {
             <label htmlFor="email">E-mail</label>
             <input
               id="email"
+              name="email"
               type="email"
               autoComplete="email"
               value={email}
@@ -99,11 +106,27 @@ export default function RegistracePage() {
             <label htmlFor="password">Heslo</label>
             <input
               id="password"
+              name="password"
               type="password"
               autoComplete="new-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
+              minLength={6}
+              className="mt-1"
+            />
+          </div>
+          <div>
+            <label htmlFor="password-confirm">Heslo znovu</label>
+            <input
+              id="password-confirm"
+              name="passwordConfirm"
+              type="password"
+              autoComplete="new-password"
+              value={passwordConfirm}
+              onChange={(e) => setPasswordConfirm(e.target.value)}
+              required
+              minLength={6}
               className="mt-1"
             />
           </div>

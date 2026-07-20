@@ -6,6 +6,7 @@ import {
   welcomeEmailHtml,
 } from "@/lib/emails/captain-templates";
 import { verifyFirebaseClientIdTokenFromRequest } from "@/lib/firebase/verify-client-id-token";
+import { reportSiteAction } from "@/lib/discord-webhook";
 
 type Kind = "welcome" | "profile_update" | "team_submitted";
 
@@ -74,6 +75,15 @@ export async function POST(request: Request) {
       { status: 502 }
     );
   }
+
+  void reportSiteAction({
+    content: "**E-mail kapitánovi** · odeslán přes Resend",
+    title: subject.slice(0, 256),
+    fields: [
+      { name: "Komu", value: to, inline: true },
+      { name: "Typ", value: payload.kind, inline: true },
+    ],
+  });
 
   return NextResponse.json({ ok: true });
 }

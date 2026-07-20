@@ -1,8 +1,18 @@
 import { NextResponse } from "next/server";
-import type { TeamDocument } from "@/lib/types";
+import type { RosterPlayer, TeamDocument } from "@/lib/types";
 import { getDocRest } from "@/lib/firebase/firestore-rest-admin";
 
 type Ctx = { params: Promise<{ id: string }> };
+
+function toPublicPlayer(player: RosterPlayer): RosterPlayer {
+  return {
+    firstName: player.firstName,
+    lastName: player.lastName,
+    faceitNickname: player.faceitNickname,
+    faceitElo: typeof player.faceitElo === "number" ? player.faceitElo : null,
+    isAdult: Boolean(player.isAdult),
+  };
+}
 
 export async function GET(_request: Request, ctx: Ctx) {
   const { id } = await ctx.params;
@@ -19,8 +29,8 @@ export async function GET(_request: Request, ctx: Ctx) {
       players?: TeamDocument["teammates"];
       reserves?: TeamDocument["substitutes"];
     };
-    const teammates = team.teammates ?? legacy.players ?? [];
-    const substitutes = team.substitutes ?? legacy.reserves ?? [];
+    const teammates = (team.teammates ?? legacy.players ?? []).map(toPublicPlayer);
+    const substitutes = (team.substitutes ?? legacy.reserves ?? []).map(toPublicPlayer);
 
     return NextResponse.json({
       ok: true,
@@ -30,7 +40,7 @@ export async function GET(_request: Request, ctx: Ctx) {
         schoolName: team.schoolName,
         schoolFullName: team.schoolFullName ?? "",
         gameId: team.gameId ?? "cs2",
-        captainPlayer: team.captainPlayer ?? null,
+        captainPlayer: team.captainPlayer ? toPublicPlayer(team.captainPlayer) : null,
         teammates,
         substitutes,
       },

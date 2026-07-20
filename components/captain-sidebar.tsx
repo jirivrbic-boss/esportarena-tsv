@@ -2,40 +2,23 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
 import { useAuth } from "@/contexts/auth-context";
-import { isClientAdminEmail } from "@/lib/admin-client";
-
-const captainNav = [
-  { href: "/dashboard", label: "Přehled", exact: true },
-  { href: "/dashboard/tymy", label: "Týmy" },
-  { href: "/dashboard/turnaje", label: "Turnaje" },
-  { href: "/dashboard/oznameni", label: "Oznámení" },
-  { href: "/dashboard/pravidla", label: "Pravidla" },
-  { href: "/dashboard/hledam", label: "Hledám tým / hráče" },
-  { href: "/dashboard/profil", label: "Profil kapitána" },
-];
+import { PortalSidebarNav } from "@/components/portal-sidebar-nav";
+import { CAPTAIN_SIDEBAR_NAV } from "@/lib/portal-hub";
+import { TOURNAMENT_BRAND_LOGO } from "@/lib/tournament-game-logos";
 
 export function CaptainSidebar() {
-  const pathname = usePathname();
-  const { user, signOut } = useAuth();
-  const admin = isClientAdminEmail(user?.email);
-  const nav = admin
-    ? [
-        { href: "/admin", label: "Přehled administrace", exact: false },
-        ...captainNav,
-      ]
-    : captainNav;
+  const { signOut } = useAuth();
 
   return (
-    <aside className="flex w-full shrink-0 flex-col border-b border-white/10 bg-[#080808] md:w-60 md:border-b-0 md:border-r">
+    <aside className="sticky top-0 flex w-56 shrink-0 flex-col self-stretch border-r border-white/10 bg-[#080808] sm:w-60">
       <Link
-        href="/"
+        href="/dashboard"
         className="flex items-center gap-2 border-b border-white/10 px-4 py-4"
       >
         <div className="relative h-9 w-9 overflow-hidden rounded-lg border border-white/10">
           <Image
-            src="/fotky/tournament%20logo.png"
+            src={TOURNAMENT_BRAND_LOGO}
             alt=""
             fill
             className="object-contain p-0.5"
@@ -51,34 +34,7 @@ export function CaptainSidebar() {
           </span>
         </div>
       </Link>
-      <nav className="flex flex-1 flex-row flex-wrap gap-1 p-2 md:flex-col md:flex-nowrap">
-        {nav.map((item) => {
-          const active = item.exact
-            ? pathname === item.href
-            : item.href === "/admin"
-              ? pathname === "/admin" || pathname.startsWith("/admin/")
-              : pathname === item.href ||
-                pathname.startsWith(`${item.href}/`) ||
-                (item.href === "/dashboard/tymy" &&
-                  pathname.startsWith("/dashboard/tym")) ||
-                (item.href === "/dashboard/turnaje" &&
-                  (pathname === "/dashboard/turnaje" ||
-                    pathname.startsWith("/dashboard/turnaje/")));
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`rounded-lg px-3 py-2.5 text-sm font-medium transition-colors md:py-2 ${
-                active
-                  ? "bg-[#39FF14]/15 text-[#39FF14]"
-                  : "text-slate-400 hover:bg-white/5 hover:text-white"
-              }`}
-            >
-              {item.label}
-            </Link>
-          );
-        })}
-      </nav>
+      <PortalSidebarNav items={CAPTAIN_SIDEBAR_NAV} />
       <div className="flex flex-col gap-2 border-t border-white/10 p-3">
         <Link
           href="/"

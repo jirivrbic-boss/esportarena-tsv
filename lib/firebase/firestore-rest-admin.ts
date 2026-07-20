@@ -1,5 +1,6 @@
 import { SignJWT, importPKCS8 } from "jose";
 import { resolveFirebaseProjectIdForServer } from "@/lib/firebase/resolve-firebase-project-id";
+import { readFirebaseServiceAccountFromEnv } from "@/lib/firebase/service-account";
 
 type ServiceAccount = {
   client_email: string;
@@ -31,20 +32,7 @@ type FirestoreDocResponse = {
 let cachedToken: { value: string; expiresAtMs: number; scopeKey: string } | null = null;
 
 function readServiceAccount(): ServiceAccount {
-  const raw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON?.trim();
-  if (!raw) {
-    throw new Error("Chybí FIREBASE_SERVICE_ACCOUNT_JSON.");
-  }
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(raw);
-  } catch {
-    throw new Error("FIREBASE_SERVICE_ACCOUNT_JSON není validní JSON.");
-  }
-  const sa = parsed as Partial<ServiceAccount>;
-  if (!sa.client_email || !sa.private_key) {
-    throw new Error("FIREBASE_SERVICE_ACCOUNT_JSON nemá client_email/private_key.");
-  }
+  const sa = readFirebaseServiceAccountFromEnv();
   return {
     client_email: sa.client_email,
     private_key: sa.private_key,
@@ -194,12 +182,16 @@ export type RestTournamentRow = {
   id: string;
   name: string;
   gameId: string;
+  phase: string;
   backgroundImageUrl: string;
   startsAtMs: number | null;
   prizePoolText: string;
   rulesText: string;
   faceitUrl: string;
   published: boolean;
+  seasonId?: string;
+  accessMode?: string;
+  qualificationRound?: number | null;
   createdAtMs: number | null;
   updatedAtMs: number | null;
 };
@@ -210,12 +202,22 @@ function mapTournamentDoc(doc: FirestoreDocResponse): RestTournamentRow {
     id: parseDocId(doc.name),
     name: getString(f, "name"),
     gameId: getString(f, "gameId") || "cs2",
+    phase: getString(f, "phase") || "qualification",
     backgroundImageUrl: getString(f, "backgroundImageUrl"),
     startsAtMs: getTimestampMs(f, "startsAt"),
     prizePoolText: getString(f, "prizePoolText"),
     rulesText: getString(f, "rulesText"),
     faceitUrl: getString(f, "faceitUrl"),
     published: getBool(f, "published"),
+    seasonId: getString(f, "seasonId") || undefined,
+    accessMode: getString(f, "accessMode") || undefined,
+    qualificationRound: (() => {
+      const v = f?.qualificationRound;
+      if (!v) return null;
+      if ("integerValue" in v) return Number(v.integerValue);
+      if ("doubleValue" in v) return v.doubleValue;
+      return null;
+    })(),
     createdAtMs: getTimestampMs(f, "createdAt"),
     updatedAtMs: getTimestampMs(f, "updatedAt"),
   };
@@ -334,6 +336,7 @@ export async function listTournamentsAdminRest(): Promise<RestTournamentRow[]> {
       id: r.id,
       name: String(r.name ?? ""),
       gameId: String(r.gameId ?? "cs2"),
+      phase: String(r.phase ?? "qualification"),
       backgroundImageUrl: String(r.backgroundImageUrl ?? ""),
       startsAtMs:
         typeof r.startsAt === "string" ? Date.parse(r.startsAt) || null : null,
@@ -341,6 +344,14 @@ export async function listTournamentsAdminRest(): Promise<RestTournamentRow[]> {
       rulesText: String(r.rulesText ?? ""),
       faceitUrl: String(r.faceitUrl ?? ""),
       published: Boolean(r.published),
+      seasonId: r.seasonId ? String(r.seasonId) : undefined,
+      accessMode: r.accessMode ? String(r.accessMode) : undefined,
+      qualificationRound:
+        typeof r.qualificationRound === "number"
+          ? r.qualificationRound
+          : r.qualificationRound != null
+            ? Number(r.qualificationRound)
+            : undefined,
       createdAtMs:
         typeof r.createdAt === "string" ? Date.parse(r.createdAt) || null : null,
       updatedAtMs:
@@ -357,22 +368,30 @@ export async function listPublishedTournamentsRest(): Promise<RestTournamentRow[
 export async function createTournamentRest(input: {
   name: string;
   gameId: string;
+  phase: string;
   backgroundImageUrl: string;
   startsAt: string;
   prizePoolText: string;
   rulesText: string;
   faceitUrl: string;
   published: boolean;
+  seasonId?: string;
+  accessMode?: string;
+  qualificationRound?: number;
 }): Promise<{ id: string }> {
   return createDocRest("tournaments", {
     name: input.name,
     gameId: input.gameId,
+    phase: input.phase,
     backgroundImageUrl: input.backgroundImageUrl,
     startsAt: input.startsAt ? new Date(input.startsAt).toISOString() : null,
     prizePoolText: input.prizePoolText,
     rulesText: input.rulesText,
     faceitUrl: input.faceitUrl,
     published: input.published,
+    seasonId: input.seasonId ?? null,
+    accessMode: input.accessMode ?? "public",
+    qualificationRound: input.qualificationRound ?? null,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   });

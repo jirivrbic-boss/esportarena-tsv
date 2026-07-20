@@ -1,22 +1,49 @@
-import type { Timestamp } from "firebase/firestore";
 import type { GameId } from "@/lib/games";
+
+/** Kvalifikace = otevřené přihlášení; play-off/LAN = jen pozvané týmy. */
+export type TournamentPhase = "qualification" | "playoff";
+
+export const TOURNAMENT_PHASES: { id: TournamentPhase; label: string; hint: string }[] = [
+  {
+    id: "qualification",
+    label: "Kvalifikace",
+    hint: "Schválený tým se může přihlásit sám — bez výběru administrátorem.",
+  },
+  {
+    id: "playoff",
+    label: "Play-off / LAN",
+    hint: "Pouze týmy vybrané v adminu; kapitán musí pozvánku přijmout.",
+  },
+];
+
+export function parseTournamentPhase(value: unknown): TournamentPhase {
+  return value === "playoff" ? "playoff" : "qualification";
+}
+
+export function tournamentPhaseLabel(phase: TournamentPhase): string {
+  return phase === "playoff" ? "Play-off / LAN" : "Kvalifikace";
+}
 
 /** Dokument `tournaments/{id}` ve Firestore. */
 export type TournamentDocument = {
   name: string;
   gameId: GameId;
-  /** Volitelné pozadí hlavičky turnaje. */
+  /** Typ turnaje — chybí u starších záznamů (= kvalifikace). */
+  phase?: TournamentPhase;
   backgroundImageUrl?: string;
-  /** Volitelné datum a čas startu turnaje. */
-  startsAt?: Timestamp;
-  /** Zobrazení (např. „20 000 Kč“). */
+  startsAt?: import("firebase/firestore").Timestamp;
   prizePoolText: string;
-  /** Pravidla turnaje (prostý text / markdown-style). */
   rulesText: string;
   faceitUrl: string;
   published: boolean;
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
+  /** Sezóna (např. s4) — volitelné. */
+  seasonId?: string;
+  /** Kdo se může přihlásit; výchozí public. */
+  accessMode?: import("@/lib/seasons").TournamentAccessMode;
+  /** Pořadí kvalifikace v sezóně (1–4). */
+  qualificationRound?: number;
+  createdAt: import("firebase/firestore").Timestamp;
+  updatedAt: import("firebase/firestore").Timestamp;
 };
 
 /** `tournaments/{tid}/registrations/{teamId}` */
@@ -25,13 +52,26 @@ export type TournamentRegistrationDocument = {
   schoolName: string;
   captainId: string;
   gameId: GameId;
-  registeredAt: Timestamp;
+  registeredAt: import("firebase/firestore").Timestamp;
+};
+
+/** `tournaments/{tid}/invitations/{teamId}` — jen u play-off / LAN. */
+export type TournamentInvitationDocument = {
+  teamName: string;
+  schoolName: string;
+  captainId: string;
+  captainEmail: string;
+  gameId: GameId;
+  invitedAt: string;
+  status: "invited" | "accepted" | "declined";
+  respondedAt?: string;
 };
 
 export type TournamentListItem = {
   id: string;
   name: string;
   gameId: GameId;
+  phase: TournamentPhase;
   prizePoolText: string;
   published: boolean;
   createdAtMs: number | null;

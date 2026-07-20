@@ -7,18 +7,30 @@ import { useAuth } from "@/contexts/auth-context";
 import { getFirebaseDb } from "@/lib/firebase/client";
 import { isFirebaseConfigured } from "@/lib/firebase/config";
 import type { GameId } from "@/lib/games";
+import type { TournamentPhase } from "@/lib/tournaments";
 import type { TeamDocument } from "@/lib/types";
 import { GlassCard } from "@/components/glass-card";
 import { GlowButton } from "@/components/glow-button";
+import {
+  formatFaceitUnlockHint,
+  isFaceitHubUnlocked,
+} from "@/lib/tournament-faceit";
 
 type TeamOption = { id: string; teamName: string; schoolName: string };
+
+type InvitationRow = {
+  teamId: string;
+  teamName: string;
+  schoolName: string;
+  status: "invited" | "accepted" | "declined";
+};
 
 type Props = {
   tournamentId: string;
   gameId: GameId;
+  phase: TournamentPhase;
   faceitUrl: string;
   startsAtMs: number | null;
-  /** ID týmů už zapsaných v turnaji */
   registeredTeamIds: string[];
   onJoined: () => void;
 };
@@ -26,6 +38,7 @@ type Props = {
 export function TournamentJoinPanel({
   tournamentId,
   gameId,
+  phase,
   faceitUrl,
   startsAtMs,
   registeredTeamIds,
@@ -34,6 +47,7 @@ export function TournamentJoinPanel({
   const { user, profile } = useAuth();
   const [teams, setTeams] = useState<TeamOption[]>([]);
   const [registeredTeams, setRegisteredTeams] = useState<TeamOption[]>([]);
+  const [invitations, setInvitations] = useState<InvitationRow[]>([]);
   const [selectedId, setSelectedId] = useState("");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -45,16 +59,37 @@ export function TournamentJoinPanel({
     [registeredTeamIds]
   );
 
-  const faceitUnlocked = startsAtMs ? Date.now() >= startsAtMs - 24 * 60 * 60 * 1000 : false;
+  const effectiveFaceitUrl = faceitUrl.trim();
+  const faceitUnlocked = isFaceitHubUnlocked(startsAtMs);
+  const isPlayoff = phase === "playoff";
 
   const loadTeams = useCallback(async () => {
     if (!user || !isFirebaseConfigured()) {
       setTeams([]);
+      setInvitations([]);
       setLoading(false);
       return;
     }
     setLoading(true);
     try {
+      const token = await user.getIdToken();
+      let playoffInvites: InvitationRow[] = [];
+      if (isPlayoff) {
+        const invRes = await fetch(`/api/tournaments/${tournamentId}/invitations`, {
+          headers: { Authorization: `Bearer ${token}` },
+          cache: "no-store",
+        });
+        const invJson = (await invRes.json().catch(() => ({}))) as {
+          invitations?: InvitationRow[];
+        };
+        if (invRes.ok) {
+          playoffInvites = invJson.invitations ?? [];
+        }
+        setInvitations(playoffInvites);
+      } else {
+        setInvitations([]);
+      }
+
       const db = getFirebaseDb();
       const q = query(
         collection(db, "teams"),
@@ -64,6 +99,10 @@ export function TournamentJoinPanel({
       const snap = await getDocs(q);
       const opts: TeamOption[] = [];
       const mineRegistered: TeamOption[] = [];
+      const invitedPending = new Set(
+        playoffInvites.filter((i) => i.status === "invited").map((i) => i.teamId)
+      );
+
       snap.forEach((d) => {
         const t = d.data() as TeamDocument;
         const gid = t.gameId ?? "cs2";
@@ -78,15 +117,20 @@ export function TournamentJoinPanel({
           mineRegistered.push(item);
           return;
         }
+        if (isPlayoff) {
+          if (invitedPending.has(d.id)) opts.push(item);
+          return;
+        }
         opts.push(item);
       });
+
       setTeams(opts);
       setRegisteredTeams(mineRegistered);
       setSelectedId(opts[0]?.id ?? "");
     } finally {
       setLoading(false);
     }
-  }, [user, gameId, regSet]);
+  }, [user, gameId, regSet, isPlayoff, tournamentId]);
 
   useEffect(() => {
     void loadTeams();
@@ -125,7 +169,7 @@ export function TournamentJoinPanel({
     return (
       <GlassCard>
         <p className="text-sm text-amber-100">
-          Pro přihlášení týmu do turnaje{" "}
+          Pro {isPlayoff ? "přijetí pozvánky" : "přihlášení týmu"} do turnaje{" "}
           <Link href="/dashboard/profil" className="text-[#39FF14] underline">
             dokonči profil kapitána
           </Link>
@@ -143,7 +187,23 @@ export function TournamentJoinPanel({
     );
   }
 
-  if (teams.length === 0 && registeredTeams.length === 0) {
+  if (isPlayoff && teams.length === 0 && registeredTeams.length === 0) {
+    const pendingInvite = invitations.some((i) => i.status === "invited");
+    return (
+      <GlassCard>
+        <h3 className="font-[family-name:var(--font-bebas)] text-xl text-white">
+          Play-off / LAN — pozvánka
+        </h3>
+        <p className="mt-2 text-sm text-slate-400">
+          {pendingInvite
+            ? "Máš otevřenou pozvánku, ale tým ještě není schválený nebo neodpovídá hře turnaje."
+            : "Do tohoto turnaje se přihlašují jen týmy vybrané administrátorem. Pokud tě pozvou, přijde e-mail a tým se zobrazí zde."}
+        </p>
+      </GlassCard>
+    );
+  }
+
+  if (!isPlayoff && teams.length === 0 && registeredTeams.length === 0) {
     return (
       <GlassCard>
         <h3 className="font-[family-name:var(--font-bebas)] text-xl text-white">
@@ -165,10 +225,12 @@ export function TournamentJoinPanel({
     <>
       <GlassCard>
         <h3 className="font-[family-name:var(--font-bebas)] text-xl text-white">
-          Připojit se s týmem
+          {isPlayoff ? "Přijmout pozvánku do turnaje" : "Připojit se s týmem"}
         </h3>
         <p className="mt-2 text-sm text-slate-400">
-          Vyber svůj schválený tým ve stejné hře jako turnaj a potvrď přihlášení.
+          {isPlayoff
+            ? "Administrátor tě vybral pro play-off / LAN. Vyber tým a potvrď účast — bez toho se do turnaje nezapíšeš."
+            : "Vyber svůj schválený tým ve stejné hře jako turnaj a potvrď přihlášení."}
         </p>
         {teams.length > 0 ? (
           <>
@@ -200,12 +262,20 @@ export function TournamentJoinPanel({
               disabled={busy || !selectedId}
               onClick={() => void join()}
             >
-              {busy ? "Přihlašuji…" : "Připojit se s týmem"}
+              {busy
+                ? isPlayoff
+                  ? "Potvrzuji…"
+                  : "Přihlašuji…"
+                : isPlayoff
+                  ? "Přijmout pozvánku a potvrdit účast"
+                  : "Připojit se s týmem"}
             </GlowButton>
           </>
         ) : (
           <p className="mt-3 text-sm text-slate-500">
-            Momentálně už nemáš další schválený tým k přihlášení.
+            {isPlayoff
+              ? "Nemáš žádnou čekající pozvánku k potvrzení."
+              : "Momentálně už nemáš další schválený tým k přihlášení."}
           </p>
         )}
       </GlassCard>
@@ -228,9 +298,9 @@ export function TournamentJoinPanel({
               Přihlas se do veřejného turnaje na Faceitu, tým pojmenuj podle názvu školy a
               připrav se na hru. 24 hodin před startem kontrolujeme soupisky.
             </p>
-            {faceitUnlocked && faceitUrl.trim() ? (
+            {faceitUnlocked && effectiveFaceitUrl ? (
               <a
-                href={faceitUrl}
+                href={effectiveFaceitUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="mt-3 inline-block text-[#39FF14] underline"
@@ -239,7 +309,9 @@ export function TournamentJoinPanel({
               </a>
             ) : (
               <p className="mt-3 text-amber-200">
-                Odkaz na Faceit turnaj se zobrazí 24 hodin před startem.
+                {faceitUnlocked
+                  ? "Faceit odkaz zatím není vyplněný — organizátor ho doplní v adminu."
+                  : formatFaceitUnlockHint(startsAtMs)}
               </p>
             )}
           </div>
@@ -250,14 +322,14 @@ export function TournamentJoinPanel({
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
           <div className="w-full max-w-md rounded-xl border border-white/10 bg-[#111] p-5">
             <h4 className="font-[family-name:var(--font-bebas)] text-2xl text-[#39FF14]">
-              Úspěšná registrace
+              {isPlayoff ? "Pozvánka přijata" : "Úspěšná registrace"}
             </h4>
             <p className="mt-2 text-sm text-slate-300">
               Tým {success.teamName} je úspěšně registrovaný do turnaje.
             </p>
-            {faceitUnlocked && faceitUrl.trim() ? (
+            {faceitUnlocked && effectiveFaceitUrl ? (
               <a
-                href={faceitUrl}
+                href={effectiveFaceitUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="mt-4 inline-block text-[#39FF14] underline"
@@ -266,7 +338,9 @@ export function TournamentJoinPanel({
               </a>
             ) : (
               <p className="mt-4 text-sm text-amber-200">
-                Link na Faceit turnaj bude dostupný 24 hodin před startem.
+                {faceitUnlocked
+                  ? "Faceit odkaz zatím není vyplněný."
+                  : formatFaceitUnlockHint(startsAtMs)}
               </p>
             )}
             <GlowButton

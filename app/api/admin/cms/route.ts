@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { verifyAdminBearer } from "@/lib/server-auth";
 import type { CmsSlug } from "@/lib/cms-defaults";
 import { upsertDocRest } from "@/lib/firebase/firestore-rest-admin";
+import { reportSiteAction } from "@/lib/discord-webhook";
 
 const SLUGS: CmsSlug[] = ["home", "pravidla", "oznameni"];
 
@@ -28,6 +29,17 @@ export async function PUT(request: Request) {
 
   const { slug: _s, ...patch } = body;
   await upsertDocRest(`page_content/${slug}`, patch);
+
+  void reportSiteAction({
+    content: "**CMS** · uložení stránky",
+    title: `page_content/${slug}`,
+    description: `**Pole:** ${Object.keys(patch).slice(0, 25).join(", ") || "—"}`,
+    fields: [
+      ...(auth.user.email
+        ? [{ name: "Admin", value: auth.user.email, inline: true }]
+        : []),
+    ],
+  });
 
   return NextResponse.json({ ok: true });
 }

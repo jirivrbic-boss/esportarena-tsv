@@ -7,7 +7,9 @@ import Link from "next/link";
 import { useAuth } from "@/contexts/auth-context";
 import { isFirebaseConfigured } from "@/lib/firebase/config";
 import { parseGameId, GAMES_BY_ID } from "@/lib/games";
+import { isSeasonActiveGame } from "@/lib/season-games";
 import { TeamRegistrationForm } from "@/components/team-registration-form";
+import { GameComingSoon } from "@/components/game-coming-soon";
 import { GlowButton } from "@/components/glow-button";
 
 function RegistraceTymuInner() {
@@ -49,6 +51,22 @@ function RegistraceTymuInner() {
   }
 
   const game = GAMES_BY_ID[gameId];
+
+  if (!isSeasonActiveGame(gameId)) {
+    return (
+      <motion.main
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="mx-auto max-w-3xl px-4 py-10 sm:px-6"
+      >
+        <GameComingSoon
+          gameId={gameId}
+          backHref="/dashboard/tymy"
+          backLabel="Zpět na přehled týmů"
+        />
+      </motion.main>
+    );
+  }
 
   return (
     <motion.main

@@ -4,6 +4,7 @@ import {
   listCollectionDocsRest,
   upsertDocRest,
 } from "@/lib/firebase/firestore-rest-admin";
+import { reportSiteAction } from "@/lib/discord-webhook";
 
 const HOURS_48_MS = 48 * 60 * 60 * 1000;
 
@@ -109,6 +110,19 @@ async function runStorageCleanup() {
         updatedAt: new Date().toISOString(),
       });
     }
+  }
+
+  if (deleted > 0 || errors.length > 0) {
+    void reportSiteAction({
+      content: "**Cron** · cleanup Storage (GDPR 48 h)",
+      title: "Cleanup storage",
+      description: [
+        `**Smazáno souborů:** ${deleted}`,
+        errors.length ? `**Chyby:** ${errors.length}` : null,
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    });
   }
 
   return NextResponse.json({ ok: true, deleted, errors: errors.slice(0, 20) });

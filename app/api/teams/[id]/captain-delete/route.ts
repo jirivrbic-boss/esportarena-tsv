@@ -6,6 +6,7 @@ import {
   getDocRest,
   listCollectionDocsRest,
 } from "@/lib/firebase/firestore-rest-admin";
+import { reportSiteAction } from "@/lib/discord-webhook";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -41,6 +42,18 @@ export async function DELETE(request: Request, ctx: Ctx) {
       )
     );
     await deleteDocRest(`teams/${id}`);
+
+    void reportSiteAction({
+      content: "**Tým smazán** · kapitán",
+      title: (team.teamName ?? "Tým").slice(0, 256),
+      description: [
+        team.schoolName ? `**Škola:** ${team.schoolName}` : null,
+        user.email ? `**Kapitán:** ${user.email}` : null,
+        `**Team ID:** \`${id}\``,
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    });
 
     return NextResponse.json({ ok: true });
   } catch (e) {

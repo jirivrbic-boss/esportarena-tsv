@@ -5,7 +5,6 @@ import {
   type OznameniCms,
   type PravidlaCms,
 } from "@/lib/cms-defaults";
-import { getDocRest } from "@/lib/firebase/firestore-rest-admin";
 
 function deepMerge<T extends Record<string, unknown>>(
   base: T,
@@ -21,7 +20,15 @@ function deepMerge<T extends Record<string, unknown>>(
 
 export async function getPageContent(slug: CmsSlug): Promise<HomeCms | PravidlaCms | OznameniCms> {
   const defaults = CMS_DEFAULTS[slug];
+  // Lokální vývoj má být vždy okamžitě dostupný i bez externích API volání.
+  if (
+    process.env.NODE_ENV !== "production" &&
+    process.env.USE_REMOTE_CMS_IN_DEV !== "1"
+  ) {
+    return defaults;
+  }
   try {
+    const { getDocRest } = await import("@/lib/firebase/firestore-rest-admin");
     const data = await getDocRest(`page_content/${slug}`);
     if (data) {
       const patch = { ...data } as Record<string, unknown>;

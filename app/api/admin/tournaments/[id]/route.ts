@@ -1,14 +1,31 @@
 import { NextResponse } from "next/server";
 import { verifyAdminBearer } from "@/lib/server-auth";
-import { parseGameId } from "@/lib/games";
+import { parseGameId, type GameId } from "@/lib/games";
 import {
   deleteDocRest,
   getDocRest,
   listCollectionDocsRest,
   upsertDocRest,
 } from "@/lib/firebase/firestore-rest-admin";
+import { parseTournamentPhase } from "@/lib/tournaments";
+import { parseTournamentAccessMode } from "@/lib/seasons";
+import {
+  clearTournamentInvitations,
+  listTournamentInvitationsRest,
+  syncTournamentInvitations,
+} from "@/lib/tournament-invitations";
+import { getSitePublicUrl } from "@/lib/site-public-url";
+import { reportSiteAction } from "@/lib/discord-webhook";
 
 type Ctx = { params: Promise<{ id: string }> };
+
+function parseInvitedTeamIds(body: Record<string, unknown>): string[] | undefined {
+  if (!Array.isArray(body.invitedTeamIds)) return undefined;
+  return body.invitedTeamIds
+    .filter((id): id is string => typeof id === "string")
+    .map((id) => id.trim())
+    .filter(Boolean);
+}
 
 export async function PATCH(request: Request, ctx: Ctx) {
   const auth = await verifyAdminBearer(request);
@@ -58,9 +75,60 @@ export async function PATCH(request: Request, ctx: Ctx) {
     if (typeof body.rulesText === "string") patch.rulesText = body.rulesText.trim();
     if (typeof body.faceitUrl === "string") patch.faceitUrl = body.faceitUrl.trim();
     if (typeof body.published === "boolean") patch.published = body.published;
+    if (body.phase !== undefined) patch.phase = parseTournamentPhase(body.phase);
+    if (body.seasonId !== undefined) {
+      patch.seasonId = typeof body.seasonId === "string" ? body.seasonId.trim() : null;
+    }
+    if (body.accessMode !== undefined) {
+      patch.accessMode = parseTournamentAccessMode(body.accessMode);
+    }
+    if (body.qualificationRound !== undefined) {
+      const n = Number(body.qualificationRound);
+      patch.qualificationRound = Number.isFinite(n) && n > 0 ? n : null;
+    }
 
     await upsertDocRest(`tournaments/${id}`, patch);
-    return NextResponse.json({ ok: true });
+
+    const nextPhase = parseTournamentPhase(
+      typeof body.phase === "string" ? body.phase : existing.phase ?? "qualification"
+    );
+    const nextGameId = (patch.gameId ?? existing.gameId ?? "cs2") as GameId;
+    const nextName = String(patch.name ?? existing.name ?? "Turnaj");
+    const invitedTeamIds = parseInvitedTeamIds(body);
+
+    let inviteSummary: { emailed: number; skipped: number } | null = null;
+    if (nextPhase === "qualification") {
+      await clearTournamentInvitations(id);
+    } else if (invitedTeamIds !== undefined) {
+      inviteSummary = await syncTournamentInvitations({
+        tournamentId: id,
+        tournamentName: nextName,
+        gameId: nextGameId,
+        invitedTeamIds,
+        tournamentUrl: `${getSitePublicUrl(request)}/turnaje/${id}`,
+      });
+    }
+
+    void reportSiteAction({
+      content: "**Turnaj upraven** · admin PATCH",
+      title: nextName.slice(0, 256),
+      description: [
+        `**Tournament ID:** \`${id}\``,
+        `**Fáze:** ${nextPhase}`,
+        inviteSummary
+          ? `**Pozvánky:** odesláno ${inviteSummary.emailed}, přeskočeno ${inviteSummary.skipped}`
+          : null,
+      ]
+        .filter(Boolean)
+        .join("\n"),
+      fields: [
+        ...(auth.user.email
+          ? [{ name: "Admin", value: auth.user.email, inline: true }]
+          : []),
+      ],
+    });
+
+    return NextResponse.json({ ok: true, inviteSummary });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Chyba";
     return NextResponse.json({ ok: false, error: msg }, { status: 500 });
@@ -88,7 +156,23 @@ export async function DELETE(request: Request, ctx: Ctx) {
     await Promise.all(
       regs.map((r) => deleteDocRest(`tournaments/${id}/registrations/${r.id}`))
     );
+    const invitations = await listTournamentInvitationsRest(id);
+    await Promise.all(
+      invitations.map((inv) =>
+        deleteDocRest(`tournaments/${id}/invitations/${inv.id}`)
+      )
+    );
     await deleteDocRest(`tournaments/${id}`);
+    void reportSiteAction({
+      content: "**Turnaj smazán** · admin DELETE",
+      title: String(exists.name ?? "Turnaj").slice(0, 256),
+      description: `**Tournament ID:** \`${id}\``,
+      fields: [
+        ...(auth.user.email
+          ? [{ name: "Admin", value: auth.user.email, inline: true }]
+          : []),
+      ],
+    });
     return NextResponse.json({ ok: true });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Chyba";

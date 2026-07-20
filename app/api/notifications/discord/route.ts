@@ -9,7 +9,7 @@ type Body = {
   captainDiscord: string;
   captainEmail: string;
   playerSummary: string;
-  documentLinks: { label: string; url: string }[];
+  documentLinks: { label: string }[];
   event: "team_created" | "roster_updated";
   gameLabel?: string;
   /** Firestore document id — pro adminy v Discordu */
@@ -45,8 +45,8 @@ export async function POST(request: Request) {
 
   const linksText =
     body.documentLinks?.length > 0
-      ? body.documentLinks.map((l) => `• ${l.label}: ${l.url}`).join("\n")
-      : "Žádné odkazy";
+      ? body.documentLinks.map((l) => `• ${l.label}`).join("\n")
+      : "Žádné nové dokumenty";
 
   const content = `**${body.title}**\n${
     body.event === "team_created"
@@ -66,7 +66,7 @@ export async function POST(request: Request) {
     embeds: [
       {
         title: body.teamName.slice(0, 256),
-        description: `${idLine}${gameLine}**Škola:** ${body.schoolName}\n**Kapitán Discord:** ${body.captainDiscord}\n**E-mail kapitána:** ${body.captainEmail}\n\n**Hráči:**\n${body.playerSummary}\n\n**Dokumenty:**\n${linksText.slice(0, 3500)}`,
+        description: `${idLine}${gameLine}**Škola:** ${body.schoolName}\n**Kapitán Discord:** ${body.captainDiscord}\n**E-mail kapitána:** ${body.captainEmail}\n\n**Hráči:**\n${body.playerSummary}\n\n**Dokumenty (bez veřejných URL):**\n${linksText.slice(0, 3500)}\n\nDetail dokumentů otevři jen v admin sekci webu.`,
       },
     ],
   });

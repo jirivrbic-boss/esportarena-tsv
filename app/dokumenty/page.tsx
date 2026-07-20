@@ -5,7 +5,7 @@ import { OfficialDocumentsDownloads } from "@/components/official-documents-down
 export const metadata: Metadata = {
   title: "Dokumenty ke stažení · ESPORTARENA TSV",
   description:
-    "Obecná pravidla CS2, pravidla registrace a souhlas zákonného zástupce — oficiální PDF dokumenty turnaje ESPORTARENA TSV.",
+    "Obecná pravidla CS2 a LoL, společná pravidla registrace a souhlas zákonného zástupce — PDF dokumenty portálu ESPORTARENA TSV.",
 };
 
 export default function DokumentyPage() {
@@ -15,10 +15,9 @@ export default function DokumentyPage() {
         Dokumenty ke stažení
       </h1>
       <p className="mt-3 text-slate-400">
-        Oficiální texty turnaje v jednom místě. Stručný přehled pravidel zůstává
-        také na stránce{" "}
+        Oficiální texty turnaje v jednom místě. Rozcestník pravidel podle her je na{" "}
         <Link href="/pravidla" className="text-[#39FF14] underline-offset-2 hover:underline">
-          Pravidla
+          Pravidla podle her
         </Link>
         ; zde jsou kompletní soubory pro školy, rodiče a kapitány.
       </p>

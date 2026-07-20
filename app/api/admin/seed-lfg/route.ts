@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
 import { verifyAdminBearer } from "@/lib/server-auth";
 import { createDocRest, listCollectionDocsRest } from "@/lib/firebase/firestore-rest-admin";
+import { reportSiteAction } from "@/lib/discord-webhook";
 
 const DEMOS = [
   {
     type: "looking_team" as const,
+    gameId: "cs2" as const,
     discordUsername: "demo_hledam_tym",
     hoursPlayed: 2400,
     faceitLevel: 8,
@@ -14,6 +16,7 @@ const DEMOS = [
   },
   {
     type: "looking_player" as const,
+    gameId: "cs2" as const,
     discordUsername: "demo_skola_hleda_hrace",
     hoursPlayed: 900,
     faceitLevel: 5,
@@ -42,6 +45,17 @@ export async function POST(request: Request) {
     });
     added++;
   }
+
+  void reportSiteAction({
+    content: "**LFG** · seed ukázkových inzerátů",
+    title: `Přidáno ${added}`,
+    description: `Přeskočeno: ${DEMOS.length - added}`,
+    fields: [
+      ...(auth.user.email
+        ? [{ name: "Admin", value: auth.user.email, inline: true }]
+        : []),
+    ],
+  });
 
   return NextResponse.json({
     ok: true,

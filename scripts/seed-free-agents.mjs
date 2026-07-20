@@ -22,6 +22,7 @@ const db = getFirestore();
 const demos = [
   {
     type: "looking_team",
+    gameId: "cs2",
     discordUsername: "demo_hledam_tym",
     hoursPlayed: 2400,
     faceitLevel: 8,
@@ -31,6 +32,7 @@ const demos = [
   },
   {
     type: "looking_player",
+    gameId: "cs2",
     discordUsername: "demo_skola_hleda_hrace",
     hoursPlayed: 900,
     faceitLevel: 5,

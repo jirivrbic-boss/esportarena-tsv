@@ -5,9 +5,14 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/auth-context";
 import { useAdminTempBypass } from "@/contexts/admin-temp-context";
 import { isClientAdminEmail } from "@/lib/admin-client";
+import { PortalPageHeader } from "@/components/portal-page-header";
 import { GlassCard } from "@/components/glass-card";
 import { GlowButton } from "@/components/glow-button";
-import { gameLabel, type GameId } from "@/lib/games";
+import { gameLabel, GAME_IDS, parseGameId, type GameId } from "@/lib/games";
+import {
+  getFaceitPlayerUrl,
+  rosterGameNickLabel,
+} from "@/lib/game-player-accounts";
 
 type TeamRow = {
   id: string;
@@ -35,6 +40,7 @@ type TeamRow = {
     parentConsentUrl?: string;
   }[];
   substitutes?: TeamRow["teammates"];
+  faceitHubUrl?: string;
 };
 
 function collectDocLinks(t: TeamRow): { label: string; url: string }[] {
@@ -53,11 +59,38 @@ function collectDocLinks(t: TeamRow): { label: string; url: string }[] {
   return out;
 }
 
-function getFaceitPlayerUrl(nick?: string) {
-  const trimmed = nick?.trim();
-  return trimmed
-    ? `https://www.faceit.com/en/players/${encodeURIComponent(trimmed)}`
-    : null;
+async function openProtectedDoc(
+  getToken: () => Promise<string>,
+  input: { label: string; url: string }
+) {
+  const token = await getToken();
+  const res = await fetch("/api/admin/doc-preview", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(input),
+  });
+  if (!res.ok) {
+    const j = (await res.json().catch(() => ({}))) as { error?: string };
+    throw new Error(j.error ?? "Dokument se nepodařilo otevřít.");
+  }
+  const blob = await res.blob();
+  const objectUrl = URL.createObjectURL(blob);
+  window.open(objectUrl, "_blank", "noopener,noreferrer");
+  setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
+}
+
+function rosterNickLabelForTeam(team: TeamRow): string {
+  const gameId = parseGameId(team.gameId) ?? "cs2";
+  return rosterGameNickLabel(gameId);
+}
+
+function rosterNickLinkForTeam(team: TeamRow, nick?: string): string | null {
+  const gameId = parseGameId(team.gameId) ?? "cs2";
+  if (gameId !== "cs2") return null;
+  return getFaceitPlayerUrl(nick);
 }
 
 function getStatusLabel(status?: TeamRow["status"]) {
@@ -99,6 +132,19 @@ export default function AdminTeamsPage() {
   const [messageBody, setMessageBody] = useState("");
   const [messageInfo, setMessageInfo] = useState<string | null>(null);
 
+  const [editTeamName, setEditTeamName] = useState("");
+  const [editSchoolName, setEditSchoolName] = useState("");
+  const [editSchoolFullName, setEditSchoolFullName] = useState("");
+  const [editCaptainEmail, setEditCaptainEmail] = useState("");
+  const [editCaptainDiscord, setEditCaptainDiscord] = useState("");
+  const [editFaceitHubUrl, setEditFaceitHubUrl] = useState("");
+  const [editGameId, setEditGameId] = useState<GameId>("cs2");
+  const [editStatus, setEditStatus] = useState<
+    "pending" | "approved" | "rejected"
+  >("pending");
+  const [teamEditInfo, setTeamEditInfo] = useState<string | null>(null);
+  const [busyTeamSave, setBusyTeamSave] = useState(false);
+
   const load = useCallback(async () => {
     if (!user) {
       if (tempBypass) {
@@ -126,7 +172,7 @@ export default function AdminTeamsPage() {
           setTeams([]);
           return;
         }
-        router.replace("/");
+        router.replace("/zakazano");
         return;
       }
       if (!res.ok) {
@@ -144,6 +190,29 @@ export default function AdminTeamsPage() {
   }, [user, router, tempBypass]);
 
   useEffect(() => {
+    if (teams.length === 0) return;
+    const tid = new URLSearchParams(window.location.search).get("team");
+    if (!tid) return;
+    const found = teams.find((t) => t.id === tid);
+    if (found) setSelectedTeam(found);
+  }, [teams]);
+
+  useEffect(() => {
+    if (!selectedTeam) {
+      setTeamEditInfo(null);
+      return;
+    }
+    setEditTeamName(selectedTeam.teamName ?? "");
+    setEditSchoolName(selectedTeam.schoolName ?? "");
+    setEditSchoolFullName(selectedTeam.schoolFullName ?? "");
+    setEditCaptainEmail(selectedTeam.captainEmail ?? "");
+    setEditCaptainDiscord(selectedTeam.captainDiscord ?? "");
+    setEditFaceitHubUrl(selectedTeam.faceitHubUrl ?? "");
+    setEditGameId(selectedTeam.gameId ?? "cs2");
+    setEditStatus(selectedTeam.status ?? "pending");
+  }, [selectedTeam]);
+
+  useEffect(() => {
     if (loading) return;
     if (tempBypass) {
       void load();
@@ -154,7 +223,7 @@ export default function AdminTeamsPage() {
       return;
     }
     if (!isClientAdminEmail(user.email)) {
-      router.replace("/");
+      router.replace("/zakazano");
       return;
     }
     void load();
@@ -192,6 +261,49 @@ export default function AdminTeamsPage() {
     }
   }
 
+  async function saveTeamEdits() {
+    if (!user || !selectedTeam) return;
+    setErr(null);
+    setTeamEditInfo(null);
+    setBusyTeamSave(true);
+    try {
+      const token = await user.getIdToken();
+      const res = await fetch(`/api/admin/teams/${selectedTeam.id}`, {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          teamName: editTeamName.trim(),
+          schoolName: editSchoolName.trim(),
+          schoolFullName: editSchoolFullName.trim(),
+          captainEmail: editCaptainEmail.trim(),
+          captainDiscord: editCaptainDiscord.trim(),
+          faceitHubUrl: editFaceitHubUrl.trim() || undefined,
+          gameId: editGameId,
+          status: editStatus,
+        }),
+      });
+      const j = (await res.json()) as {
+        ok?: boolean;
+        team?: TeamRow;
+        error?: string;
+      };
+      if (!res.ok || !j.ok) {
+        setErr(j.error ?? "Uložení týmu selhalo.");
+        return;
+      }
+      setTeamEditInfo("Údaje týmu byly uloženy.");
+      await load();
+      if (j.team && typeof j.team.id === "string") {
+        setSelectedTeam(j.team as TeamRow);
+      }
+    } finally {
+      setBusyTeamSave(false);
+    }
+  }
+
   async function deleteTeam(team: TeamRow) {
     if (!user) return;
     if (
@@ -225,6 +337,16 @@ export default function AdminTeamsPage() {
     }
   }
 
+  async function openDoc(input: { label: string; url: string }) {
+    if (!user) return;
+    setErr(null);
+    try {
+      await openProtectedDoc(() => user.getIdToken(), input);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Dokument se nepodařilo otevřít.");
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center text-slate-500">
@@ -243,16 +365,13 @@ export default function AdminTeamsPage() {
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6 md:py-12">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="font-[family-name:var(--font-bebas)] text-4xl text-white">
-            Všechny týmy
-          </h1>
-          <p className="mt-2 text-sm text-slate-400">
-            Přehled všech registrovaných týmů. Rozklikni detail pro soupisku, Faceit
-            odkazy a dočasné dokumenty.
-          </p>
-        </div>
+      <PortalPageHeader
+        backHref="/admin"
+        backLabel="Přehled administrace"
+        title="Všechny týmy"
+        description="Přehled všech registrovaných týmů. Rozklikni detail pro soupisku, Faceit odkazy a dočasné dokumenty."
+      />
+      <div className="mb-6 flex justify-end">
         <GlowButton type="button" variant="ghost" onClick={() => void load()}>
           Obnovit seznam
         </GlowButton>
@@ -386,6 +505,107 @@ export default function AdminTeamsPage() {
               </div>
             </div>
 
+            <div className="mt-6 rounded-xl border border-[#39FF14]/25 bg-[#39FF14]/5 p-4">
+              <p className="text-xs font-bold uppercase tracking-wider text-[#39FF14]">
+                Úprava údajů (admin)
+              </p>
+              {teamEditInfo ? (
+                <p className="mt-2 text-sm text-[#39FF14]" role="status">
+                  {teamEditInfo}
+                </p>
+              ) : null}
+              <div className="mt-4 grid gap-3 md:grid-cols-2">
+                <div className="md:col-span-2">
+                  <label className="text-xs text-slate-500">Název týmu</label>
+                  <input
+                    value={editTeamName}
+                    onChange={(e) => setEditTeamName(e.target.value)}
+                    className="mt-1 w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm text-white"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-slate-500">Škola (zkratka)</label>
+                  <input
+                    value={editSchoolName}
+                    onChange={(e) => setEditSchoolName(e.target.value)}
+                    className="mt-1 w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm text-white"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-slate-500">Hra</label>
+                  <select
+                    value={editGameId}
+                    onChange={(e) => setEditGameId(e.target.value as GameId)}
+                    className="mt-1 w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm text-white"
+                  >
+                    {GAME_IDS.map((gid) => (
+                      <option key={gid} value={gid}>
+                        {gameLabel(gid)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="md:col-span-2">
+                  <label className="text-xs text-slate-500">Plný název školy</label>
+                  <input
+                    value={editSchoolFullName}
+                    onChange={(e) => setEditSchoolFullName(e.target.value)}
+                    className="mt-1 w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm text-white"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-slate-500">E-mail kapitána</label>
+                  <input
+                    value={editCaptainEmail}
+                    onChange={(e) => setEditCaptainEmail(e.target.value)}
+                    type="email"
+                    className="mt-1 w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm text-white"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-slate-500">Discord kapitána</label>
+                  <input
+                    value={editCaptainDiscord}
+                    onChange={(e) => setEditCaptainDiscord(e.target.value)}
+                    className="mt-1 w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm text-white"
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="text-xs text-slate-500">Faceit hub URL</label>
+                  <input
+                    value={editFaceitHubUrl}
+                    onChange={(e) => setEditFaceitHubUrl(e.target.value)}
+                    className="mt-1 w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm text-white"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-slate-500">Stav</label>
+                  <select
+                    value={editStatus}
+                    onChange={(e) =>
+                      setEditStatus(
+                        e.target.value as "pending" | "approved" | "rejected"
+                      )
+                    }
+                    className="mt-1 w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm text-white"
+                  >
+                    <option value="pending">Čeká na schválení</option>
+                    <option value="approved">Schváleno</option>
+                    <option value="rejected">Zamítnuto</option>
+                  </select>
+                </div>
+              </div>
+              <div className="mt-4">
+                <GlowButton
+                  type="button"
+                  disabled={busyTeamSave}
+                  onClick={() => void saveTeamEdits()}
+                >
+                  {busyTeamSave ? "Ukládám…" : "Uložit údaje týmu"}
+                </GlowButton>
+              </div>
+            </div>
+
             <div className="mt-6 grid gap-6 md:grid-cols-2">
               <div className="rounded-xl border border-white/10 bg-black/20 p-4">
                 <p className="text-xs font-bold uppercase tracking-wider text-[#39FF14]">
@@ -419,14 +639,13 @@ export default function AdminTeamsPage() {
                   {collectDocLinks(selectedTeam).length > 0 ? (
                     collectDocLinks(selectedTeam).map((link) => (
                       <li key={link.label + link.url}>
-                        <a
-                          href={link.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
+                        <button
+                          type="button"
+                          onClick={() => void openDoc(link)}
                           className="text-slate-300 underline-offset-2 hover:text-[#39FF14] hover:underline"
                         >
                           {link.label}
-                        </a>
+                        </button>
                       </li>
                     ))
                   ) : (
@@ -454,11 +673,14 @@ export default function AdminTeamsPage() {
                         {player.firstName} {player.lastName}
                       </p>
                       <p className="mt-1 text-sm text-slate-400">
-                        Faceit: {player.faceitNickname || "Neuvedeno"}
+                        {rosterNickLabelForTeam(selectedTeam)}:{" "}
+                        {player.faceitNickname || "Neuvedeno"}
                       </p>
-                      {getFaceitPlayerUrl(player.faceitNickname) ? (
+                      {rosterNickLinkForTeam(selectedTeam, player.faceitNickname) ? (
                         <a
-                          href={getFaceitPlayerUrl(player.faceitNickname) ?? "#"}
+                          href={
+                            rosterNickLinkForTeam(selectedTeam, player.faceitNickname) ?? "#"
+                          }
                           target="_blank"
                           rel="noopener noreferrer"
                           className="mt-2 inline-block text-sm text-[#39FF14] hover:underline"
@@ -492,11 +714,14 @@ export default function AdminTeamsPage() {
                         {player.firstName} {player.lastName}
                       </p>
                       <p className="mt-1 text-sm text-slate-400">
-                        Faceit: {player.faceitNickname || "Neuvedeno"}
+                        {rosterNickLabelForTeam(selectedTeam)}:{" "}
+                        {player.faceitNickname || "Neuvedeno"}
                       </p>
-                      {getFaceitPlayerUrl(player.faceitNickname) ? (
+                      {rosterNickLinkForTeam(selectedTeam, player.faceitNickname) ? (
                         <a
-                          href={getFaceitPlayerUrl(player.faceitNickname) ?? "#"}
+                          href={
+                            rosterNickLinkForTeam(selectedTeam, player.faceitNickname) ?? "#"
+                          }
                           target="_blank"
                           rel="noopener noreferrer"
                           className="mt-2 inline-block text-sm text-[#39FF14] hover:underline"

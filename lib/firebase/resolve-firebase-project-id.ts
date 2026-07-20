@@ -1,3 +1,5 @@
+import { tryReadFirebaseServiceAccountFromEnv } from "@/lib/firebase/service-account";
+
 /**
  * Firebase project ID pro ověření ID tokenu na serveru.
  * Na Netlify může být NEXT_PUBLIC_FIREBASE_PROJECT_ID prázdný v čase buildu (inlining),
@@ -5,14 +7,8 @@
  */
 export function resolveFirebaseProjectIdForServer(): string | undefined {
   const fromSa = (): string | undefined => {
-    const raw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON?.trim();
-    if (!raw) return undefined;
-    try {
-      const j = JSON.parse(raw) as { project_id?: string };
-      return j.project_id?.trim() || undefined;
-    } catch {
-      return undefined;
-    }
+    const sa = tryReadFirebaseServiceAccountFromEnv();
+    return sa?.project_id?.trim() || undefined;
   };
 
   return (

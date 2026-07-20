@@ -1,33 +1,55 @@
-export type RoadmapStageIcon = "grid" | "sixteen" | "trophy";
+import type { GameId } from "@/lib/games";
+import { SEASON_ACTIVE_GAME_IDS } from "@/lib/season-games";
+
+export type RoadmapStageIcon = "teams" | "qualify" | "playoff" | "trophy";
 
 export type RoadmapStage = {
   title: string;
   description: string;
   dates: string;
   icon: RoadmapStageIcon;
+  /** Disciplíny, pro které tato fáze platí (stejný postup, detaily v pravidlech hry). */
+  games: GameId[];
 };
 
-/** Fáze turnaje — texty a termíny lze upravit podle skutečného harmonogramu. */
+/** Disciplíny aktivní v Sezóně 4. */
+export const ROADMAP_DISCIPLINES: GameId[] = [...SEASON_ACTIVE_GAME_IDS];
+
+/**
+ * Fáze turnaje — obecný postup pro všechny hry.
+ * Konkrétní formát (Bo1/Bo3, platforma, počet týmů) je v pravidlech dané hry a v Oznámeních na webu.
+ */
 export const TOURNAMENT_ROADMAP_STAGES: RoadmapStage[] = [
   {
-    title: "Otevřená kvalifikace",
+    title: "Registrace týmů",
     description:
-      "64 týmů hraje Double Elimination (Bo1) až do rozhodujících zápasů (Bo3). Nejlepších 16 postupuje do hlavní fáze.",
-    dates: "31. 10. – 2. 11.",
-    icon: "grid",
+      "Kapitán založí tým na webu, doplní soupisku a odešle ji ke schválení. Každá hra má vlastní turnaj, pravidla a termíny — tým se registruje vždy do jedné disciplíny.",
+    dates: "Průběžně · dle kalendáře",
+    icon: "teams",
+    games: ROADMAP_DISCIPLINES,
   },
   {
-    title: "Hlavní fáze",
+    title: "Kvalifikace",
     description:
-      "Skupina 16 týmů ve formátu GSL (Bo3). Z každé skupiny postupují 2 nejlepší týmy do play-off.",
-    dates: "17. 11. – 18. 11.",
-    icon: "sixteen",
+      "Přihlášené týmy hrají kvalifikační fázi podle pravidel své hry — online na platformě, kterou určí organizátor (např. Faceit u CS2, klient Riot u LoL). Postupují nejlepší týmy.",
+    dates: "Termín bude upřesněn",
+    icon: "qualify",
+    games: ROADMAP_DISCIPLINES,
   },
   {
     title: "Play-off",
     description:
-      "Play-off 8 týmů ve Single Elimination (Bo3). Grand finále hrané na Bo3.",
-    dates: "18. 11. – 19. 11.",
+      "Vyřazovací fáze pro postupující týmy. Počet účastníků, délka zápasů a konkrétní bracket stanoví administrace pro každou hru zvlášť — detaily v Oznámeních na webu.",
+    dates: "Termín bude upřesněn",
+    icon: "playoff",
+    games: ROADMAP_DISCIPLINES,
+  },
+  {
+    title: "Finále",
+    description:
+      "Závěrečná kola sezóny. U vybraných disciplín probíhají offline v Esport Areně Plzeň, u ostatních dle propozic online nebo hybridně. Přesný rozpis pro každou hru oznámíme včas.",
+    dates: "Plzeň · termín TBA",
     icon: "trophy",
+    games: ROADMAP_DISCIPLINES,
   },
 ];

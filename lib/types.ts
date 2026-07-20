@@ -52,16 +52,27 @@ export interface CaptainProfile {
   discordUsername: string;
   faceitNickname: string;
   steamNickname: string;
+  /** LoL — Riot ID včetně tagu (např. Jméno#EUNE). */
+  riotId?: string;
+  /** Brawl Stars — player tag. */
+  brawlPlayerTag?: string;
+  /** FC 26 — EA / konzolový účet. */
+  eaAccount?: string;
   isAdult: boolean;
   parentConsentUrl?: string;
   studentCertUrl?: string;
   profileComplete: boolean;
   createdAt: Timestamp;
   updatedAt: Timestamp;
+  /** Platnost odkladu smazání účtu (Firestore Timestamp). Pouze Admin / server API mění.*/
+  pendingDeletionExpiresAt?: Timestamp | null;
+  /** SHA-256 celého recovery tokenu (nikdy neukládá plaintext). */
+  deletionRecoveryTokenHash?: string | null;
 }
 
 export interface FreeAgentDocument {
   type: FreeAgentType;
+  gameId: GameId;
   discordUsername: string;
   hoursPlayed: number;
   faceitLevel: number;

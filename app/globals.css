@@ -1,10 +1,16 @@
 @import "tailwindcss";
 
+@source "./**/*.{js,ts,jsx,tsx,mdx}";
+@source "../components/**/*.{js,ts,jsx,tsx,mdx}";
+@source "../contexts/**/*.{js,ts,jsx,tsx,mdx}";
+
 :root {
   --background: #050505;
   --foreground: #f8fafc;
   --neon: #39ff14;
   --muted: #94a3b8;
+  --font-inter: system-ui, sans-serif;
+  --font-bebas: "Arial Black", Impact, sans-serif;
 }
 
 @theme inline {
@@ -16,6 +22,7 @@
 
 html {
   scroll-behavior: smooth;
+  position: relative;
 }
 
 body {
@@ -95,4 +102,67 @@ label {
   );
   animation: prize-pool-liquid-shine 2.2s ease-in-out infinite;
   mix-blend-mode: overlay;
+}
+
+/* Hero — jemný zoom na YouTube náhledu (bez iframe ovládání) */
+@keyframes hero-bg-zoom {
+  0% {
+    transform: scale(1);
+  }
+  100% {
+    transform: scale(1.07);
+  }
+}
+
+.hero-bg-zoom {
+  animation: hero-bg-zoom 22s ease-in-out infinite alternate;
+  will-change: transform;
+}
+
+/* Běžící lišta log — dva identické pruhy, −50 % = seamless loop */
+@keyframes tournament-brand-ticker-scroll {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.tournament-brand-ticker-stripes {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    transparent,
+    transparent 8px,
+    rgba(0, 0, 0, 0.12) 8px,
+    rgba(0, 0, 0, 0.12) 16px
+  );
+  opacity: 0.65;
+}
+
+.tournament-brand-ticker-track {
+  display: flex;
+  flex-shrink: 0;
+  width: max-content;
+  animation: tournament-brand-ticker-scroll 36s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tournament-brand-ticker-track {
+    animation: none;
+    margin-inline: auto;
+  }
+}
+
+/* Odpočet registrace — diagonální pruhy na progress baru */
+.registration-countdown-fill {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    transparent,
+    transparent 8px,
+    rgba(0, 0, 0, 0.12) 8px,
+    rgba(0, 0, 0, 0.12) 16px
+  );
+  background-blend-mode: multiply;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
 }

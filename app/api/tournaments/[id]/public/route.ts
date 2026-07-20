@@ -1,5 +1,14 @@
 import { NextResponse } from "next/server";
-import type { TournamentDocument, TournamentRegistrationDocument } from "@/lib/tournaments";
+import type { TournamentRegistrationDocument } from "@/lib/tournaments";
+import {
+  isFaceitHubUnlocked,
+  isTournamentPubliclyVisible,
+  parseTournamentStartsAtMs,
+  resolveFaceitHubUrl,
+} from "@/lib/tournament-faceit";
+import { parseTournamentPhase } from "@/lib/tournaments";
+import { displayPrizePoolText } from "@/lib/prize-pool";
+import { verifyFirebaseClientIdTokenFromRequest } from "@/lib/firebase/verify-client-id-token";
 import { getDocRest, listCollectionDocsRest } from "@/lib/firebase/firestore-rest-admin";
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -13,14 +22,14 @@ function fmtTs(t: string | undefined): string {
   }
 }
 
-export async function GET(_request: Request, ctx: Ctx) {
+export async function GET(request: Request, ctx: Ctx) {
   const { id } = await ctx.params;
   if (!id) {
     return NextResponse.json({ ok: false, error: "Neplatné ID." }, { status: 400 });
   }
 
   try {
-    const t = (await getDocRest(`tournaments/${id}`)) as (TournamentDocument & { startsAt?: string }) | null;
+    const t = await getDocRest(`tournaments/${id}`);
     if (!t) {
       return NextResponse.json({ ok: false, error: "Turnaj neexistuje." }, { status: 404 });
     }
@@ -32,17 +41,56 @@ export async function GET(_request: Request, ctx: Ctx) {
       );
     }
 
-    const registrations = (await listCollectionDocsRest(`tournaments/${id}/registrations`, 300))
+    const startsAtMs = parseTournamentStartsAtMs(t.startsAt);
+    const user = await verifyFirebaseClientIdTokenFromRequest(request);
+    const captainUid = user?.uid ?? null;
+
+    const registrationRows = await listCollectionDocsRest(
+      `tournaments/${id}/registrations`,
+      300
+    );
+
+    const registrations = registrationRows
       .map((x) => {
-        const row = x as TournamentRegistrationDocument & { id: string; registeredAt?: string };
+        const row = x as TournamentRegistrationDocument & {
+          id: string;
+          registeredAt?: string;
+        };
         return {
           teamId: row.id,
           teamName: row.teamName,
           schoolName: row.schoolName,
           registeredAtLabel: fmtTs(row.registeredAt),
+          captainId: String(row.captainId ?? ""),
         };
       })
       .sort((a, b) => a.teamName.localeCompare(b.teamName, "cs"));
+
+    const viewerHasRegisteredTeam = Boolean(
+      captainUid &&
+        registrations.some((r) => r.captainId === captainUid)
+    );
+
+    const isPublic = isTournamentPubliclyVisible(startsAtMs);
+    const isCaptainView = Boolean(captainUid);
+
+    if (!isPublic && !isCaptainView) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "Turnaj bude veřejně dostupný až po jeho startu.",
+        },
+        { status: 404 }
+      );
+    }
+
+    const faceitResolved = resolveFaceitHubUrl(
+      t.faceitUrl,
+      process.env.NEXT_PUBLIC_FACEIT_HUB_URL
+    );
+    const faceitUnlocked = isFaceitHubUnlocked(startsAtMs);
+    const faceitUrl =
+      viewerHasRegisteredTeam && faceitUnlocked ? faceitResolved : "";
 
     return NextResponse.json({
       ok: true,
@@ -50,13 +98,16 @@ export async function GET(_request: Request, ctx: Ctx) {
         id,
         name: t.name,
         gameId: t.gameId ?? "cs2",
+        phase: parseTournamentPhase(t.phase),
         backgroundImageUrl: t.backgroundImageUrl ?? "",
-        startsAtMs: t.startsAt ? Date.parse(t.startsAt) || null : null,
-        prizePoolText: t.prizePoolText ?? "",
-        rulesText: t.rulesText ?? "",
-        faceitUrl: t.faceitUrl ?? "",
+        startsAtMs,
+        prizePoolText: displayPrizePoolText(String(t.prizePoolText ?? "")),
+        rulesText: String(t.rulesText ?? ""),
+        faceitUrl,
+        viewerHasRegisteredTeam,
+        isPubliclyVisible: isPublic,
       },
-      registrations,
+      registrations: registrations.map(({ captainId: _c, ...rest }) => rest),
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Chyba serveru";

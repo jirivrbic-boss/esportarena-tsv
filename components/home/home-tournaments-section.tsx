@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { GlassCard } from "@/components/glass-card";
 import { GlowButton } from "@/components/glow-button";
+import { SITE_COPY } from "@/lib/site-copy";
 
 /** Úvodní stránka — náhled sekce turnajů (obsah doplníš v /turnaje a v administraci). */
 export function HomeTournamentsSection() {
@@ -18,17 +19,22 @@ export function HomeTournamentsSection() {
           Turnaje
         </h2>
         <p className="mx-auto mt-3 max-w-2xl text-center text-sm text-slate-500">
-          Přehled probíhajících a chystaných turnajů — prize pool, pravidla a přihlášené
-          týmy. Obsah přidává administrace; veřejný výpis najdeš na samostatné stránce.
+          V Sezóně 4 hrajeme CS2 a League of Legends — každá disciplína má vlastní turnaje
+          a přihlášené týmy. Prize pool zatím neznáme; dozvíš se ho mezi začátkem a koncem
+          registrace.
         </p>
         <GlassCard className="mx-auto mt-10 max-w-xl text-center" delay={0}>
           <p className="text-sm text-slate-400">
-            Kalendář turnajů se naplňuje postupně. Mezitím sleduj oznámení na webu a na{" "}
-            <strong className="text-[#39FF14]">Discordu</strong>.
+            Kalendář turnajů se naplňuje postupně. {SITE_COPY.announcementsShort}
           </p>
-          <GlowButton href="/turnaje" className="mt-6 !justify-center">
-            Přejít na turnaje
-          </GlowButton>
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
+            <GlowButton href="/turnaje" className="!justify-center sm:flex-1">
+              Přejít na turnaje
+            </GlowButton>
+            <GlowButton href="/oznameni" variant="ghost" className="!justify-center sm:flex-1">
+              Oznámení
+            </GlowButton>
+          </div>
         </GlassCard>
       </div>
     </section>

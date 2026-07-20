@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   collection,
@@ -23,6 +24,13 @@ import { uploadTeamFile } from "@/lib/storage-upload";
 import type { CaptainProfile, RosterPlayer, TeamStatus } from "@/lib/types";
 import type { GameId } from "@/lib/games";
 import { GAMES_BY_ID } from "@/lib/games";
+import {
+  gameNickPlaceholder,
+  getGameNickFromProfile,
+  getGameNickProfileField,
+  validateGameNick,
+} from "@/lib/game-player-accounts";
+import { RosterPlayerNick } from "@/components/roster-player-nick";
 import { postCaptainEmail } from "@/lib/client-notifications";
 import { GlassCard } from "@/components/glass-card";
 import { GlowButton } from "@/components/glow-button";
@@ -53,19 +61,17 @@ function emptyDraft(): Draft {
 function collectRosterDocumentLinks(
   players: RosterPlayer[],
   prefix: string
-): { label: string; url: string }[] {
-  const out: { label: string; url: string }[] = [];
+): { label: string }[] {
+  const out: { label: string }[] = [];
   players.forEach((p, i) => {
     if (p.studentCertUrl) {
       out.push({
         label: `${prefix} ${i + 1} · student`,
-        url: p.studentCertUrl,
       });
     }
     if (!p.isAdult && p.parentConsentUrl) {
       out.push({
         label: `${prefix} ${i + 1} · souhlas rodiče`,
-        url: p.parentConsentUrl,
       });
     }
   });
@@ -121,16 +127,16 @@ async function fetchElo(
 }
 
 async function buildCaptainPlayer(
-  user: User,
   profile: CaptainProfile,
+  gameNick: string,
   idToken: string,
   usesFaceit: boolean
 ): Promise<RosterPlayer> {
-  const elo = usesFaceit ? await fetchElo(profile.faceitNickname, idToken) : null;
+  const elo = usesFaceit ? await fetchElo(gameNick, idToken) : null;
   const captain: RosterPlayer = {
     firstName: profile.firstName.trim(),
     lastName: profile.lastName.trim(),
-    faceitNickname: profile.faceitNickname.trim(),
+    faceitNickname: gameNick.trim(),
     isAdult: profile.isAdult,
   };
 
@@ -146,6 +152,8 @@ async function buildCaptainPlayer(
 
   return captain;
 }
+
+const FORM_STEPS = ["Škola a kapitán", "Sestava (4 hráči)", "Náhradníci a odeslání"] as const;
 
 export function TeamRegistrationForm({
   user,
@@ -193,13 +201,21 @@ export function TeamRegistrationForm({
     true,
   ]);
   const [expandedSubs, setExpandedSubs] = useState<boolean[]>([]);
+  const [step, setStep] = useState(0);
+  const [captainGameNick, setCaptainGameNick] = useState("");
   const resolvedTeamName = schoolName.trim();
   const captainPreview: RosterPlayer = {
     firstName: profile.firstName ?? "",
     lastName: profile.lastName ?? "",
-    faceitNickname: profile.faceitNickname ?? "",
+    faceitNickname: captainGameNick,
     isAdult: Boolean(profile.isAdult),
   };
+
+  useEffect(() => {
+    if (!loadingTeam && !teamId) {
+      setCaptainGameNick(getGameNickFromProfile(profile, gameId));
+    }
+  }, [profile, gameId, teamId, loadingTeam]);
 
   const loadTeam = useCallback(async () => {
     const db = getFirebaseDb();
@@ -237,12 +253,16 @@ export function TeamRegistrationForm({
       teammates?: RosterPlayer[];
       substitutes?: RosterPlayer[];
       coach?: { firstName?: string; lastName?: string };
+      captainPlayer?: RosterPlayer;
     };
     setTeamId(d.id);
     setStatus(data.status);
     setRejectionReason(data.rejectionReason ?? null);
     setSchoolName(data.schoolName ?? "");
     setSchoolFullName(data.schoolFullName ?? "");
+    if (data.captainPlayer?.faceitNickname?.trim()) {
+      setCaptainGameNick(data.captainPlayer.faceitNickname.trim());
+    }
     if (data.teammates?.length === 4) {
       setTeammates(data.teammates.map(draftFromRoster));
       setExpandedTeammates([false, false, false, false]);
@@ -312,10 +332,11 @@ export function TeamRegistrationForm({
     prefix: string,
     idToken: string,
     nickLabel: string,
-    usesFaceit: boolean
-  ): Promise<{ players: RosterPlayer[]; storageMeta: { path: string; uploadedAt: number }[]; links: { label: string; url: string }[] }> {
+    usesFaceit: boolean,
+    gameId: GameId
+  ): Promise<{ players: RosterPlayer[]; storageMeta: { path: string; uploadedAt: number }[]; links: { label: string }[] }> {
     const storageMeta: { path: string; uploadedAt: number }[] = [];
-    const links: { label: string; url: string }[] = [];
+    const links: { label: string }[] = [];
     const players: RosterPlayer[] = [];
 
     for (let i = 0; i < list.length; i++) {
@@ -324,6 +345,10 @@ export function TeamRegistrationForm({
         throw new Error(
           `Vyplň jméno, příjmení a ${nickLabel.toLowerCase()} u hráče ${prefix} ${i + 1}.`
         );
+      }
+      const nickError = validateGameNick(gameId, d.faceitNickname);
+      if (nickError) {
+        throw new Error(`${nickError} (hráč ${prefix} ${i + 1})`);
       }
       let studentCertUrl = "";
       if (d.studentFile) {
@@ -336,7 +361,6 @@ export function TeamRegistrationForm({
         storageMeta.push({ path: up.path, uploadedAt: up.uploadedAt });
         links.push({
           label: `${prefix} ${i + 1} student`,
-          url: up.url,
         });
       } else if (d.existingStudentUrl) {
         studentCertUrl = d.existingStudentUrl;
@@ -354,7 +378,6 @@ export function TeamRegistrationForm({
           storageMeta.push({ path: up.path, uploadedAt: up.uploadedAt });
           links.push({
             label: `${prefix} ${i + 1} souhlas`,
-            url: up.url,
           });
         } else if (d.existingParentUrl) {
           parentConsentUrl = d.existingParentUrl;
@@ -382,6 +405,45 @@ export function TeamRegistrationForm({
     return { players, storageMeta, links };
   }
 
+  function validateDraftList(list: Draft[], prefix: string): string | null {
+    for (let i = 0; i < list.length; i++) {
+      const d = list[i]!;
+      if (!d.firstName.trim() || !d.lastName.trim() || !d.faceitNickname.trim()) {
+        return `Vyplň jméno, příjmení a ${nickLabel.toLowerCase()} u ${prefix} ${i + 1}.`;
+      }
+      const nickError = validateGameNick(gameId, d.faceitNickname);
+      if (nickError) {
+        return `${nickError} (${prefix} ${i + 1})`;
+      }
+    }
+    return null;
+  }
+
+  function validateStep(targetStep: number): string | null {
+    if (targetStep >= 1) {
+      if (!schoolName.trim() || !schoolFullName.trim()) {
+        return "Vyplň zkratku školy a plný název školy.";
+      }
+      const captainError = validateGameNick(gameId, captainGameNick);
+      if (captainError) return captainError;
+    }
+    if (targetStep >= 2) {
+      const rosterError = validateDraftList(teammates, "hráče");
+      if (rosterError) return rosterError;
+    }
+    return null;
+  }
+
+  function goToStep(next: number) {
+    const errMsg = validateStep(next);
+    if (errMsg) {
+      setError(errMsg);
+      return;
+    }
+    setError(null);
+    setStep(next);
+  }
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
@@ -399,6 +461,21 @@ export function TeamRegistrationForm({
 
     if (!schoolName.trim() || !schoolFullName.trim()) {
       setError("Vyplň zkratku školy a plný název školy.");
+      return;
+    }
+    const captainNickError = validateGameNick(gameId, captainGameNick);
+    if (captainNickError) {
+      setError(captainNickError);
+      return;
+    }
+    const rosterValidation = validateDraftList(teammates, "hráče");
+    if (rosterValidation) {
+      setError(rosterValidation);
+      return;
+    }
+    const subsValidation = subs.length ? validateDraftList(subs, "náhradníka") : null;
+    if (subsValidation) {
+      setError(subsValidation);
       return;
     }
     if (subs.length > 2) {
@@ -442,7 +519,18 @@ export function TeamRegistrationForm({
       const db = getFirebaseDb();
       const tid = teamId ?? doc(collection(db, "teams")).id;
       const isNew = isNewTeam;
-      const captainPlayer = await buildCaptainPlayer(user, profile, idToken, usesFaceit);
+      const captainPlayer = await buildCaptainPlayer(
+        profile,
+        captainGameNick,
+        idToken,
+        usesFaceit
+      );
+
+      const profileField = getGameNickProfileField(gameId);
+      await updateDoc(doc(db, "users", user.uid), {
+        [profileField]: captainGameNick.trim(),
+        updatedAt: serverTimestamp(),
+      });
 
       if (isNew) {
         await setDoc(doc(db, "teams", tid), {
@@ -471,7 +559,8 @@ export function TeamRegistrationForm({
         "hrac",
         idToken,
         nickLabel,
-        usesFaceit
+        usesFaceit,
+        gameId
       );
       const sRoster = await buildRoster(
         tid,
@@ -479,7 +568,8 @@ export function TeamRegistrationForm({
         "nahradnik",
         idToken,
         nickLabel,
-        usesFaceit
+        usesFaceit,
+        gameId
       );
 
       for (const p of tRoster.players) {
@@ -608,8 +698,10 @@ export function TeamRegistrationForm({
             Tým schválen · {game.shortLabel}
           </h2>
           <p className="mt-2 text-slate-400">
-            Tým je schválený v našem systému. Účast ve Faceit kvalifikaci se řeší
-            samostatně přes organizátora.
+            Tým je schválený v našem systému.
+            {gameId === "cs2"
+              ? " Účast ve Faceit kvalifikaci se řeší samostatně přes organizátora."
+              : " Další pokyny k turnaji najdeš v Oznámeních a pravidlech hry."}
           </p>
           <p className="mt-2 text-sm text-slate-500">
             Potřebuješ upravit soupisku? V tomto stavu ji můžeš dál upravovat zde.
@@ -711,20 +803,10 @@ export function TeamRegistrationForm({
                             .join(" ") || "Jméno neuvedeno"}
                         </p>
                         {captainPreview.faceitNickname ? (
-                          <a
-                            href={`https://www.faceit.com/en/players/${encodeURIComponent(
-                              captainPreview.faceitNickname
-                            )}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="mt-2 inline-flex items-center gap-2 text-sm text-[#39FF14] hover:underline"
-                          >
-                            <span aria-hidden>🎮</span>
-                            Faceit: {captainPreview.faceitNickname}
-                          </a>
+                          <RosterPlayerNick player={captainPreview} gameId={gameId} />
                         ) : (
                           <p className="mt-2 text-sm text-slate-500">
-                            Faceit nick není vyplněný
+                            {nickLabel} není vyplněný
                           </p>
                         )}
                       </div>
@@ -742,20 +824,17 @@ export function TeamRegistrationForm({
                               "Jméno neuvedeno"}
                           </p>
                           {player.faceitNickname ? (
-                            <a
-                              href={`https://www.faceit.com/en/players/${encodeURIComponent(
-                                player.faceitNickname
-                              )}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="mt-2 inline-flex items-center gap-2 text-sm text-[#39FF14] hover:underline"
-                            >
-                              <span aria-hidden>🎮</span>
-                              Faceit: {player.faceitNickname}
-                            </a>
+                            <RosterPlayerNick
+                              player={{
+                                ...player,
+                                faceitNickname: player.faceitNickname,
+                                isAdult: player.isAdult,
+                              }}
+                              gameId={gameId}
+                            />
                           ) : (
                             <p className="mt-2 text-sm text-slate-500">
-                              Faceit nick není vyplněný
+                              {nickLabel} není vyplněný
                             </p>
                           )}
                         </div>
@@ -774,20 +853,17 @@ export function TeamRegistrationForm({
                               "Jméno neuvedeno"}
                           </p>
                           {player.faceitNickname ? (
-                            <a
-                              href={`https://www.faceit.com/en/players/${encodeURIComponent(
-                                player.faceitNickname
-                              )}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="mt-2 inline-flex items-center gap-2 text-sm text-[#39FF14] hover:underline"
-                            >
-                              <span aria-hidden>🎮</span>
-                              Faceit: {player.faceitNickname}
-                            </a>
+                            <RosterPlayerNick
+                              player={{
+                                ...player,
+                                faceitNickname: player.faceitNickname,
+                                isAdult: player.isAdult,
+                              }}
+                              gameId={gameId}
+                            />
                           ) : (
                             <p className="mt-2 text-sm text-slate-500">
-                              Faceit nick není vyplněný
+                              {nickLabel} není vyplněný
                             </p>
                           )}
                         </div>
@@ -813,7 +889,11 @@ export function TeamRegistrationForm({
           <p className="mt-2 text-slate-300">{rejectionReason}</p>
         ) : null}
         <p className="mt-4 text-sm text-slate-500">
-          Pro opravu kontaktuj administrátory na Discordu.
+          Pro opravu kontaktuj administrátory přes{" "}
+          <Link href="/podpora" className="text-[#39FF14] underline">
+            Centrum podpory
+          </Link>
+          .
         </p>
       </GlassCard>
     );
@@ -825,16 +905,32 @@ export function TeamRegistrationForm({
         <div className="rounded-xl border border-[#39FF14]/25 bg-[#39FF14]/5 px-4 py-3 text-sm text-slate-300">
           <p className="font-semibold text-[#39FF14]">{game.label}</p>
           <p className="mt-1 text-xs text-slate-400">
-            Kapitán se přidává automaticky z profilu. Doplň 4 hráče + až 2 náhradníky +
-            trenéra. Přesný formát zápasů a
-            počty slotů může upřesnit organizátor na Discordu.
+            Krok {step + 1} ze {FORM_STEPS.length}: {FORM_STEPS[step]}
           </p>
-          <p className="mt-2 text-xs text-slate-500">{game.playerNickHint}</p>
+          <div className="mt-3 flex gap-2">
+            {FORM_STEPS.map((label, i) => (
+              <div
+                key={label}
+                className={`h-1.5 flex-1 rounded-full ${
+                  i <= step ? "bg-[#39FF14]" : "bg-white/10"
+                }`}
+                title={label}
+              />
+            ))}
+          </div>
+          <p className="mt-3 text-xs text-slate-400">
+            U každého hráče včetně kapitána vyplň {nickLabel.toLowerCase()}.{" "}
+            {game.playerNickHint}
+          </p>
         </div>
+
+        {step === 0 ? (
+          <>
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <label>Zkratka školy (zobrazí se veřejně)</label>
             <input
+              name="schoolShortName"
               value={schoolName}
               onChange={(e) => setSchoolName(e.target.value)}
               className="mt-1"
@@ -845,6 +941,7 @@ export function TeamRegistrationForm({
           <div className="sm:col-span-2">
             <label>Plný název školy</label>
             <input
+              name="schoolFullName"
               value={schoolFullName}
               onChange={(e) => setSchoolFullName(e.target.value)}
               className="mt-1"
@@ -863,24 +960,44 @@ export function TeamRegistrationForm({
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
               <div>
                 <label>Jméno</label>
-                <input value={profile.firstName ?? ""} className="mt-1 opacity-70" disabled />
+                <input
+                  name="captainFirstName"
+                  value={profile.firstName ?? ""}
+                  className="mt-1 opacity-70"
+                  disabled
+                />
               </div>
               <div>
                 <label>Příjmení</label>
-                <input value={profile.lastName ?? ""} className="mt-1 opacity-70" disabled />
+                <input
+                  name="captainLastName"
+                  value={profile.lastName ?? ""}
+                  className="mt-1 opacity-70"
+                  disabled
+                />
               </div>
               <div>
                 <label>{nickLabel}</label>
-                <input value={profile.faceitNickname} className="mt-1 opacity-70" disabled />
+                <input
+                  name="captainNick"
+                  value={captainGameNick}
+                  onChange={(e) => setCaptainGameNick(e.target.value)}
+                  className="mt-1"
+                  placeholder={gameNickPlaceholder(gameId)}
+                  required
+                />
               </div>
             </div>
             <p className="mt-3 text-xs text-slate-400">
-              Údaje kapitána se berou automaticky z profilu kapitána a v registraci týmu je
-              nelze měnit.
+              Jméno a příjmení kapitána se berou z profilu. {nickLabel} uložíme do
+              profilu pro tuto hru.
             </p>
           </div>
         </div>
+          </>
+        ) : null}
 
+        {step === 1 ? (
         <div>
           <h3 className="font-[family-name:var(--font-bebas)] text-2xl text-white">
             4 hráči v sestavě
@@ -929,6 +1046,7 @@ export function TeamRegistrationForm({
                       <div>
                         <label>Jméno</label>
                         <input
+                          name={`teammateFirstName${i + 1}`}
                           value={t.firstName}
                           onChange={(e) =>
                             setTeammate(i, { firstName: e.target.value })
@@ -940,6 +1058,7 @@ export function TeamRegistrationForm({
                       <div>
                         <label>Příjmení</label>
                         <input
+                          name={`teammateLastName${i + 1}`}
                           value={t.lastName}
                           onChange={(e) =>
                             setTeammate(i, { lastName: e.target.value })
@@ -951,11 +1070,13 @@ export function TeamRegistrationForm({
                       <div className="sm:col-span-2">
                         <label>{nickLabel}</label>
                         <input
+                          name={`teammateNick${i + 1}`}
                           value={t.faceitNickname}
                           onChange={(e) =>
                             setTeammate(i, { faceitNickname: e.target.value })
                           }
                           className="mt-1"
+                          placeholder={gameNickPlaceholder(gameId)}
                           required
                         />
                       </div>
@@ -963,6 +1084,7 @@ export function TeamRegistrationForm({
                     <label className="mt-3 flex items-center gap-2">
                       <input
                         type="checkbox"
+                        name={`teammateAdult${i + 1}`}
                         checked={t.isAdult}
                         onChange={(e) =>
                           setTeammate(i, { isAdult: e.target.checked })
@@ -974,6 +1096,7 @@ export function TeamRegistrationForm({
                       <label>Potvrzení studenta</label>
                       <input
                         type="file"
+                        name={`teammateStudentCert${i + 1}`}
                         accept="image/*,.pdf,application/pdf"
                         onChange={(e) =>
                           setTeammate(i, {
@@ -988,6 +1111,7 @@ export function TeamRegistrationForm({
                         <label>Souhlas zákonného zástupce</label>
                         <input
                           type="file"
+                          name={`teammateParentConsent${i + 1}`}
                           accept="image/*,.pdf,application/pdf"
                           onChange={(e) =>
                             setTeammate(i, {
@@ -1010,7 +1134,10 @@ export function TeamRegistrationForm({
             ))}
           </div>
         </div>
+        ) : null}
 
+        {step === 2 ? (
+        <>
         <div>
           <div className="flex flex-wrap items-center gap-3">
             <h3 className="font-[family-name:var(--font-bebas)] text-2xl text-white">
@@ -1084,6 +1211,7 @@ export function TeamRegistrationForm({
                       <div>
                         <label>Jméno</label>
                         <input
+                          name={`subFirstName${i + 1}`}
                           value={t.firstName}
                           onChange={(e) =>
                             setSub(i, { firstName: e.target.value })
@@ -1095,6 +1223,7 @@ export function TeamRegistrationForm({
                       <div>
                         <label>Příjmení</label>
                         <input
+                          name={`subLastName${i + 1}`}
                           value={t.lastName}
                           onChange={(e) => setSub(i, { lastName: e.target.value })}
                           className="mt-1"
@@ -1104,11 +1233,13 @@ export function TeamRegistrationForm({
                       <div className="sm:col-span-2">
                         <label>{nickLabel}</label>
                         <input
+                          name={`subNick${i + 1}`}
                           value={t.faceitNickname}
                           onChange={(e) =>
                             setSub(i, { faceitNickname: e.target.value })
                           }
                           className="mt-1"
+                          placeholder={gameNickPlaceholder(gameId)}
                           required
                         />
                       </div>
@@ -1116,6 +1247,7 @@ export function TeamRegistrationForm({
                     <label className="mt-3 flex items-center gap-2">
                       <input
                         type="checkbox"
+                        name={`subAdult${i + 1}`}
                         checked={t.isAdult}
                         onChange={(e) => setSub(i, { isAdult: e.target.checked })}
                       />
@@ -1125,6 +1257,7 @@ export function TeamRegistrationForm({
                       <label>Potvrzení studenta</label>
                       <input
                         type="file"
+                        name={`subStudentCert${i + 1}`}
                         accept="image/*,.pdf,application/pdf"
                         onChange={(e) =>
                           setSub(i, { studentFile: e.target.files?.[0] ?? null })
@@ -1137,6 +1270,7 @@ export function TeamRegistrationForm({
                         <label>Souhlas zákonného zástupce</label>
                         <input
                           type="file"
+                          name={`subParentConsent${i + 1}`}
                           accept="image/*,.pdf,application/pdf"
                           onChange={(e) =>
                             setSub(i, { parentFile: e.target.files?.[0] ?? null })
@@ -1166,6 +1300,7 @@ export function TeamRegistrationForm({
             <div>
               <label>Jméno</label>
               <input
+                name="coachFirstName"
                 value={coachFirst}
                 onChange={(e) => setCoachFirst(e.target.value)}
                 className="mt-1"
@@ -1175,6 +1310,7 @@ export function TeamRegistrationForm({
             <div>
               <label>Příjmení</label>
               <input
+                name="coachLastName"
                 value={coachLast}
                 onChange={(e) => setCoachLast(e.target.value)}
                 className="mt-1"
@@ -1183,6 +1319,19 @@ export function TeamRegistrationForm({
             </div>
           </div>
         </div>
+
+        {status === "pending" ? (
+          <p className="text-sm text-amber-200">
+            Žádost o registraci týmu byla předána na posouzení adminům turnaje. Zkontroluj
+            status žádosti za 24 hodin.
+          </p>
+        ) : null}
+
+        <GlowButton type="submit" disabled={pending} className="w-full sm:w-auto">
+          {pending ? "Odesílám…" : teamId ? "Uložit soupisku" : "Registrovat tým"}
+        </GlowButton>
+        </>
+        ) : null}
 
         {error ? (
           <p className="text-sm text-red-400" role="alert">
@@ -1195,16 +1344,25 @@ export function TeamRegistrationForm({
           </p>
         ) : null}
 
-        {status === "pending" ? (
-          <p className="text-sm text-amber-200">
-            Žádost o registraci týmu byla předána na posouzení adminům turnaje. Zkontroluj
-            status žádosti za 24 hodin.
-          </p>
-        ) : null}
-
-        <GlowButton type="submit" disabled={pending} className="w-full sm:w-auto">
-          {pending ? "Odesílám…" : teamId ? "Uložit soupisku" : "Registrovat tým"}
-        </GlowButton>
+        <div className="flex flex-wrap gap-3">
+          {step > 0 ? (
+            <GlowButton
+              type="button"
+              variant="ghost"
+              onClick={() => {
+                setError(null);
+                setStep((s) => s - 1);
+              }}
+            >
+              Zpět
+            </GlowButton>
+          ) : null}
+          {step < FORM_STEPS.length - 1 ? (
+            <GlowButton type="button" onClick={() => goToStep(step + 1)}>
+              Pokračovat
+            </GlowButton>
+          ) : null}
+        </div>
       </form>
 
       {registrationModal === "submitting" ? (

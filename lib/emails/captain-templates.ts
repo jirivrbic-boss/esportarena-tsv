@@ -1,53 +1,25 @@
-const brand = {
-  bg: "#050505",
-  green: "#39FF14",
-  muted: "#94a3b8",
-  white: "#ffffff",
-};
+import { ea, emailShell, escapeHtml } from "@/lib/emails/email-shell";
+import { SITE_COPY } from "@/lib/site-copy";
 
-function escapeHtml(s: string) {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-
-function shell(title: string, inner: string) {
-  return `<!DOCTYPE html><html><head><meta charset="utf-8"></head>
-<body style="margin:0;background:${brand.bg};font-family:Inter,system-ui,sans-serif;color:${brand.white};">
-<table width="100%" cellpadding="0" cellspacing="0" style="background:${brand.bg};padding:32px 16px;">
-<tr><td align="center">
-<table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;border:1px solid #1f2937;border-radius:12px;overflow:hidden;">
-<tr><td style="padding:24px 28px;background:linear-gradient(135deg,#0a0a0a,#111);">
-<h1 style="margin:0;font-size:22px;letter-spacing:0.06em;color:${brand.green};text-transform:uppercase;">ESPORTARENA TSV</h1>
-<p style="margin:8px 0 0;font-size:13px;color:${brand.muted};">Sezóna 4 · Oficiální komunikace pouze přes Discord</p>
-</td></tr>
-<tr><td style="padding:28px;">
-<h2 style="margin:0 0 16px;font-size:18px;color:${brand.white};">${title}</h2>
-${inner}
-</td></tr>
-<tr><td style="padding:16px 28px;border-top:1px solid #1f2937;font-size:12px;color:${brand.muted};">
-EsportArena Plzeň · studentský turnaj (CS2, LoL, Brawl Stars, FC 26)
-</td></tr>
-</table>
-</td></tr></table></body></html>`;
-}
+const emailSub = SITE_COPY.emailHeaderSub;
+const announceMuted = SITE_COPY.announcementsPrimary;
 
 export function welcomeEmailHtml(captainName: string) {
-  return shell(
+  return emailShell(
     "Vítej, kapitáne",
-    `<p style="line-height:1.6;color:#e5e7eb;">Ahoj ${captainName},</p>
-<p style="line-height:1.6;color:#e5e7eb;">tvůj účet kapitána byl vytvořen. Dokonči prosím profil a registraci týmu v portálu.</p>
-<p style="line-height:1.6;color:${brand.muted};font-size:13px;">Veškerá oficiální komunikace probíhá výhradně na Discordu — žádný WhatsApp.</p>`
+    `<p style="${ea.p}">Ahoj ${captainName},</p>
+<p style="${ea.p}">tvůj účet kapitána byl vytvořen. Dokonči prosím profil a registraci týmu v portálu.</p>
+<p style="${ea.muted}">${announceMuted} ${SITE_COPY.noWhatsApp}</p>`,
+    { headerSub: emailSub }
   );
 }
 
 export function profileUpdateEmailHtml() {
-  return shell(
+  return emailShell(
     "Profil byl aktualizován",
-    `<p style="line-height:1.6;color:#e5e7eb;">Tvé údaje kapitána byly uloženy.</p>
-<p style="line-height:1.6;color:${brand.muted};font-size:13px;">Změny můžeš kdykoli upravit po přihlášení.</p>`
+    `<p style="${ea.p}">Tvé údaje kapitána byly uloženy.</p>
+<p style="${ea.muted}">Změny můžeš kdykoli upravit po přihlášení. ${SITE_COPY.announcementsShort}</p>`,
+    { headerSub: emailSub }
   );
 }
 
@@ -56,26 +28,47 @@ export function teamSubmittedEmailHtml(
   schoolName: string,
   gameLabel?: string
 ) {
-  const safeGame = gameLabel ? escapeHtml(gameLabel) : "";
   const gameLine = gameLabel
-    ? `<p style="line-height:1.6;color:#e5e7eb;"><strong>Hra:</strong> ${safeGame}</p>`
+    ? `<p style="${ea.p}"><strong style="${ea.strong}">Hra:</strong> ${gameLabel}</p>`
     : "";
   const afterApprove =
     gameLabel?.includes("Counter-Strike")
-      ? "Po schválení administrátorem ti může být doplněn odkaz na Faceit kvalifikaci (u CS2)."
-      : "Po schválení administrátorem tě navedeme na Discordu k dalším krokům pro tuto hru.";
-  return shell(
+      ? "Po schválení administrátorem ti může být doplněn odkaz na Faceit kvalifikaci (u CS2) — v Oznámeních na webu."
+      : "Po schválení administrátorem uvidíš další kroky v Oznámeních na webu.";
+  return emailShell(
     "Tým odeslán ke schválení",
-    `${gameLine}<p style="line-height:1.6;color:#e5e7eb;">Registrace týmu <strong style="color:${brand.green};">${teamName}</strong> (${schoolName}) byla přijata.</p>
-<p style="line-height:1.6;color:#e5e7eb;">Status: <strong>Čeká na schválení</strong>. ${afterApprove}</p>
-<p style="line-height:1.6;color:${brand.muted};font-size:13px;">Dotazy řešíme na Discordu.</p>`
+    `${gameLine}<p style="${ea.p}">Registrace týmu <strong style="${ea.strongGreen}">${teamName}</strong> (${schoolName}) byla přijata.</p>
+<p style="${ea.p}">Status: <strong style="${ea.strong}">Čeká na schválení</strong>. ${afterApprove}</p>
+<p style="${ea.muted}">Dotazy můžeš poslat přes Centrum podpory na webu.</p>`,
+    { headerSub: emailSub }
   );
 }
 
 export function adminNewUserEmailHtml(email: string, uid: string) {
-  return shell(
+  return emailShell(
     "Nový kapitánský účet",
-    `<p style="line-height:1.6;color:#e5e7eb;">Byl zaregistrován nový účet kapitána.</p>
-<ul style="color:#e5e7eb;line-height:1.8;"><li>E-mail: ${email}</li><li>UID: ${uid}</li></ul>`
+    `<p style="${ea.p}">Byl zaregistrován nový účet kapitána.</p>
+<ul style="${ea.list}"><li>E-mail: ${email}</li><li>UID: ${uid}</li></ul>`,
+    { headerSub: emailSub }
+  );
+}
+
+/** E-mail po naplánování smazání účtu (24 h odklad + odkaz na obnovení). */
+export function accountDeletionScheduledEmailHtml(
+  restoreUrl: string,
+  expiresLabel: string
+) {
+  const safeUrl = escapeHtml(restoreUrl);
+  const safeExp = escapeHtml(expiresLabel);
+  return emailShell(
+    "Účet bude smazán do 24 hodin",
+    `<p style="${ea.p}">Požádal jsi o smazání kapitánského účtu včetně týmů. Údaje se <strong style="${ea.strong}">definitivně smažou nejdříve po uplynutí 24 hodin</strong>, pokud akci nezrušíš.</p>
+<p style="${ea.p}">Lhůta končí: <strong style="${ea.strong}">${safeExp}</strong> (čas serveru webu).</p>
+<p style="margin:24px 0;">
+<a href="${safeUrl}" class="ea-btn" style="${ea.btn}">Obnovit účet</a>
+</p>
+<p style="${ea.muted}">Pokud jsi o smazání nežádal, odkaz použij také — účet zůstane zachovaný. Odkaz je jednorázový; po obnovení můžeš znovu normálně používat portál.</p>
+<p style="${ea.muted}">Pokud tlačítko nefunguje, zkopíruj adresu do prohlížeče:<br/>${safeUrl}</p>`,
+    { headerSub: emailSub }
   );
 }

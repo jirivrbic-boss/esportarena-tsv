@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import type { GameId } from "@/lib/games";
+import type { TournamentPhase } from "@/lib/tournaments";
+import { parseTournamentPhase } from "@/lib/tournaments";
 import {
   TournamentDetailContent,
   type RegistrationRow,
@@ -12,11 +14,13 @@ import { PublicTournamentJoinSlot } from "@/components/tournaments/public-tourna
 type PublicTournament = {
   name: string;
   gameId: string;
+  phase?: TournamentPhase;
   backgroundImageUrl?: string;
   startsAtMs?: number | null;
   prizePoolText: string;
   rulesText: string;
   faceitUrl: string;
+  viewerHasRegisteredTeam?: boolean;
 };
 
 export default function TurnajPublicDetailPage() {
@@ -48,8 +52,12 @@ export default function TurnajPublicDetailPage() {
       }
       setTournament(j.tournament);
       setRegs(j.registrations ?? []);
-    } catch {
-      setError("Turnaj neexistuje nebo není zveřejněný.");
+    } catch (e: unknown) {
+      setError(
+        e instanceof Error
+          ? e.message
+          : "Turnaj neexistuje nebo není zveřejněný."
+      );
       setTournament(null);
       setRegs([]);
     } finally {
@@ -78,23 +86,28 @@ export default function TurnajPublicDetailPage() {
   }
 
   const gameId = (tournament.gameId ?? "cs2") as GameId;
+  const phase = parseTournamentPhase(tournament.phase);
 
   return (
     <TournamentDetailContent
       name={tournament.name}
       gameId={gameId}
+      phase={phase}
       backgroundImageUrl={tournament.backgroundImageUrl}
       startsAtMs={tournament.startsAtMs ?? null}
       prizePoolText={tournament.prizePoolText}
       rulesText={tournament.rulesText}
       faceitUrl={tournament.faceitUrl}
+      viewerHasRegisteredTeam={tournament.viewerHasRegisteredTeam}
       registrations={regs}
+      sharePath={`/turnaje/${id}`}
       backHref="/turnaje"
       backLabel="← Zpět na přehled turnajů"
       joinSlot={
         <PublicTournamentJoinSlot
           tournamentId={id}
           gameId={gameId}
+          phase={phase}
           faceitUrl={tournament.faceitUrl}
           startsAtMs={tournament.startsAtMs ?? null}
           registeredTeamIds={regs.map((r) => r.teamId)}

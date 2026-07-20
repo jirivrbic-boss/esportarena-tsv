@@ -14,6 +14,9 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   sendPasswordResetEmail,
+  confirmPasswordReset,
+  verifyPasswordResetCode,
+  updatePassword,
   signOut as firebaseSignOut,
   type User,
 } from "firebase/auth";
@@ -33,6 +36,13 @@ type AuthState = {
   signUp: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   sendPasswordReset: (email: string) => Promise<void>;
+  verifyResetCode: (oobCode: string) => Promise<string>;
+  confirmResetPassword: (oobCode: string, newPassword: string) => Promise<void>;
+  changePasswordWithCurrent: (
+    email: string,
+    currentPassword: string,
+    newPassword: string
+  ) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthState | null>(null);
@@ -115,6 +125,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signUp = useCallback(
     async (email: string, password: string) => {
       if (!firebaseReady) throw new Error("Firebase není nakonfigurováno.");
+      const checkRes = await fetch("/api/auth/check-registration", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim() }),
+      });
+      const check = (await checkRes.json().catch(() => ({}))) as {
+        ok?: boolean;
+        allowed?: boolean;
+        reason?: string;
+        error?: string;
+      };
+      if (!checkRes.ok || !check.ok) {
+        throw new Error(check.error ?? "Registraci teď nelze ověřit.");
+      }
+      if (check.allowed === false) {
+        throw new Error(
+          check.reason
+            ? `Tento e-mail je zabanovaný: ${check.reason}`
+            : "Tento e-mail je zabanovaný a nelze na něj založit účet."
+        );
+      }
+
       const cred = await createUserWithEmailAndPassword(
         getFirebaseAuth(),
         email,
@@ -129,6 +161,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         discordUsername: "",
         faceitNickname: "",
         steamNickname: "",
+        riotId: "",
+        brawlPlayerTag: "",
+        eaAccount: "",
         isAdult: false,
         profileComplete: false,
         createdAt: serverTimestamp(),
@@ -174,9 +209,48 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const auth = getFirebaseAuth();
       const origin = window.location.origin;
       await sendPasswordResetEmail(auth, email.trim(), {
-        url: `${origin}/prihlaseni`,
+        url: `${origin}/heslo/akce`,
         handleCodeInApp: false,
       });
+    },
+    [firebaseReady]
+  );
+
+  const verifyResetCode = useCallback(
+    async (oobCode: string) => {
+      if (!firebaseReady) throw new Error("Firebase není nakonfigurováno.");
+      return verifyPasswordResetCode(getFirebaseAuth(), oobCode);
+    },
+    [firebaseReady]
+  );
+
+  const confirmResetPassword = useCallback(
+    async (oobCode: string, newPassword: string) => {
+      if (!firebaseReady) throw new Error("Firebase není nakonfigurováno.");
+      await confirmPasswordReset(getFirebaseAuth(), oobCode, newPassword);
+    },
+    [firebaseReady]
+  );
+
+  const changePasswordWithCurrent = useCallback(
+    async (email: string, currentPassword: string, newPassword: string) => {
+      if (!firebaseReady) throw new Error("Firebase není nakonfigurováno.");
+      const auth = getFirebaseAuth();
+      const cred = await signInWithEmailAndPassword(
+        auth,
+        email.trim(),
+        currentPassword
+      );
+      await updatePassword(cred.user, newPassword);
+      try {
+        await fetch("/api/auth/session", {
+          method: "DELETE",
+          credentials: "include",
+        });
+      } catch {
+        /* */
+      }
+      await firebaseSignOut(auth);
     },
     [firebaseReady]
   );
@@ -192,6 +266,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signUp,
       signOut,
       sendPasswordReset,
+      verifyResetCode,
+      confirmResetPassword,
+      changePasswordWithCurrent,
     }),
     [
       user,
@@ -203,6 +280,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signUp,
       signOut,
       sendPasswordReset,
+      verifyResetCode,
+      confirmResetPassword,
+      changePasswordWithCurrent,
     ]
   );
 

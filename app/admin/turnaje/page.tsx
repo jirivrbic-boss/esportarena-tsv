@@ -1,26 +1,141 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/auth-context";
+import { PortalPageHeader } from "@/components/portal-page-header";
 import { useAdminTempBypass } from "@/contexts/admin-temp-context";
 import { isClientAdminEmail } from "@/lib/admin-client";
 import { GAMES, type GameId } from "@/lib/games";
+import {
+  parseTournamentPhase,
+  TOURNAMENT_PHASES,
+  type TournamentPhase,
+} from "@/lib/tournaments";
+import {
+  S4_SEASON_ID,
+  TOURNAMENT_ACCESS_MODES,
+  type TournamentAccessMode,
+} from "@/lib/seasons";
 import { GlassCard } from "@/components/glass-card";
 import { GlowButton } from "@/components/glow-button";
+
+type TeamPick = { id: string; teamName: string; schoolName: string };
 
 type Row = {
   id: string;
   name: string;
   gameId: GameId;
+  phase: TournamentPhase;
   backgroundImageUrl: string;
   startsAtMs?: number | null;
   prizePoolText: string;
   rulesText: string;
   faceitUrl: string;
   published: boolean;
+  invitedTeamIds?: string[];
+  seasonId?: string;
+  accessMode?: TournamentAccessMode;
+  qualificationRound?: number | null;
 };
+
+function PlayoffTeamPicker({
+  gameId,
+  selectedIds,
+  onChange,
+  getToken,
+}: {
+  gameId: GameId;
+  selectedIds: string[];
+  onChange: (ids: string[]) => void;
+  getToken: () => Promise<string>;
+}) {
+  const [teams, setTeams] = useState<TeamPick[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadErr, setLoadErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      setLoading(true);
+      setLoadErr(null);
+      try {
+        const token = await getToken();
+        const res = await fetch(
+          `/api/admin/teams?scope=all&status=approved&gameId=${encodeURIComponent(gameId)}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        const j = (await res.json()) as {
+          teams?: Array<{ id: string; teamName?: string; schoolName?: string }>;
+          error?: string;
+        };
+        if (!res.ok) throw new Error(j.error ?? "Nelze načíst týmy");
+        if (cancelled) return;
+        setTeams(
+          (j.teams ?? []).map((t) => ({
+            id: t.id,
+            teamName: String(t.teamName ?? ""),
+            schoolName: String(t.schoolName ?? ""),
+          }))
+        );
+      } catch (e) {
+        if (!cancelled) {
+          setLoadErr(e instanceof Error ? e.message : "Chyba načítání týmů");
+          setTeams([]);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [gameId, getToken]);
+
+  function toggle(id: string) {
+    onChange(
+      selectedIds.includes(id)
+        ? selectedIds.filter((x) => x !== id)
+        : [...selectedIds, id]
+    );
+  }
+
+  if (loading) {
+    return <p className="text-sm text-slate-500">Načítám schválené týmy…</p>;
+  }
+  if (loadErr) {
+    return <p className="text-sm text-red-400">{loadErr}</p>;
+  }
+  if (teams.length === 0) {
+    return (
+      <p className="text-sm text-slate-500">
+        Pro tuto hru zatím není žádný schválený tým.
+      </p>
+    );
+  }
+
+  return (
+    <ul className="mt-2 max-h-56 space-y-2 overflow-y-auto rounded-lg border border-white/10 bg-black/30 p-3">
+      {teams.map((t) => (
+        <li key={t.id}>
+          <label className="flex cursor-pointer items-start gap-2 text-sm text-slate-200">
+            <input
+              type="checkbox"
+              checked={selectedIds.includes(t.id)}
+              onChange={() => toggle(t.id)}
+              className="mt-1"
+            />
+            <span>
+              <strong className="text-white">{t.teamName}</strong>
+              <span className="text-slate-500"> · {t.schoolName}</span>
+            </span>
+          </label>
+        </li>
+      ))}
+    </ul>
+  );
+}
 
 function TournamentEditor({
   mode,
@@ -35,6 +150,12 @@ function TournamentEditor({
 }) {
   const [name, setName] = useState(initial.name);
   const [gameId, setGameId] = useState<GameId>(initial.gameId);
+  const [phase, setPhase] = useState<TournamentPhase>(
+    parseTournamentPhase(initial.phase)
+  );
+  const [invitedTeamIds, setInvitedTeamIds] = useState<string[]>(
+    initial.invitedTeamIds ?? []
+  );
   const [backgroundImageUrl, setBackgroundImageUrl] = useState(initial.backgroundImageUrl);
   const [startsAt, setStartsAt] = useState(
     initial.startsAtMs ? new Date(initial.startsAtMs).toISOString().slice(0, 16) : ""
@@ -43,21 +164,90 @@ function TournamentEditor({
   const [rulesText, setRulesText] = useState(initial.rulesText);
   const [faceitUrl, setFaceitUrl] = useState(initial.faceitUrl);
   const [published, setPublished] = useState(initial.published);
+  const [seasonId, setSeasonId] = useState(initial.seasonId ?? "");
+  const [accessMode, setAccessMode] = useState<TournamentAccessMode>(
+    initial.accessMode ?? "public"
+  );
+  const [qualificationRound, setQualificationRound] = useState(
+    initial.qualificationRound ? String(initial.qualificationRound) : ""
+  );
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<{
+    name?: string;
+    gameId?: string;
+    startsAt?: string;
+    faceitUrl?: string;
+  }>({});
 
   useEffect(() => {
     setName(initial.name);
     setGameId(initial.gameId);
+    setPhase(parseTournamentPhase(initial.phase));
+    setInvitedTeamIds(initial.invitedTeamIds ?? []);
     setBackgroundImageUrl(initial.backgroundImageUrl);
     setStartsAt(initial.startsAtMs ? new Date(initial.startsAtMs).toISOString().slice(0, 16) : "");
     setPrizePoolText(initial.prizePoolText);
     setRulesText(initial.rulesText);
     setFaceitUrl(initial.faceitUrl);
     setPublished(initial.published);
+    setSeasonId(initial.seasonId ?? "");
+    setAccessMode(initial.accessMode ?? "public");
+    setQualificationRound(
+      initial.qualificationRound ? String(initial.qualificationRound) : ""
+    );
   }, [initial]);
 
+  useEffect(() => {
+    if (mode !== "edit" || !initial.id || phase !== "playoff") return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const token = await getToken();
+        const res = await fetch(`/api/admin/tournaments/${initial.id}/invitations`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const j = (await res.json()) as { invitedTeamIds?: string[] };
+        if (res.ok && !cancelled && j.invitedTeamIds) {
+          setInvitedTeamIds(j.invitedTeamIds);
+        }
+      } catch {
+        /* ponech stávající výběr */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [mode, initial.id, phase, getToken]);
+
   async function save() {
+    const nextErrors: {
+      name?: string;
+      gameId?: string;
+      startsAt?: string;
+      faceitUrl?: string;
+    } = {};
+    if (!name.trim()) nextErrors.name = "Vyplň název turnaje.";
+    if (!gameId) nextErrors.gameId = "Vyber hru.";
+    if (startsAt && Number.isNaN(Date.parse(startsAt))) {
+      nextErrors.startsAt = "Neplatné datum startu.";
+    }
+    if (faceitUrl.trim()) {
+      try {
+        const parsed = new URL(faceitUrl.trim());
+        if (!/^https?:$/.test(parsed.protocol)) {
+          nextErrors.faceitUrl = "Faceit URL musí začínat http:// nebo https://";
+        }
+      } catch {
+        nextErrors.faceitUrl = "Zadej platnou Faceit URL.";
+      }
+    }
+    setFieldErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) {
+      setMsg("Oprav zvýrazněná pole formuláře.");
+      return;
+    }
+
     setBusy(true);
     setMsg(null);
     try {
@@ -72,20 +262,32 @@ function TournamentEditor({
           body: JSON.stringify({
             name,
             gameId,
+            phase,
             backgroundImageUrl,
             startsAt,
             prizePoolText,
             rulesText,
             faceitUrl,
             published,
+            invitedTeamIds: phase === "playoff" ? invitedTeamIds : [],
+            seasonId: seasonId.trim() || undefined,
+            accessMode,
+            qualificationRound: qualificationRound ? Number(qualificationRound) : undefined,
           }),
         });
-        const j = (await res.json().catch(() => ({}))) as { error?: string };
+        const j = (await res.json().catch(() => ({}))) as {
+          error?: string;
+          inviteSummary?: { emailed: number; skipped: number };
+        };
         if (!res.ok) {
           setMsg(j.error ?? "Uložení selhalo");
           return;
         }
-        setMsg("Turnaj vytvořen.");
+        const inviteNote =
+          j.inviteSummary && j.inviteSummary.emailed > 0
+            ? ` Odesláno ${j.inviteSummary.emailed} e-mailů s pozvánkou.`
+            : "";
+        setMsg(`Turnaj vytvořen.${inviteNote}`);
         onChanged();
       } else {
         const res = await fetch(`/api/admin/tournaments/${initial.id}`, {
@@ -97,20 +299,32 @@ function TournamentEditor({
           body: JSON.stringify({
             name,
             gameId,
+            phase,
             backgroundImageUrl,
             startsAt,
             prizePoolText,
             rulesText,
             faceitUrl,
             published,
+            invitedTeamIds: phase === "playoff" ? invitedTeamIds : [],
+            seasonId: seasonId.trim() || undefined,
+            accessMode,
+            qualificationRound: qualificationRound ? Number(qualificationRound) : undefined,
           }),
         });
-        const j = (await res.json().catch(() => ({}))) as { error?: string };
+        const j = (await res.json().catch(() => ({}))) as {
+          error?: string;
+          inviteSummary?: { emailed: number; skipped: number };
+        };
         if (!res.ok) {
           setMsg(j.error ?? "Uložení selhalo");
           return;
         }
-        setMsg("Uloženo.");
+        const inviteNote =
+          j.inviteSummary && j.inviteSummary.emailed > 0
+            ? ` Odesláno ${j.inviteSummary.emailed} e-mailů s pozvánkou.`
+            : "";
+        setMsg(`Uloženo.${inviteNote}`);
         onChanged();
       }
     } finally {
@@ -145,18 +359,25 @@ function TournamentEditor({
       <div>
         <label className="text-sm text-slate-400">Název turnaje</label>
         <input
+          name="tournamentName"
           value={name}
           onChange={(e) => setName(e.target.value)}
           className="mt-1"
           placeholder="např. Kvalifikace S4 — CS2"
+          required
         />
+        {fieldErrors.name ? (
+          <p className="mt-1 text-xs text-red-400">{fieldErrors.name}</p>
+        ) : null}
       </div>
       <div>
         <label className="text-sm text-slate-400">Hra</label>
         <select
+          name="gameId"
           value={gameId}
           onChange={(e) => setGameId(e.target.value as GameId)}
           className="mt-1 w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm text-white"
+          required
         >
           {GAMES.map((g) => (
             <option key={g.id} value={g.id}>
@@ -164,10 +385,101 @@ function TournamentEditor({
             </option>
           ))}
         </select>
+        {fieldErrors.gameId ? (
+          <p className="mt-1 text-xs text-red-400">{fieldErrors.gameId}</p>
+        ) : null}
       </div>
+      <div>
+        <label className="text-sm text-slate-400">Typ turnaje</label>
+        <select
+          name="phase"
+          value={phase}
+          onChange={(e) => {
+            const next = parseTournamentPhase(e.target.value);
+            setPhase(next);
+            if (next === "qualification") setInvitedTeamIds([]);
+          }}
+          className="mt-1 w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm text-white"
+        >
+          {TOURNAMENT_PHASES.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.label}
+            </option>
+          ))}
+        </select>
+        <p className="mt-1 text-xs text-slate-500">
+          {TOURNAMENT_PHASES.find((p) => p.id === phase)?.hint}
+        </p>
+      </div>
+      <div>
+        <label className="text-sm text-slate-400">Sezóna (ID, volitelné)</label>
+        <input
+          name="seasonId"
+          value={seasonId}
+          onChange={(e) => setSeasonId(e.target.value)}
+          className="mt-1"
+          placeholder="např. s4"
+        />
+        <p className="mt-1 text-xs text-slate-500">
+          Propojení s konkrétní sezónou (Sezóna 4 = <code className="text-slate-400">s4</code>).
+        </p>
+      </div>
+      <div>
+        <label className="text-sm text-slate-400">Kdo se může přihlásit</label>
+        <select
+          name="accessMode"
+          value={accessMode}
+          onChange={(e) =>
+            setAccessMode(e.target.value as TournamentAccessMode)
+          }
+          className="mt-1 w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm text-white"
+        >
+          {TOURNAMENT_ACCESS_MODES.map((m) => (
+            <option key={m.id} value={m.id}>
+              {m.label}
+            </option>
+          ))}
+        </select>
+        <p className="mt-1 text-xs text-slate-500">
+          {TOURNAMENT_ACCESS_MODES.find((m) => m.id === accessMode)?.hint}
+        </p>
+      </div>
+      {phase === "qualification" ? (
+        <div>
+          <label className="text-sm text-slate-400">Číslo kvalifikace (1–4)</label>
+          <input
+            name="qualificationRound"
+            type="number"
+            min={1}
+            max={4}
+            value={qualificationRound}
+            onChange={(e) => setQualificationRound(e.target.value)}
+            className="mt-1 w-24"
+            placeholder="1"
+          />
+        </div>
+      ) : null}
+      {phase === "playoff" ? (
+        <div>
+          <label className="text-sm text-slate-400">
+            Pozvané týmy ({invitedTeamIds.length})
+          </label>
+          <p className="mt-1 text-xs text-slate-500">
+            Vyber schválené týmy pro danou hru. Po uložení dostanou kapitáni e-mail s
+            výzvou k potvrzení účasti.
+          </p>
+          <PlayoffTeamPicker
+            gameId={gameId}
+            selectedIds={invitedTeamIds}
+            onChange={setInvitedTeamIds}
+            getToken={getToken}
+          />
+        </div>
+      ) : null}
       <div>
         <label className="text-sm text-slate-400">URL obrázku pozadí (volitelné)</label>
         <input
+          name="backgroundImageUrl"
           value={backgroundImageUrl}
           onChange={(e) => setBackgroundImageUrl(e.target.value)}
           className="mt-1"
@@ -178,32 +490,42 @@ function TournamentEditor({
         <label className="text-sm text-slate-400">Start turnaje (datum + čas)</label>
         <input
           type="datetime-local"
+          name="startsAt"
           value={startsAt}
           onChange={(e) => setStartsAt(e.target.value)}
           className="mt-1"
         />
+        {fieldErrors.startsAt ? (
+          <p className="mt-1 text-xs text-red-400">{fieldErrors.startsAt}</p>
+        ) : null}
       </div>
       <div>
         <label className="text-sm text-slate-400">Prize pool (text)</label>
         <input
+          name="prizePoolText"
           value={prizePoolText}
           onChange={(e) => setPrizePoolText(e.target.value)}
           className="mt-1"
-          placeholder="např. 20 000 Kč"
+          placeholder="Nech prázdné = zatím neznámo (oznámíme během registrace)"
         />
       </div>
       <div>
         <label className="text-sm text-slate-400">Faceit URL</label>
         <input
+          name="faceitUrl"
           value={faceitUrl}
           onChange={(e) => setFaceitUrl(e.target.value)}
           className="mt-1"
           placeholder="https://…"
         />
+        {fieldErrors.faceitUrl ? (
+          <p className="mt-1 text-xs text-red-400">{fieldErrors.faceitUrl}</p>
+        ) : null}
       </div>
       <div>
         <label className="text-sm text-slate-400">Pravidla</label>
         <textarea
+          name="rulesText"
           value={rulesText}
           onChange={(e) => setRulesText(e.target.value)}
           className="mt-1 min-h-[140px] font-mono text-xs"
@@ -213,6 +535,7 @@ function TournamentEditor({
       <label className="flex items-center gap-2 text-sm text-slate-300">
         <input
           type="checkbox"
+          name="published"
           checked={published}
           onChange={(e) => setPublished(e.target.checked)}
         />
@@ -246,11 +569,16 @@ const emptyRow = (): Row => ({
   id: "",
   name: "",
   gameId: "cs2",
+  phase: "qualification",
   backgroundImageUrl: "",
   prizePoolText: "",
   rulesText: "",
   faceitUrl: "",
   published: false,
+  invitedTeamIds: [],
+  seasonId: S4_SEASON_ID,
+  accessMode: "season_enrolled",
+  qualificationRound: null,
 });
 
 export default function AdminTurnajePage() {
@@ -296,7 +624,7 @@ export default function AdminTurnajePage() {
           setRows([]);
           return;
         }
-        router.replace("/");
+        router.replace("/zakazano");
         return;
       }
       if (!res.ok) {
@@ -304,7 +632,13 @@ export default function AdminTurnajePage() {
         setRows([]);
         return;
       }
-      setRows(j.tournaments ?? []);
+      setRows(
+        (j.tournaments ?? []).map((t) => ({
+          ...t,
+          phase: parseTournamentPhase(t.phase),
+          gameId: (t.gameId ?? "cs2") as GameId,
+        }))
+      );
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Chyba sítě");
     }
@@ -321,7 +655,7 @@ export default function AdminTurnajePage() {
       return;
     }
     if (!isClientAdminEmail(user.email)) {
-      router.replace("/");
+      router.replace("/zakazano");
       return;
     }
     void load();
@@ -347,21 +681,20 @@ export default function AdminTurnajePage() {
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-8 sm:px-6 md:py-12">
-      <p className="text-xs text-slate-500">
-        <Link href="/admin" className="text-[#39FF14] hover:underline">
-          ← Administrace
-        </Link>
-      </p>
-      <h1 className="mt-4 font-[family-name:var(--font-bebas)] text-4xl text-white">
-        Správa turnajů
-      </h1>
-      <p className="mt-2 text-sm text-slate-400">
-        Vytvořené turnaje se zobrazí kapitánům a na{" "}
-        <Link href="/turnaje" className="text-[#39FF14] hover:underline">
-          /turnaje
-        </Link>
-        , pokud jsou zveřejněné.
-      </p>
+      <PortalPageHeader
+        backHref="/admin"
+        backLabel="Přehled administrace"
+        title="Správa turnajů"
+        description={
+          <>
+            Vytvořené turnaje se zobrazí kapitánům a na{" "}
+            <Link href="/turnaje" className="text-[#39FF14] hover:underline">
+              /turnaje
+            </Link>
+            , pokud jsou zveřejněné.
+          </>
+        }
+      />
 
       {err ? (
         <p className="mt-6 text-sm text-red-400" role="alert">

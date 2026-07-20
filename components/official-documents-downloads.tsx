@@ -3,18 +3,23 @@
 import Link from "next/link";
 import {
   documentsForVariant,
+  documentsForGame,
   type OfficialDocument,
 } from "@/lib/official-documents";
+import type { GameId } from "@/lib/games";
+import { publicDokument } from "@/lib/public-assets";
 
 type Props = {
   variant?: "all" | "rules" | "consent";
+  /** Pokud je nastaveno, zobrazí PDF pro danou hru (např. CS2 + registrace). */
+  gameId?: GameId;
   className?: string;
   heading?: string;
   intro?: string;
 };
 
 function DocRow({ doc }: { doc: OfficialDocument }) {
-  const href = `/dokumenty/${doc.file}`;
+  const href = publicDokument(doc.file);
   return (
     <li
       id={`doc-${doc.id}`}
@@ -37,11 +42,12 @@ function DocRow({ doc }: { doc: OfficialDocument }) {
 
 export function OfficialDocumentsDownloads({
   variant = "all",
+  gameId,
   className = "",
   heading = "Formální dokumenty ke stažení",
   intro = "Oficiální znění v PDF — vhodné k archivaci a tisku.",
 }: Props) {
-  const items = documentsForVariant(variant);
+  const items = gameId ? documentsForGame(gameId) : documentsForVariant(variant);
   return (
     <section
       className={`rounded-2xl border border-white/10 bg-black/30 p-6 sm:p-8 ${className}`}
@@ -61,7 +67,7 @@ export function OfficialDocumentsDownloads({
           <DocRow key={doc.id} doc={doc} />
         ))}
       </ul>
-      {variant !== "all" ? (
+      {variant !== "all" || gameId ? (
         <p className="mt-6 text-sm text-slate-500">
           Kompletní přehled:{" "}
           <Link

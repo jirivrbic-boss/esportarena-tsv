@@ -3,6 +3,7 @@ import {
   deleteDocRest,
   listCollectionDocsRest,
 } from "@/lib/firebase/firestore-rest-admin";
+import { reportSiteAction } from "@/lib/discord-webhook";
 
 const DAYS_60_MS = 60 * 24 * 60 * 60 * 1000;
 
@@ -27,6 +28,12 @@ async function runCleanup() {
       // nejlepší úsilí, cron má pokračovat
     }
   }
+
+  void reportSiteAction({
+    content: "**Cron** · cleanup LFG inzerátů",
+    title: "Cleanup free_agents",
+    description: `**Smazáno:** ${deleted}`,
+  });
 
   return NextResponse.json({ ok: true, deleted });
 }

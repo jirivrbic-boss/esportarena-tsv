@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { motion, useInView } from "framer-motion";
-import { PRIZE_POOL, formatMoney } from "@/lib/prize-pool";
+import { formatPrizeAmount, PRIZE_POOL } from "@/lib/prize-pool";
 
 const tones = [
   "from-[#39FF14] to-[#2ad60f]",
@@ -14,6 +14,7 @@ export function PrizePoolBars() {
   const listRef = useRef<HTMLUListElement>(null);
   const inView = useInView(listRef, { once: true, margin: "-8% 0px" });
   const [liquidOn, setLiquidOn] = useState(false);
+  const tbd = !PRIZE_POOL.announced;
 
   useEffect(() => {
     if (!inView) return;
@@ -28,19 +29,21 @@ export function PrizePoolBars() {
     <ul ref={listRef} className="mt-5 space-y-4">
       {PRIZE_POOL.places.map((p, i) => {
         const grad = tones[i] ?? tones[2]!;
+        const barWidth = tbd ? Math.max(p.barPct * 0.35, 18) : p.barPct;
         return (
-          <li
-            key={p.rankShort}
-            className="flex items-center gap-3 sm:gap-4"
-          >
+          <li key={p.rankShort} className="flex items-center gap-3 sm:gap-4">
             <span className="flex w-8 shrink-0 items-center font-[family-name:var(--font-bebas)] text-lg tracking-wide text-slate-400 sm:w-9 sm:text-xl">
               {p.rankShort}
             </span>
-            <div className="relative h-11 min-w-0 flex-1 overflow-hidden rounded-lg border border-white/10 bg-black/60">
+            <div
+              className={`relative h-11 min-w-0 flex-1 overflow-hidden rounded-lg border bg-black/60 ${
+                tbd ? "border-dashed border-white/15" : "border-white/10"
+              }`}
+            >
               <motion.div
                 className="absolute inset-y-0 left-0 overflow-hidden rounded-md"
                 initial={{ width: "0%" }}
-                animate={inView ? { width: `${p.barPct}%` } : { width: "0%" }}
+                animate={inView ? { width: `${barWidth}%` } : { width: "0%" }}
                 transition={{
                   duration: 0.78,
                   delay: i * 0.14,
@@ -48,9 +51,11 @@ export function PrizePoolBars() {
                 }}
               >
                 <div
-                  className={`relative h-full w-full min-w-[8rem] bg-gradient-to-r ${grad}`}
+                  className={`relative h-full w-full min-w-[4rem] bg-gradient-to-r ${grad} ${
+                    tbd ? "opacity-40" : ""
+                  }`}
                 >
-                  {liquidOn ? (
+                  {liquidOn && !tbd ? (
                     <>
                       <div
                         className="prize-pool-bar-liquid pointer-events-none absolute inset-0 rounded-md"
@@ -64,9 +69,20 @@ export function PrizePoolBars() {
                   ) : null}
                 </div>
               </motion.div>
+              {tbd ? (
+                <span className="absolute inset-0 flex items-center justify-center text-[10px] font-bold uppercase tracking-[0.2em] text-slate-600">
+                  TBA
+                </span>
+              ) : null}
             </div>
-            <span className="shrink-0 font-[family-name:var(--font-bebas)] text-lg tracking-wide text-white sm:text-xl">
-              {formatMoney(p.amount, PRIZE_POOL.currency)}
+            <span
+              className={`shrink-0 font-[family-name:var(--font-bebas)] tracking-wide sm:text-xl ${
+                tbd
+                  ? "text-2xl text-slate-500"
+                  : "text-lg text-white"
+              }`}
+            >
+              {formatPrizeAmount(p.amount, PRIZE_POOL.currency)}
             </span>
           </li>
         );

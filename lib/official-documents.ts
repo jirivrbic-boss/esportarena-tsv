@@ -1,3 +1,5 @@
+import type { GameId } from "@/lib/games";
+
 export type OfficialDocument = {
   id: string;
   file: string;
@@ -5,7 +7,7 @@ export type OfficialDocument = {
   description: string;
 };
 
-/** Formální dokumenty ke stažení (PDF v /public/dokumenty; zdroj .docx v /dokumenty-zdroj). */
+/** Formální dokumenty ke stažení (PDF v `public/dokumenty`; zdroj .docx v `dokumenty-zdroj/`). */
 export const OFFICIAL_DOCUMENTS: OfficialDocument[] = [
   {
     id: "obecna-pravidla",
@@ -13,6 +15,13 @@ export const OFFICIAL_DOCUMENTS: OfficialDocument[] = [
     title: "Obecná pravidla turnaje (CS2)",
     description:
       "Formát zápasů MR12, kvalifikace a playoff na FACEIT, časové povinnosti, prodloužení a rámec ESPORTARENA TSV.",
+  },
+  {
+    id: "obecna-pravidla-lol",
+    file: "obecna-pravidla-lol.pdf",
+    title: "Obecná pravidla turnaje (LOL)",
+    description:
+      "Formát zápasů, registrace týmů, časové povinnosti a rámec ESPORTARENA TSV pro League of Legends.",
   },
   {
     id: "pravidla-registrace",
@@ -38,4 +47,23 @@ export function documentsForVariant(
     return OFFICIAL_DOCUMENTS.filter((d) => d.id === "souhlas-zakonneho-zastupce");
   }
   return OFFICIAL_DOCUMENTS.filter((d) => d.id !== "souhlas-zakonneho-zastupce");
+}
+
+/** PDF podle disciplíny — CS2 a LoL mají navíc vlastní „Obecná pravidla“. */
+export function documentsForGame(gameId: GameId): OfficialDocument[] {
+  const registration = OFFICIAL_DOCUMENTS.filter((d) => d.id === "pravidla-registrace");
+  const cs2pdf = OFFICIAL_DOCUMENTS.filter((d) => d.id === "obecna-pravidla");
+  const lolpdf = OFFICIAL_DOCUMENTS.filter((d) => d.id === "obecna-pravidla-lol");
+
+  switch (gameId) {
+    case "cs2":
+      return [...cs2pdf, ...registration];
+    case "lol":
+      return [...lolpdf, ...registration];
+    case "brawl_stars":
+    case "fc26":
+      return [...registration];
+    default:
+      return registration;
+  }
 }

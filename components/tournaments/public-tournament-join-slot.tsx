@@ -3,12 +3,14 @@
 import Link from "next/link";
 import { useAuth } from "@/contexts/auth-context";
 import type { GameId } from "@/lib/games";
+import type { TournamentPhase } from "@/lib/tournaments";
 import { GlassCard } from "@/components/glass-card";
 import { TournamentJoinPanel } from "@/components/tournaments/tournament-join-panel";
 
 type Props = {
   tournamentId: string;
   gameId: GameId;
+  phase: TournamentPhase;
   faceitUrl: string;
   startsAtMs: number | null;
   registeredTeamIds: string[];
@@ -18,6 +20,7 @@ type Props = {
 export function PublicTournamentJoinSlot({
   tournamentId,
   gameId,
+  phase,
   faceitUrl,
   startsAtMs,
   registeredTeamIds,
@@ -46,6 +49,7 @@ export function PublicTournamentJoinSlot({
     <TournamentJoinPanel
       tournamentId={tournamentId}
       gameId={gameId}
+      phase={phase}
       faceitUrl={faceitUrl}
       startsAtMs={startsAtMs}
       registeredTeamIds={registeredTeamIds}

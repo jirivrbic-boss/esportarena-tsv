@@ -1,8 +1,11 @@
 /**
- * Server → Discord Incoming Webhook (jednotné místo pro „Command Center“).
+ * Server → Discord Incoming Webhook.
+ * - DISCORD_REPORTS_WEBHOOK_URL / DISCORD_WEBHOOK_URL → kanál Reports (všechny akce)
+ * - DISCORD_ANNOUNCEMENTS_WEBHOOK_URL → kanál Oznámení (veřejná oznámení)
  */
 
-const BRAND = "ESPORTARENA TSV · Admin";
+const BRAND_REPORTS = "ESPORTARENA TSV · Reports";
+const BRAND_ANNOUNCE = "ESPORTARENA TSV · Oznámení";
 const EMBED_COLOR = 0x39ff14;
 
 export type DiscordEmbed = {
@@ -12,16 +15,38 @@ export type DiscordEmbed = {
   fields?: { name: string; value: string; inline?: boolean }[];
   footer?: { text: string };
   timestamp?: string;
+  url?: string;
 };
+
+/** Webhook do Discord kanálu Reports (provozní logy). */
+export function resolveReportsWebhookUrl(): string {
+  return (
+    process.env.DISCORD_REPORTS_WEBHOOK_URL?.trim() ||
+    process.env.DISCORD_WEBHOOK_URL?.trim() ||
+    ""
+  );
+}
+
+/** Webhook do Discord kanálu Oznámení. */
+export function resolveAnnouncementsWebhookUrl(): string {
+  return process.env.DISCORD_ANNOUNCEMENTS_WEBHOOK_URL?.trim() || "";
+}
 
 export async function sendDiscordWebhook(input: {
   content?: string;
   embeds: DiscordEmbed[];
+  webhookUrl?: string;
+  footerText?: string;
 }): Promise<{ ok: true } | { ok: false; error: string; status: number }> {
-  const url = process.env.DISCORD_WEBHOOK_URL?.trim();
+  const url = (input.webhookUrl ?? resolveReportsWebhookUrl()).trim();
   if (!url) {
-    return { ok: false, error: "DISCORD_WEBHOOK_URL není nastaveno.", status: 503 };
+    return {
+      ok: false,
+      error: "DISCORD_REPORTS_WEBHOOK_URL / DISCORD_WEBHOOK_URL není nastaveno.",
+      status: 503,
+    };
   }
+  const footerText = input.footerText ?? BRAND_REPORTS;
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -29,7 +54,7 @@ export async function sendDiscordWebhook(input: {
       ...(input.content ? { content: input.content } : {}),
       embeds: input.embeds.map((e) => ({
         color: EMBED_COLOR,
-        footer: { text: BRAND },
+        footer: { text: footerText },
         ...e,
         timestamp: e.timestamp ?? new Date().toISOString(),
       })),
@@ -46,30 +71,65 @@ export async function sendDiscordWebhook(input: {
   return { ok: true };
 }
 
-/** Akce A: nová registrace kapitána (Auth). */
-export async function notifyDiscordCaptainRegistered(input: {
-  email: string;
-  uid: string;
+function clip(s: string, max = 1000): string {
+  const t = s.trim();
+  if (t.length <= max) return t;
+  return `${t.slice(0, max - 1)}…`;
+}
+
+/**
+ * Univerzální report do kanálu Reports — fire-and-forget.
+ * Používej pro všechny mutující akce na webu.
+ */
+export async function reportSiteAction(input: {
+  content: string;
+  title: string;
+  description?: string;
+  fields?: { name: string; value: string; inline?: boolean }[];
+  url?: string;
 }): Promise<void> {
+  const fields = (input.fields ?? [])
+    .filter((f) => f.name && f.value)
+    .map((f) => ({
+      name: clip(f.name, 256),
+      value: clip(f.value, 1024),
+      inline: f.inline,
+    }))
+    .slice(0, 25);
+
   const r = await sendDiscordWebhook({
-    content: "**Registrace kapitána** · nový účet (e-mail/heslo)",
+    content: clip(input.content, 2000),
     embeds: [
       {
-        title: "Nový kapitán",
-        description: `Účet byl založen v Auth.`,
-        fields: [
-          { name: "E-mail", value: input.email.slice(0, 250), inline: true },
-          { name: "UID", value: `\`${input.uid}\``, inline: true },
-        ],
+        title: clip(input.title, 256),
+        description: input.description
+          ? clip(input.description, 4000)
+          : undefined,
+        fields: fields.length ? fields : undefined,
+        url: input.url,
       },
     ],
   });
   if (!r.ok && r.status !== 503) {
-    console.warn("[discord] captain_registered:", r.error);
+    console.warn("[discord] reportSiteAction:", input.title, r.error);
   }
 }
 
-/** Akce D: klik na vstup do Faceit kvalifikace (schválený tým). */
+export async function notifyDiscordCaptainRegistered(input: {
+  email: string;
+  uid: string;
+}): Promise<void> {
+  await reportSiteAction({
+    content: "**Registrace kapitána** · nový účet (e-mail/heslo)",
+    title: "Nový kapitán",
+    description: "Účet byl založen v Auth.",
+    fields: [
+      { name: "E-mail", value: input.email.slice(0, 250), inline: true },
+      { name: "UID", value: `\`${input.uid}\``, inline: true },
+    ],
+  });
+}
+
 export async function notifyDiscordFaceitHubEntry(input: {
   teamName: string;
   schoolName?: string;
@@ -77,50 +137,76 @@ export async function notifyDiscordFaceitHubEntry(input: {
   gameLabel?: string;
   teamId: string;
 }): Promise<void> {
-  const r = await sendDiscordWebhook({
-    content:
-      "**Přihlášení týmu do kvalifikace** · kapitán otevřel Faceit hub",
-    embeds: [
-      {
-        title: input.teamName.slice(0, 256),
-        description: [
-          input.gameLabel ? `**Hra:** ${input.gameLabel}` : null,
-          input.schoolName ? `**Škola:** ${input.schoolName}` : null,
-          `**Kapitán:** ${input.captainEmail}`,
-          `**Team ID:** \`${input.teamId}\``,
-        ]
-          .filter(Boolean)
-          .join("\n"),
-      },
-    ],
+  await reportSiteAction({
+    content: "**Přihlášení týmu do kvalifikace** · kapitán otevřel Faceit hub",
+    title: input.teamName.slice(0, 256),
+    description: [
+      input.gameLabel ? `**Hra:** ${input.gameLabel}` : null,
+      input.schoolName ? `**Škola:** ${input.schoolName}` : null,
+      `**Kapitán:** ${input.captainEmail}`,
+      `**Team ID:** \`${input.teamId}\``,
+    ]
+      .filter(Boolean)
+      .join("\n"),
   });
-  if (!r.ok && r.status !== 503) {
-    console.warn("[discord] faceit_entry:", r.error);
-  }
 }
 
 export async function notifyDiscordAnnouncementCreated(input: {
   title: string;
   authorName: string;
   category: string;
+  categoryLabel?: string;
+  content?: string;
   announcementId: string;
+  publicUrl?: string;
 }): Promise<void> {
-  const r = await sendDiscordWebhook({
-    content: "**Nové oznámení** · publikováno administrátorem",
-    embeds: [
-      {
-        title: input.title.slice(0, 256),
-        description: [
-          `**Autor:** ${input.authorName}`,
-          `**Kategorie:** ${input.category}`,
-          `**Announcement ID:** \`${input.announcementId}\``,
-        ].join("\n"),
-      },
+  const bodyPreview = (input.content ?? "").trim().slice(0, 1500);
+  const link = input.publicUrl?.trim();
+  const categoryLine = input.categoryLabel ?? input.category;
+  const description = [
+    bodyPreview || "_Bez textu_",
+    "",
+    `**Autor:** ${input.authorName}`,
+    `**Kategorie:** ${categoryLine}`,
+    link ? `**Na webu:** ${link}` : null,
+  ]
+    .filter((line) => line !== null)
+    .join("\n")
+    .slice(0, 4000);
+
+  const webhookUrl = resolveAnnouncementsWebhookUrl();
+  if (webhookUrl) {
+    const r = await sendDiscordWebhook({
+      webhookUrl,
+      footerText: BRAND_ANNOUNCE,
+      content: "**📢 Nové oznámení** · ESPORTARENA TSV",
+      embeds: [
+        {
+          title: input.title.slice(0, 256),
+          url: link || undefined,
+          description,
+        },
+      ],
+    });
+    if (!r.ok && r.status !== 503) {
+      console.warn("[discord] announcement_created:", r.error);
+    }
+  } else {
+    console.warn(
+      "[discord] announcement_created: chybí DISCORD_ANNOUNCEMENTS_WEBHOOK_URL"
+    );
+  }
+
+  await reportSiteAction({
+    content: "**Oznámení** · nové na webu",
+    title: input.title.slice(0, 256),
+    description,
+    url: link,
+    fields: [
+      { name: "ID", value: `\`${input.announcementId}\``, inline: true },
+      { name: "Kategorie", value: categoryLine, inline: true },
     ],
   });
-  if (!r.ok && r.status !== 503) {
-    console.warn("[discord] announcement_created:", r.error);
-  }
 }
 
 export async function notifyDiscordTournamentCreated(input: {
@@ -130,25 +216,34 @@ export async function notifyDiscordTournamentCreated(input: {
   published: boolean;
   startsAt?: string | null;
 }): Promise<void> {
-  const r = await sendDiscordWebhook({
+  await reportSiteAction({
     content: "**Nový turnaj** · vytvořen v administraci",
-    embeds: [
-      {
-        title: input.name.slice(0, 256),
-        description: [
-          `**Hra:** ${input.gameLabel}`,
-          `**Stav:** ${input.published ? "Zveřejněný" : "Nezveřejněný"}`,
-          input.startsAt ? `**Start:** ${input.startsAt}` : null,
-          `**Tournament ID:** \`${input.tournamentId}\``,
-        ]
-          .filter(Boolean)
-          .join("\n"),
-      },
-    ],
+    title: input.name.slice(0, 256),
+    description: [
+      `**Hra:** ${input.gameLabel}`,
+      `**Stav:** ${input.published ? "Zveřejněný" : "Nezveřejněný"}`,
+      input.startsAt ? `**Start:** ${input.startsAt}` : null,
+      `**Tournament ID:** \`${input.tournamentId}\``,
+    ]
+      .filter(Boolean)
+      .join("\n"),
   });
-  if (!r.ok && r.status !== 503) {
-    console.warn("[discord] tournament_created:", r.error);
-  }
+}
+
+export async function notifyDiscordSupportTicket(input: {
+  ticketId: string;
+  visitorEmail: string;
+  subject: string;
+  messagePreview: string;
+  categoryLabel?: string;
+}): Promise<void> {
+  const preview = input.messagePreview.slice(0, 900);
+  const cat = input.categoryLabel ? `**Kategorie:** ${input.categoryLabel}\n` : "";
+  await reportSiteAction({
+    content: "**Centrum podpory** · nový dotaz od návštěvníka",
+    title: input.subject.slice(0, 256),
+    description: `${cat}**E-mail:** ${input.visitorEmail}\n**Ticket ID:** \`${input.ticketId}\`\n\n${preview}`,
+  });
 }
 
 export async function notifyDiscordTournamentJoin(input: {
@@ -160,25 +255,18 @@ export async function notifyDiscordTournamentJoin(input: {
   captainEmail: string;
   gameLabel?: string;
 }): Promise<void> {
-  const r = await sendDiscordWebhook({
+  await reportSiteAction({
     content: "**Přihlášení týmu do turnaje** · nová registrace",
-    embeds: [
-      {
-        title: input.tournamentName.slice(0, 256),
-        description: [
-          input.gameLabel ? `**Hra:** ${input.gameLabel}` : null,
-          `**Tým:** ${input.teamName}`,
-          input.schoolName ? `**Škola:** ${input.schoolName}` : null,
-          `**Kapitán:** ${input.captainEmail}`,
-          `**Team ID:** \`${input.teamId}\``,
-          `**Tournament ID:** \`${input.tournamentId}\``,
-        ]
-          .filter(Boolean)
-          .join("\n"),
-      },
-    ],
+    title: input.tournamentName.slice(0, 256),
+    description: [
+      input.gameLabel ? `**Hra:** ${input.gameLabel}` : null,
+      `**Tým:** ${input.teamName}`,
+      input.schoolName ? `**Škola:** ${input.schoolName}` : null,
+      `**Kapitán:** ${input.captainEmail}`,
+      `**Team ID:** \`${input.teamId}\``,
+      `**Tournament ID:** \`${input.tournamentId}\``,
+    ]
+      .filter(Boolean)
+      .join("\n"),
   });
-  if (!r.ok && r.status !== 503) {
-    console.warn("[discord] tournament_join:", r.error);
-  }
 }

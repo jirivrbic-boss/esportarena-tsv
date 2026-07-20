@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { gameLabel, type GameId } from "@/lib/games";
 import type { RosterPlayer } from "@/lib/types";
+import { RosterPlayerNick } from "@/components/roster-player-nick";
 
 type PublicTeam = {
   id: string;
@@ -21,16 +22,13 @@ function PlayerRow({
   player,
   role,
   idx,
+  gameId,
 }: {
   player: RosterPlayer;
   role: string;
   idx: number;
+  gameId: GameId;
 }) {
-  const nick = player.faceitNickname?.trim() ?? "";
-  const faceitUrl = nick
-    ? `https://www.faceit.com/en/players/${encodeURIComponent(nick)}`
-    : null;
-
   return (
     <li className="rounded-lg border border-white/10 bg-black/30 px-4 py-3">
       <p className="text-xs uppercase tracking-wide text-slate-500">
@@ -39,19 +37,7 @@ function PlayerRow({
       <p className="mt-2 text-sm font-medium text-white">
         {[player.firstName, player.lastName].filter(Boolean).join(" ") || "Jméno neuvedeno"}
       </p>
-      {nick ? (
-        <a
-          href={faceitUrl ?? "#"}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mt-2 inline-flex items-center gap-2 text-sm text-[#39FF14] hover:underline"
-        >
-          <span aria-hidden>🎮</span>
-          Faceit: {nick}
-        </a>
-      ) : (
-        <p className="mt-2 text-sm text-slate-500">Faceit nick není vyplněný</p>
-      )}
+      <RosterPlayerNick player={player} gameId={gameId} />
     </li>
   );
 }
@@ -138,10 +124,10 @@ export default function PublicTeamDetailPage() {
         ) : (
           <div className="mt-4 grid gap-4 md:grid-cols-2">
             {team.captainPlayer ? (
-              <PlayerRow player={team.captainPlayer} role="Kapitán" idx={0} />
+              <PlayerRow player={team.captainPlayer} role="Kapitán" idx={0} gameId={gameId} />
             ) : null}
             {team.teammates.map((player, idx) => (
-              <PlayerRow key={`main-${idx}`} player={player} role="Hráč" idx={idx} />
+              <PlayerRow key={`main-${idx}`} player={player} role="Hráč" idx={idx} gameId={gameId} />
             ))}
             {team.substitutes.map((player, idx) => (
               <PlayerRow
@@ -149,6 +135,7 @@ export default function PublicTeamDetailPage() {
                 player={player}
                 role="Náhradník"
                 idx={idx}
+                gameId={gameId}
               />
             ))}
           </div>

@@ -8,11 +8,17 @@ import { useState, useCallback } from "react";
 import { useAuth } from "@/contexts/auth-context";
 import { GlowButton } from "@/components/glow-button";
 import { isClientAdminEmail } from "@/lib/admin-client";
+import { TOURNAMENT_BRAND_LOGO } from "@/lib/tournament-game-logos";
+
+/** Stejná výška / padding pro CTA v liště — primární i ghost */
+const navCta =
+  "h-10 shrink-0 !py-0 !px-3.5 !text-[11px] leading-none sm:!px-4 sm:!text-xs";
 
 const publicLinks = [
   { href: "/", label: "Domů" },
   { href: "/turnaje", label: "Turnaje" },
   { href: "/oznameni", label: "Oznámení" },
+  { href: "/pravidla", label: "Pravidla" },
   { href: "/dokumenty", label: "Dokumenty" },
   { href: "/hledam", label: "Hledám tým" },
   { href: "/tym/registrace", label: "Registrace týmu" },
@@ -32,11 +38,11 @@ export function SiteHeader() {
       animate={{ y: 0, opacity: 1 }}
       className="sticky top-0 z-50 border-b border-white/10 bg-[#050505]/80 backdrop-blur-xl"
     >
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
+      <div className="mx-auto flex h-16 w-full max-w-[90rem] items-center justify-between gap-3 px-4 sm:px-6 lg:gap-4 lg:px-8">
         <Link href="/" className="flex items-center gap-3" onClick={closeMenu}>
           <div className="relative h-9 w-9 overflow-hidden rounded-lg border border-white/10 bg-black/40 sm:h-10 sm:w-10">
             <Image
-              src="/fotky/tournament%20logo.png"
+              src={TOURNAMENT_BRAND_LOGO}
               alt="ESPORTARENA TSV"
               fill
               className="object-contain p-1"
@@ -54,14 +60,14 @@ export function SiteHeader() {
           </div>
         </Link>
 
-        <nav className="hidden items-center gap-1 md:flex">
+        <nav className="hidden shrink-0 items-center gap-0.5 lg:gap-1 xl:gap-2 md:flex">
           {publicLinks.map((l) => {
             const active = pathname === l.href;
             return (
               <Link
                 key={l.href}
                 href={l.href}
-                className={`rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+                className={`rounded-md px-2 py-2 text-sm font-medium transition-colors lg:px-2.5 xl:px-3 ${
                   active
                     ? "text-[#39FF14]"
                     : "text-slate-400 hover:text-white"
@@ -90,7 +96,7 @@ export function SiteHeader() {
               </Link>
               <GlowButton
                 variant="ghost"
-                className="!px-3 !py-2 !text-xs"
+                className={navCta}
                 onClick={() => void signOut()}
               >
                 Odhlásit
@@ -98,10 +104,13 @@ export function SiteHeader() {
             </>
           ) : (
             <>
-              <GlowButton href="/prihlaseni" variant="ghost" className="!px-3 !py-2 !text-xs">
+              <GlowButton href="/prihlaseni" variant="ghost" className={navCta}>
                 Přihlášení
               </GlowButton>
-              <GlowButton href="/registrace" className="hidden !px-3 !py-2 !text-xs sm:inline-flex">
+              <GlowButton
+                href="/registrace"
+                className={`hidden ${navCta} sm:inline-flex`}
+              >
                 Registrace kapitána
               </GlowButton>
             </>

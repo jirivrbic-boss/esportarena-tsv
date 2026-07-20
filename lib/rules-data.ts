@@ -1,11 +1,11 @@
 export const RULES_SECTIONS = [
   {
     title: "Formát kvalifikací",
-    body: `Kvalifikace probíhají v systému Faceit dle oficiálního hubu po schválení týmu na této platformě. Playoff kvalifikací je typicky BO3 (best of three), pokud není v rozvrhu uvedeno jinak. Výchozí mapový pool a veto řídí administrace turnaje a bude zveřejněno na Discordu.`,
+    body: `Kvalifikace probíhají v systému Faceit dle oficiálního hubu po schválení týmu na této platformě. Playoff kvalifikací je typicky BO3 (best of three), pokud není v rozvrhu uvedeno jinak. Výchozí mapový pool a veto řídí administrace turnaje a zveřejní je v Oznámeních na webu.`,
   },
   {
     title: "AFK a neomluvená neúčast",
-    body: `Tým musí být připraven v naplánovaný čas zápasu. Opakované AFK nebo nedostavení se bez omluvy včas může vést k kontumační výhře soupeři nebo vyloučení z turnaje. Omluvy a přebookování řeší pouze administrace na Discordu.`,
+    body: `Tým musí být připraven v naplánovaný čas zápasu. Opakované AFK nebo nedostavení se bez omluvy včas může vést k kontumační výhře soupeři nebo vyloučení z turnaje. Omluvy a přebookování řeší administrace — postup uvidíš v Oznámeních nebo v Centru podpory.`,
   },
   {
     title: "Disconnect (DC)",
@@ -17,7 +17,7 @@ export const RULES_SECTIONS = [
   },
   {
     title: "Stížnosti a důkazy",
-    body: `Veškeré spory hlaste výhradně přes oficiální Discord s důkazy (demo, záznam, screenshot). Rozhodnutí hlavního admina je konečné.`,
+    body: `Spory hlaste přes Centrum podpory na webu s důkazy (demo, záznam, screenshot). Rozhodnutí hlavního admina je konečné; důležitá rozhodnutí zároveň zveřejníme v Oznámeních.`,
   },
   {
     title: "Soupiska a identita",

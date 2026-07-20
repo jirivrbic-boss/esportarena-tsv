@@ -30,6 +30,7 @@ export function AdminAnnouncementsPanel() {
   const [newImage, setNewImage] = useState("");
   const [newAuthor, setNewAuthor] = useState("Administrace");
   const [newCategory, setNewCategory] = useState<AnnouncementCategory>("general");
+  const [okMsg, setOkMsg] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const [editContent, setEditContent] = useState("");
@@ -65,6 +66,7 @@ export function AdminAnnouncementsPanel() {
     if (!user || !newTitle.trim() || !newAuthor.trim() || !newContent.trim()) return;
     setBusy(true);
     setErr(null);
+    setOkMsg(null);
     try {
       const token = await user.getIdToken();
       const res = await fetch("/api/admin/announcements", {
@@ -81,7 +83,16 @@ export function AdminAnnouncementsPanel() {
           category: newCategory,
         }),
       });
-      const j = await res.json();
+      const j = (await res.json()) as {
+        error?: string;
+        email?: {
+          attempted?: number;
+          sent?: number;
+          failed?: number;
+          skippedNoResend?: boolean;
+          error?: string;
+        };
+      };
       if (!res.ok) {
         setErr(j.error ?? "Uložení selhalo.");
         return;
@@ -89,6 +100,22 @@ export function AdminAnnouncementsPanel() {
       setNewTitle("");
       setNewContent("");
       setNewImage("");
+      const email = j.email;
+      if (email?.skippedNoResend) {
+        setOkMsg(
+          "Oznámení je uložené. E-maily neodešly — chybí RESEND_API_KEY / RESEND_FROM."
+        );
+      } else if (email && (email.attempted ?? 0) > 0) {
+        setOkMsg(
+          `Oznámení je uložené. E-mail: odesláno ${email.sent ?? 0} z ${email.attempted ?? 0}${
+            (email.failed ?? 0) > 0 ? ` (chyby: ${email.failed})` : ""
+          }.`
+        );
+      } else {
+        setOkMsg(
+          "Oznámení je uložené. Žádný kapitán s týmem v této kategorii zatím nemá e-mail k odeslání."
+        );
+      }
       await load();
     } finally {
       setBusy(false);
@@ -164,12 +191,19 @@ export function AdminAnnouncementsPanel() {
       </h2>
       <p className="mt-2 text-sm text-slate-400">
         Příspěvky se ukládají do kolekce <code className="text-slate-300">announcements</code>{" "}
-        a zobrazí se na stránce Oznámení i v přehledu kapitána.
+        a zobrazí se na stránce Oznámení i v přehledu kapitána. Po vytvoření odejde e-mail
+        kapitánům podle kategorie: hra = týmy dané hry, Obecné = všichni kapitáni s
+        registrovaným týmem.
       </p>
 
       {err ? (
         <p className="mt-4 text-sm text-red-400" role="alert">
           {err}
+        </p>
+      ) : null}
+      {okMsg ? (
+        <p className="mt-4 text-sm text-[#39FF14]" role="status">
+          {okMsg}
         </p>
       ) : null}
 

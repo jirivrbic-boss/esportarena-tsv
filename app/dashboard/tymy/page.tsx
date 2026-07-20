@@ -14,8 +14,10 @@ import { useAuth } from "@/contexts/auth-context";
 import { getFirebaseDb } from "@/lib/firebase/client";
 import { isFirebaseConfigured } from "@/lib/firebase/config";
 import { GAMES, type GameId } from "@/lib/games";
+import { isSeasonActiveGame } from "@/lib/season-games";
 import type { TeamStatus } from "@/lib/types";
 import { TeamRegistrationForm } from "@/components/team-registration-form";
+import { GameComingSoon } from "@/components/game-coming-soon";
 import { GlassCard } from "@/components/glass-card";
 import { GlowButton } from "@/components/glow-button";
 
@@ -106,9 +108,8 @@ export default function DashboardTymyPage() {
         Tvé týmy
       </h1>
       <p className="mt-3 text-sm text-slate-400">
-        Každá hra má vlastní registraci. U hry bez týmu uvidíš zámek — založíš ji
-        přes stejný proces jako u ostatních. U rozbalené hry můžeš soupisku
-        upravit (dokud čeká na schválení).
+        Sezóna 4: registrace týmů pro CS2 a League of Legends. U ostatních her
+        připravujeme obsah na další sezónu.
       </p>
 
       {!profile.profileComplete ? (
@@ -127,9 +128,16 @@ export default function DashboardTymyPage() {
         ) : (
           GAMES.map((g) => {
             const t = teamForGame(g.id);
-            const locked = !t;
+            const comingSoon = !isSeasonActiveGame(g.id) && !t;
+            const locked = !t && !comingSoon;
             return (
               <GlassCard key={g.id} delay={0} className="!p-0 overflow-hidden">
+                {comingSoon ? (
+                  <div className="p-4 sm:p-5">
+                    <GameComingSoon gameId={g.id} variant="card" />
+                  </div>
+                ) : (
+                <>
                 <div className="flex flex-wrap items-center gap-3 px-5 py-4 sm:flex-nowrap">
                   {locked ? (
                     <div className="flex min-w-0 flex-1 items-center gap-4">
@@ -212,6 +220,8 @@ export default function DashboardTymyPage() {
                     </motion.div>
                   ) : null}
                 </AnimatePresence>
+                </>
+                )}
               </GlassCard>
             );
           })

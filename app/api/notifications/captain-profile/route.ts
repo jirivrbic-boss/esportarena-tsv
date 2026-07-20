@@ -8,6 +8,9 @@ type Body = {
   discordUsername?: string;
   faceitNickname?: string;
   steamNickname?: string;
+  riotId?: string;
+  brawlPlayerTag?: string;
+  eaAccount?: string;
   isAdult?: boolean;
   profileComplete?: boolean;
   studentCertUrl?: string | null;
@@ -57,7 +60,10 @@ export async function POST(request: Request) {
   const lines: string[] = [
     `**Telefon:** ${(body.phone ?? "—").slice(0, 80)}`,
     `**Discord:** ${(body.discordUsername ?? "—").slice(0, 120)}`,
-    `**Faceit:** ${(body.faceitNickname ?? "—").slice(0, 120)}`,
+    `**Faceit (CS2):** ${(body.faceitNickname ?? "—").slice(0, 120)}`,
+    `**Riot ID (LoL):** ${(body.riotId ?? "—").slice(0, 120)}`,
+    `**Brawl tag:** ${(body.brawlPlayerTag ?? "—").slice(0, 120)}`,
+    `**EA účet (FC):** ${(body.eaAccount ?? "—").slice(0, 120)}`,
     `**Steam:** ${(body.steamNickname ?? "—").slice(0, 120)}`,
     `**18+:** ${body.isAdult ? "ano" : "ne"}`,
     `**Profil kompletní:** ${body.profileComplete ? "ano" : "ne"}`,
@@ -66,19 +72,19 @@ export async function POST(request: Request) {
   const docBlock: string[] = [];
   if (body.studentCertUrl) {
     docBlock.push(
-      `• Potvrzení studenta${body.newStudentUpload ? " _(nový upload)_" : ""}: ${body.studentCertUrl}`
+      `• Potvrzení studenta${body.newStudentUpload ? " _(nový upload)_" : ""}`
     );
   }
   if (!body.isAdult && body.parentConsentUrl) {
     docBlock.push(
-      `• Souhlas zákonného zástupce${body.newParentUpload ? " _(nový upload)_" : ""}: ${body.parentConsentUrl}`
+      `• Souhlas zákonného zástupce${body.newParentUpload ? " _(nový upload)_" : ""}`
     );
   }
 
   const description = (
     lines.join("\n") +
     (docBlock.length
-      ? `\n\n**Dokumenty kapitána:**\n${docBlock.join("\n")}`
+      ? `\n\n**Dokumenty kapitána (bez URL):**\n${docBlock.join("\n")}`
       : "")
   ).slice(0, 4000);
 

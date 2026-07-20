@@ -12,11 +12,17 @@ service cloud.firestore {
           'email', 'phone', 'discordUsername', 'faceitNickname',
           'steamNickname', 'isAdult', 'profileComplete'
         ]);
-      // E-mail v dokumentu = e-mail z Auth tokenu (update vždy posílá email z klienta)
+      // E-mail v dokumentu = e-mail z Auth tokenu (update vždy posílá email z klienta).
+      // Pole naplánovaného smazání smí měnit jen Admin SDK / REST na serveru (whitelist změn).
       allow update: if request.auth != null
         && request.auth.uid == userId
         && request.auth.token.email != null
-        && request.resource.data.email == request.auth.token.email;
+        && request.resource.data.email == request.auth.token.email
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'email', 'firstName', 'lastName', 'phone', 'discordUsername', 'faceitNickname',
+          'steamNickname', 'isAdult', 'parentConsentUrl', 'studentCertUrl', 'profileComplete',
+          'updatedAt'
+        ]);
       allow delete: if false;
     }
 
@@ -76,6 +82,11 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // --- Ban list e-mailů (jen Admin SDK / API — blok registrace) ---
+    match /bannedEmails/{emailId} {
+      allow read, write: if false;
+    }
+
     // --- Oznámení (zápis jen přes Admin SDK / API) ---
     match /announcements/{docId} {
       allow read: if true;
@@ -104,10 +115,11 @@ service cloud.firestore {
       allow read: if true;
 
       allow create: if request.resource.data.keys().hasOnly([
-            'type', 'discordUsername', 'hoursPlayed', 'faceitLevel',
+            'type', 'gameId', 'discordUsername', 'hoursPlayed', 'faceitLevel',
             'description', 'createdAt'
           ])
         && request.resource.data.type in ['looking_team', 'looking_player']
+        && request.resource.data.gameId in ['cs2', 'lol', 'brawl_stars', 'fc26']
         && request.resource.data.discordUsername is string
         && request.resource.data.discordUsername.size() > 0
         && request.resource.data.discordUsername.size() <= 120
@@ -120,7 +132,7 @@ service cloud.firestore {
         && request.resource.data.hoursPlayed <= 50000
         && (request.resource.data.faceitLevel is int
             || request.resource.data.faceitLevel is float)
-        && request.resource.data.faceitLevel >= 1
+        && request.resource.data.faceitLevel >= 0
         && request.resource.data.faceitLevel <= 10
         && request.resource.data.createdAt is timestamp;
 

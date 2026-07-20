@@ -5,8 +5,12 @@ import {
   parseAnnouncementCategory,
 } from "@/lib/announcements";
 import { deleteDocRest, getDocRest, upsertDocRest } from "@/lib/firebase/firestore-rest-admin";
+import { reportSiteAction } from "@/lib/discord-webhook";
 
-async function requireAdminAuth(request: Request) {
+export async function PATCH(
+  request: Request,
+  ctx: { params: Promise<{ id: string }> }
+) {
   const auth = await verifyAdminBearer(request);
   if (!auth.ok) {
     return NextResponse.json(
@@ -14,15 +18,6 @@ async function requireAdminAuth(request: Request) {
       { status: auth.status }
     );
   }
-  return null;
-}
-
-export async function PATCH(
-  request: Request,
-  ctx: { params: Promise<{ id: string }> }
-) {
-  const deny = await requireAdminAuth(request);
-  if (deny) return deny;
 
   const { id } = await ctx.params;
   let body: {
@@ -70,6 +65,17 @@ export async function PATCH(
 
   try {
     await upsertDocRest(`announcements/${id}`, updates);
+    const title = String(updates.title ?? existing.title ?? "Oznámení");
+    void reportSiteAction({
+      content: "**Oznámení upraveno** · admin PATCH",
+      title: title.slice(0, 256),
+      description: `**ID:** \`${id}\`\n**Pole:** ${Object.keys(updates).join(", ")}`,
+      fields: [
+        ...(auth.user.email
+          ? [{ name: "Admin", value: auth.user.email, inline: true }]
+          : []),
+      ],
+    });
     return NextResponse.json({ ok: true });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Chyba";
@@ -81,8 +87,13 @@ export async function DELETE(
   request: Request,
   ctx: { params: Promise<{ id: string }> }
 ) {
-  const deny = await requireAdminAuth(request);
-  if (deny) return deny;
+  const auth = await verifyAdminBearer(request);
+  if (!auth.ok) {
+    return NextResponse.json(
+      { ok: false, error: auth.error },
+      { status: auth.status }
+    );
+  }
 
   const { id } = await ctx.params;
   const exists = await getDocRest(`announcements/${id}`);
@@ -92,6 +103,16 @@ export async function DELETE(
 
   try {
     await deleteDocRest(`announcements/${id}`);
+    void reportSiteAction({
+      content: "**Oznámení smazáno** · admin DELETE",
+      title: String(exists.title ?? "Oznámení").slice(0, 256),
+      description: `**ID:** \`${id}\``,
+      fields: [
+        ...(auth.user.email
+          ? [{ name: "Admin", value: auth.user.email, inline: true }]
+          : []),
+      ],
+    });
     return NextResponse.json({ ok: true });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Chyba";

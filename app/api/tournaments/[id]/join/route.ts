@@ -2,12 +2,16 @@ import { NextResponse } from "next/server";
 import { verifyFirebaseClientIdTokenFromRequest } from "@/lib/firebase/verify-client-id-token";
 import type { TeamDocument } from "@/lib/types";
 import type { TournamentDocument } from "@/lib/tournaments";
+import { parseTournamentPhase } from "@/lib/tournaments";
+import { parseTournamentAccessMode } from "@/lib/seasons";
+import { isTeamEnrolledInSeasonRest } from "@/lib/seasons-firestore";
 import { gameLabel } from "@/lib/games";
 import { notifyDiscordTournamentJoin } from "@/lib/discord-webhook";
 import {
   getDocRest,
   upsertDocRest,
 } from "@/lib/firebase/firestore-rest-admin";
+import { markInvitationAccepted } from "@/lib/tournament-invitations";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -74,6 +78,60 @@ export async function POST(request: Request, ctx: Ctx) {
       );
     }
 
+    const accessMode = parseTournamentAccessMode(tournament.accessMode);
+    const seasonId = tournament.seasonId?.trim();
+    if (accessMode === "season_enrolled") {
+      if (!seasonId) {
+        return NextResponse.json(
+          {
+            ok: false,
+            error: "Turnaj vyžaduje účast v sezóně, ale chybí propojení se sezónou.",
+          },
+          { status: 503 }
+        );
+      }
+      const enrolled = await isTeamEnrolledInSeasonRest(seasonId, teamId);
+      if (!enrolled) {
+        return NextResponse.json(
+          {
+            ok: false,
+            error:
+              "Tým musí být nejdřív zapsaný v příslušné sezóně (např. Sezóna 4) — přihlas se na stránce sezóny.",
+          },
+          { status: 403 }
+        );
+      }
+    }
+
+    const phase = parseTournamentPhase(tournament.phase);
+    if (phase === "playoff") {
+      const invitation = await getDocRest(
+        `tournaments/${tournamentId}/invitations/${teamId}`
+      );
+      if (!invitation) {
+        return NextResponse.json(
+          {
+            ok: false,
+            error:
+              "Tento turnaj je play-off / LAN — tvůj tým nebyl administrátorem vybrán.",
+          },
+          { status: 403 }
+        );
+      }
+      if (invitation.status === "accepted") {
+        return NextResponse.json(
+          { ok: false, error: "Pozvánku jsi už přijal a tým je v turnaji." },
+          { status: 409 }
+        );
+      }
+      if (invitation.status !== "invited") {
+        return NextResponse.json(
+          { ok: false, error: "Pozvánka do turnaje není k dispozici." },
+          { status: 403 }
+        );
+      }
+    }
+
     const existing = await getDocRest(`tournaments/${tournamentId}/registrations/${teamId}`);
     if (existing) {
       return NextResponse.json(
@@ -89,6 +147,10 @@ export async function POST(request: Request, ctx: Ctx) {
       gameId: teamGame,
       registeredAt: new Date().toISOString(),
     });
+
+    if (phase === "playoff") {
+      await markInvitationAccepted(tournamentId, teamId);
+    }
 
     await notifyDiscordTournamentJoin({
       tournamentId,

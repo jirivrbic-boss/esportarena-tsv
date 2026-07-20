@@ -1,38 +1,7 @@
-const brand = {
-  bg: "#050505",
-  green: "#39FF14",
-  muted: "#94a3b8",
-  white: "#ffffff",
-};
+import { ea, emailShell, escapeHtml } from "@/lib/emails/email-shell";
+import { SITE_COPY } from "@/lib/site-copy";
 
-function escapeHtml(s: string) {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-
-function shell(title: string, inner: string) {
-  return `<!DOCTYPE html><html><head><meta charset="utf-8"></head>
-<body style="margin:0;background:${brand.bg};font-family:Inter,system-ui,sans-serif;color:${brand.white};">
-<table width="100%" cellpadding="0" cellspacing="0" style="background:${brand.bg};padding:32px 16px;">
-<tr><td align="center">
-<table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;border:1px solid #1f2937;border-radius:12px;overflow:hidden;">
-<tr><td style="padding:24px 28px;background:linear-gradient(135deg,#0a0a0a,#111);">
-<h1 style="margin:0;font-size:22px;letter-spacing:0.06em;color:${brand.green};text-transform:uppercase;">ESPORTARENA TSV</h1>
-<p style="margin:8px 0 0;font-size:13px;color:${brand.muted};">Sezóna 4</p>
-</td></tr>
-<tr><td style="padding:28px;">
-<h2 style="margin:0 0 16px;font-size:18px;color:${brand.white};">${title}</h2>
-${inner}
-</td></tr>
-<tr><td style="padding:16px 28px;border-top:1px solid #1f2937;font-size:12px;color:${brand.muted};">
-EsportArena Plzeň · studentský turnaj (více her)
-</td></tr>
-</table>
-</td></tr></table></body></html>`;
-}
+const emailSub = SITE_COPY.emailHeaderSub;
 
 export function teamApprovedEmailHtml(
   teamName: string,
@@ -42,32 +11,34 @@ export function teamApprovedEmailHtml(
   const safeName = escapeHtml(teamName);
   const safeGame = gameLabel ? escapeHtml(gameLabel) : "";
   const gameLine = gameLabel
-    ? `<p style="line-height:1.6;color:#e5e7eb;"><strong>Hra:</strong> ${safeGame}</p>`
+    ? `<p style="${ea.p}"><strong style="${ea.strong}">Hra:</strong> ${safeGame}</p>`
     : "";
   const hubBlock =
     hubUrl && hubUrl.length > 0
       ? (() => {
           const safeHub = escapeHtml(hubUrl);
-          return `<p style="line-height:1.6;color:#e5e7eb;">Odkaz na Faceit hub (kvalifikace CS2):</p>
-<p style="margin:16px 0;"><a href="${safeHub}" style="display:inline-block;padding:12px 20px;background:${brand.green};color:#050505;font-weight:700;text-decoration:none;border-radius:8px;">Otevřít Faceit hub</a></p>
-<p style="line-height:1.6;font-size:13px;color:${brand.muted};">Pokud tlačítko nefunguje, zkopíruj odkaz: ${safeHub}</p>`;
+          return `<p style="${ea.p}">Odkaz na Faceit hub (kvalifikace CS2):</p>
+<p style="margin:16px 0;"><a href="${safeHub}" class="ea-btn" style="${ea.btn}">Otevřít Faceit hub</a></p>
+<p style="${ea.muted}">Pokud tlačítko nefunguje, zkopíruj odkaz: <a href="${safeHub}" class="ea-link" style="${ea.link}">${safeHub}</a></p>`;
         })()
-      : `<p style="line-height:1.6;color:#e5e7eb;">Další kroky k této hře najdeš na oficiálním Discordu turnaje.</p>`;
-  return shell(
+      : `<p style="${ea.p}">Další kroky k této hře najdeš v Oznámeních na webu.</p>`;
+  return emailShell(
     "GG! Tvůj tým byl schválen",
-    `${gameLine}<p style="line-height:1.6;color:#e5e7eb;">Tým <strong style="color:${brand.white};">${safeName}</strong> byl schválen administrací.</p>
+    `${gameLine}<p style="${ea.p}">Tým <strong style="${ea.strong}">${safeName}</strong> byl schválen administrací.</p>
 ${hubBlock}
-<p style="line-height:1.6;font-size:13px;color:${brand.muted};margin-top:20px;">Oficiální komunikace probíhá na Discordu.</p>`
+<p style="${ea.muted}">${SITE_COPY.announcementsPrimary}</p>`,
+    { headerSub: emailSub }
   );
 }
 
 export function teamRejectedEmailHtml(teamName: string, reason: string) {
   const safeName = escapeHtml(teamName);
   const r = escapeHtml(reason.trim() || "Důvod nebyl uveden.");
-  return shell(
+  return emailShell(
     "Registrace týmu nebyla schválena",
-    `<p style="line-height:1.6;color:#e5e7eb;">Tým <strong style="color:${brand.white};">${safeName}</strong> bohužel nebyl schválen.</p>
-<p style="line-height:1.6;color:#fca5a5;"><strong>Důvod:</strong> ${r}</p>
-<p style="line-height:1.6;font-size:13px;color:${brand.muted};margin-top:20px;">V případě dotazů použij oficiální Discord turnaje.</p>`
+    `<p style="${ea.p}">Tým <strong style="${ea.strong}">${safeName}</strong> bohužel nebyl schválen.</p>
+<p style="${ea.danger}"><strong style="${ea.strong}">Důvod:</strong> ${r}</p>
+<p style="${ea.muted}">V případě dotazů použij Centrum podpory na webu nebo sekci Oznámení.</p>`,
+    { headerSub: emailSub }
   );
 }

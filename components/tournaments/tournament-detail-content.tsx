@@ -1,11 +1,46 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { gameLabel, type GameId } from "@/lib/games";
 import { OfficialDocumentsDownloads } from "@/components/official-documents-downloads";
-import { RULES_SECTIONS } from "@/lib/rules-data";
+import { TournamentBrandTicker } from "@/components/tournaments/tournament-brand-ticker";
+import {
+  formatFaceitUnlockHint,
+  isFaceitHubUnlocked,
+} from "@/lib/tournament-faceit";
 import type { RosterPlayer } from "@/lib/types";
+import { RosterPlayerNick } from "@/components/roster-player-nick";
+import { publicFotky } from "@/lib/public-assets";
+import { tournamentPhaseLabel, type TournamentPhase } from "@/lib/tournaments";
+import { displayPrizePoolText } from "@/lib/prize-pool";
+
+function overviewMeta(gameId: GameId): { teamSize: string; formatHint: string } {
+  switch (gameId) {
+    case "cs2":
+      return {
+        teamSize: "5 hráčů (+ náhradníci)",
+        formatHint: "MR12 · Faceit hub po schválení",
+      };
+    case "lol":
+      return {
+        teamSize: "5 hráčů (+ náhradníci)",
+        formatHint: "Summoner's Rift · viz pravidla LoL",
+      };
+    case "brawl_stars":
+      return {
+        teamSize: "dle pokynů (např. 3v3)",
+        formatHint: "viz pravidla Brawl Stars",
+      };
+    case "fc26":
+      return {
+        teamSize: "dle pokynů organizátora",
+        formatHint: "viz pravidla FC a Oznámení",
+      };
+    default:
+      return { teamSize: "—", formatHint: "—" };
+  }
+}
 
 export type RegistrationRow = {
   teamId: string;
@@ -17,13 +52,16 @@ export type RegistrationRow = {
 type Props = {
   name: string;
   gameId: GameId;
+  phase?: TournamentPhase;
   backgroundImageUrl?: string;
   startsAtMs?: number | null;
   prizePoolText: string;
   rulesText: string;
   faceitUrl: string;
+  viewerHasRegisteredTeam?: boolean;
   registrations: RegistrationRow[];
   joinSlot?: ReactNode;
+  sharePath: string;
   backHref: string;
   backLabel: string;
 };
@@ -38,20 +76,114 @@ type PublicTeamDetail = {
   substitutes: RosterPlayer[];
 };
 
+function ShareIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden
+    >
+      <circle cx="18" cy="5" r="3" />
+      <circle cx="6" cy="12" r="3" />
+      <circle cx="18" cy="19" r="3" />
+      <path d="m8.59 13.51 6.83 3.98M15.41 6.51l-6.82 3.98" />
+    </svg>
+  );
+}
+
+function TournamentShareButton({ sharePath }: { sharePath: string }) {
+  const [open, setOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const wrapRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function onPointerDown(event: PointerEvent) {
+      if (wrapRef.current && !wrapRef.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, [open]);
+
+  async function copyLink() {
+    const path = sharePath.startsWith("/") ? sharePath : `/${sharePath}`;
+    const url = `${window.location.origin}${path}`;
+    try {
+      await navigator.clipboard.writeText(url);
+    } catch {
+      const textarea = document.createElement("textarea");
+      textarea.value = url;
+      textarea.setAttribute("readonly", "");
+      textarea.style.position = "fixed";
+      textarea.style.left = "-9999px";
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textarea);
+    }
+    setCopied(true);
+    setOpen(false);
+    window.setTimeout(() => setCopied(false), 2000);
+  }
+
+  return (
+    <div ref={wrapRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        aria-expanded={open}
+        aria-haspopup="menu"
+        title="Sdílet turnaj"
+        className="inline-flex h-[34px] w-[34px] items-center justify-center rounded-md border border-white/20 bg-black/40 text-white transition hover:bg-white/10"
+      >
+        <ShareIcon className="h-4 w-4" />
+        <span className="sr-only">Sdílet turnaj</span>
+      </button>
+      {open ? (
+        <div
+          role="menu"
+          className="absolute left-0 top-full z-30 mt-2 min-w-[12.5rem] overflow-hidden rounded-md border border-white/15 bg-[#0d0d0d] py-1 shadow-xl"
+        >
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => void copyLink()}
+            className="flex w-full px-4 py-2.5 text-left text-sm text-slate-200 transition hover:bg-white/10 hover:text-white"
+          >
+            Kopírovat odkaz
+          </button>
+        </div>
+      ) : null}
+      {copied ? (
+        <p
+          role="status"
+          className="pointer-events-none absolute left-1/2 top-full z-30 mt-2 -translate-x-1/2 whitespace-nowrap rounded-md border border-[#39FF14]/40 bg-black/90 px-3 py-1.5 text-xs font-medium text-[#39FF14]"
+        >
+          Odkaz zkopírován
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 function TeamMemberCard({
   player,
   role,
   idx,
+  gameId,
 }: {
   player: RosterPlayer;
   role: string;
   idx: number;
+  gameId: GameId;
 }) {
-  const nick = player.faceitNickname?.trim() ?? "";
-  const faceitUrl = nick
-    ? `https://www.faceit.com/en/players/${encodeURIComponent(nick)}`
-    : null;
-
   return (
     <div className="rounded-lg border border-white/10 bg-black/30 px-4 py-3">
       <p className="text-xs uppercase tracking-wide text-slate-500">
@@ -60,19 +192,7 @@ function TeamMemberCard({
       <p className="mt-2 text-sm font-medium text-white">
         {[player.firstName, player.lastName].filter(Boolean).join(" ") || "Jméno neuvedeno"}
       </p>
-      {nick ? (
-        <a
-          href={faceitUrl ?? "#"}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mt-2 inline-flex items-center gap-2 text-sm text-[#39FF14] hover:underline"
-        >
-          <span aria-hidden>🎮</span>
-          Faceit: {nick}
-        </a>
-      ) : (
-        <p className="mt-2 text-sm text-slate-500">Faceit nick není vyplněný</p>
-      )}
+      <RosterPlayerNick player={player} gameId={gameId} />
     </div>
   );
 }
@@ -80,13 +200,16 @@ function TeamMemberCard({
 export function TournamentDetailContent({
   name,
   gameId,
+  phase = "qualification",
   backgroundImageUrl,
   startsAtMs,
   prizePoolText,
   rulesText,
   faceitUrl,
+  viewerHasRegisteredTeam = false,
   registrations,
   joinSlot,
+  sharePath,
   backHref,
   backLabel,
 }: Props) {
@@ -98,15 +221,17 @@ export function TournamentDetailContent({
   const [teamDetailLoading, setTeamDetailLoading] = useState(false);
   const [teamDetailError, setTeamDetailError] = useState<string | null>(null);
   const participantsCount = registrations.length;
-  const defaultBg = "/fotky/foto-arena-cs2.jpeg";
+  const defaultBg = publicFotky("foto-arena-cs2.jpeg");
   const bannerBg = backgroundImageUrl?.trim() ? backgroundImageUrl : defaultBg;
-  const faceitUnlocked = startsAtMs ? Date.now() >= startsAtMs - 24 * 60 * 60 * 1000 : false;
+  const effectiveFaceitUrl = faceitUrl.trim();
+  const faceitUnlocked = isFaceitHubUnlocked(startsAtMs ?? null);
+  const { teamSize: overviewTeamSize, formatHint: overviewFormat } = overviewMeta(gameId);
   const startLabel = useMemo(
     () =>
       startsAtMs
         ? new Date(startsAtMs).toLocaleString("cs-CZ")
-        : registrations[0]?.registeredAtLabel ?? "Bude upřesněno",
-    [registrations, startsAtMs]
+        : "Bude upřesněno",
+    [startsAtMs]
   );
 
   useEffect(() => {
@@ -166,22 +291,39 @@ export function TournamentDetailContent({
             <h1 className="mt-3 font-[family-name:var(--font-bebas)] text-5xl tracking-wide text-white sm:text-7xl">
               {name}
             </h1>
-            <p className="mt-2 text-sm text-slate-300">{gameLabel(gameId)}</p>
-            <div className="mt-6 flex flex-wrap items-center gap-3">
-              {faceitUrl.trim() && faceitUnlocked ? (
-                <a
-                  href={faceitUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="rounded-md bg-[#39FF14] px-4 py-2 text-xs font-semibold uppercase tracking-wide text-black transition hover:brightness-110"
-                >
-                  Otevřít turnaj na Faceit
-                </a>
-              ) : null}
-              {!faceitUnlocked ? (
-                <p className="text-xs text-amber-200">
-                  Link na Faceit turnaj bude dostupný 24 hodin před startem.
-                </p>
+            <p className="mt-2 text-sm text-slate-300">
+              {gameLabel(gameId)} · {tournamentPhaseLabel(phase)}
+            </p>
+          </div>
+        </div>
+
+        <TournamentBrandTicker gameId={gameId} />
+
+        <div className="relative mx-auto max-w-6xl bg-[#0a0a0a] px-4 pb-6 sm:px-6">
+          <div className="flex flex-wrap items-center gap-3 pt-4">
+              {viewerHasRegisteredTeam ? (
+                <>
+                  {effectiveFaceitUrl && faceitUnlocked ? (
+                    <a
+                      href={effectiveFaceitUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="rounded-md bg-[#39FF14] px-4 py-2 text-xs font-semibold uppercase tracking-wide text-black transition hover:brightness-110"
+                    >
+                      Otevřít turnaj na Faceit
+                    </a>
+                  ) : null}
+                  {!faceitUnlocked ? (
+                    <p className="text-xs text-amber-200">
+                      {formatFaceitUnlockHint(startsAtMs ?? null)}
+                    </p>
+                  ) : !effectiveFaceitUrl ? (
+                    <p className="text-xs text-amber-200">
+                      Faceit odkaz zatím není vyplněný — doplní ho organizátor v adminu
+                      turnajů.
+                    </p>
+                  ) : null}
+                </>
               ) : null}
               <button
                 type="button"
@@ -190,7 +332,7 @@ export function TournamentDetailContent({
               >
                 Přihlášené týmy ({participantsCount})
               </button>
-            </div>
+              <TournamentShareButton sharePath={sharePath} />
           </div>
         </div>
 
@@ -243,12 +385,12 @@ export function TournamentDetailContent({
                     <p className="mt-1">{gameLabel(gameId)}</p>
                   </div>
                   <div>
-                    <p className="text-xs uppercase tracking-wide text-slate-500">Velikost týmu</p>
-                    <p className="mt-1">5v5</p>
+                    <p className="text-xs uppercase tracking-wide text-slate-500">Soupiska</p>
+                    <p className="mt-1">{overviewTeamSize}</p>
                   </div>
                   <div>
-                    <p className="text-xs uppercase tracking-wide text-slate-500">Formát</p>
-                    <p className="mt-1">Single Elimination</p>
+                    <p className="text-xs uppercase tracking-wide text-slate-500">Formát / poznámka</p>
+                    <p className="mt-1">{overviewFormat}</p>
                   </div>
                 </div>
               </section>
@@ -256,9 +398,7 @@ export function TournamentDetailContent({
               <section>
                 <h2 className="text-xl font-semibold text-white">Informace</h2>
                 <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-slate-300">
-                  {prizePoolText.trim()
-                    ? prizePoolText
-                    : "Informace o prize poolu a harmonogramu doplní organizátor."}
+                  {displayPrizePoolText(prizePoolText)}
                 </p>
               </section>
             </div>
@@ -326,30 +466,36 @@ export function TournamentDetailContent({
 
         {activeTab === "rules" ? (
           <section>
-            <h2 className="text-xl font-semibold text-white">Pravidla</h2>
+            <h2 className="text-xl font-semibold text-white">Pravidla disciplíny</h2>
             <p className="mt-2 text-sm text-slate-400">
-              Hlavní pravidla turnaje a oficiální dokumenty jsou stejné jako na stránce{" "}
-              <Link href="/pravidla" className="text-[#39FF14] hover:underline">
-                Pravidla
+              Kompletní rámec pro <strong className="text-white">{gameLabel(gameId)}</strong>{" "}
+              (registrace, formát, dokumenty) je na stránce{" "}
+              <Link
+                href={`/pravidla/${gameId}`}
+                className="text-[#39FF14] hover:underline"
+              >
+                Pravidla — {gameLabel(gameId)}
               </Link>
-              .
+              . Níže jen doplnění organizátora ke konkrétnímu turnaji.
             </p>
-            <div className="mt-4 space-y-3 rounded-lg border border-white/10 bg-black/30 p-4">
-              {RULES_SECTIONS.map((section) => (
-                <div key={section.title}>
-                  <p className="font-semibold text-white">{section.title}</p>
-                  <p className="mt-1 text-sm leading-relaxed text-slate-300">{section.body}</p>
-                </div>
-              ))}
-            </div>
             <div className="mt-4 whitespace-pre-wrap rounded-lg border border-white/10 bg-black/30 p-4 text-sm leading-relaxed text-slate-200">
-              {rulesText.trim() ? rulesText : "Pravidla doplní organizátor."}
+              {rulesText.trim()
+                ? rulesText
+                : "K tomuto turnaji organizátor zatím nepřidal vlastní text — použij odkaz na pravidla hry výše."}
             </div>
             <OfficialDocumentsDownloads
-              variant="rules"
+              gameId={gameId}
               className="mt-6 !rounded-lg !border-white/10 !bg-black/30 !p-4"
-              heading="Oficiální dokumenty k turnaji"
-              intro="Tyto PDF dokumenty jsou dostupné i na stránce Dokumenty."
+              heading={
+                gameId === "cs2"
+                  ? "PDF k této disciplíně"
+                  : "Společná registrace (PDF)"
+              }
+              intro={
+                gameId === "cs2"
+                  ? "Obecná pravidla CS2 a společná pravidla registrace — stejné jako na stránce pravidel hry."
+                  : "Společná pravidla registrace studentů platí pro celý projekt. Herní formát najdeš na stránce pravidel disciplíny."
+              }
             />
           </section>
         ) : null}
@@ -397,7 +543,7 @@ export function TournamentDetailContent({
                   </h4>
                   <div className="mt-4 grid gap-4 md:grid-cols-2">
                     {teamDetail.captainPlayer ? (
-                      <TeamMemberCard player={teamDetail.captainPlayer} role="Kapitán" idx={0} />
+                      <TeamMemberCard player={teamDetail.captainPlayer} role="Kapitán" idx={0} gameId={gameId} />
                     ) : null}
                     {teamDetail.teammates.map((player, idx) => (
                       <TeamMemberCard
@@ -405,6 +551,7 @@ export function TournamentDetailContent({
                         player={player}
                         role="Hráč"
                         idx={idx}
+                        gameId={gameId}
                       />
                     ))}
                     {teamDetail.substitutes.map((player, idx) => (
@@ -413,6 +560,7 @@ export function TournamentDetailContent({
                         player={player}
                         role="Náhradník"
                         idx={idx}
+                        gameId={gameId}
                       />
                     ))}
                   </div>

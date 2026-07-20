@@ -3,6 +3,9 @@ import { isSuperAdminEmail } from "@/lib/server-auth";
 import { autoHighlightImportantText } from "@/lib/announcements";
 import { verifyFirebaseClientIdTokenFromRequest } from "@/lib/firebase/verify-client-id-token";
 import { createDocRest } from "@/lib/firebase/firestore-rest-admin";
+import { notifyCaptainsAboutAnnouncement } from "@/lib/resend-announcement";
+import { getSitePublicUrl } from "@/lib/site-public-url";
+import { reportSiteAction } from "@/lib/discord-webhook";
 
 type Body = {
   content: string;
@@ -53,17 +56,45 @@ export async function POST(request: Request) {
     .map((x) => x.trim())
     .find(Boolean)
     ?.slice(0, 180);
+  const title = fallbackTitle || "Oznámení z Discordu";
+  const authorName = (body.authorName ?? "Discord").slice(0, 120);
+  const category = "general" as const;
+
   const ref = await createDocRest("announcements", {
-    title: fallbackTitle || "Oznámení z Discordu",
+    title,
     content: content || "(příloha)",
     highlightedContent: autoHighlightImportantText(content || "(příloha)"),
     imageUrl,
-    authorName: (body.authorName ?? "Discord").slice(0, 120),
-    category: "general",
+    authorName,
+    category,
     discordMessageId: body.discordMessageId ?? null,
     source: "discord",
     createdAt: new Date().toISOString(),
   });
 
-  return NextResponse.json({ ok: true, id: ref.id });
+  const publicUrl = `${getSitePublicUrl(request)}/oznameni/${ref.id}`;
+  const email = await notifyCaptainsAboutAnnouncement({
+    title,
+    content: content || "(příloha)",
+    category,
+    authorName,
+    publicUrl,
+  });
+  if (email.error || email.failed > 0 || email.skippedNoResend) {
+    console.warn("[announcement-email:discord]", email);
+  }
+
+  void reportSiteAction({
+    content: "**Oznámení** · z Discordu",
+    title: title.slice(0, 256),
+    description: [
+      content.slice(0, 1200) || "_Bez textu_",
+      "",
+      `**Autor:** ${authorName}`,
+      `**ID:** \`${ref.id}\``,
+      `**Na webu:** ${publicUrl}`,
+    ].join("\n"),
+  });
+
+  return NextResponse.json({ ok: true, id: ref.id, email });
 }

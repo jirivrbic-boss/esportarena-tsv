@@ -1,4 +1,5 @@
 import { Resend } from "resend";
+import { ea, emailShell, escapeHtml } from "@/lib/emails/email-shell";
 import {
   teamApprovedEmailHtml,
   teamRejectedEmailHtml,
@@ -59,15 +60,19 @@ export async function sendTeamCustomEmail(
     return { ok: false, error: "Resend není nakonfigurováno." };
   }
   const resend = new Resend(key);
-  const safeTeamName = teamName?.trim() || "Tým";
-  const html = `
-    <div style="font-family:Arial,sans-serif;line-height:1.6;color:#111827">
-      <p>Ahoj,</p>
-      <p>administrátor ti poslal zprávu k týmu <strong>${safeTeamName}</strong>.</p>
-      <div style="margin:16px 0;padding:16px;border:1px solid #e5e7eb;border-radius:12px;background:#f9fafb;white-space:pre-wrap">${message}</div>
-      <p>ESPORTARENA TSV</p>
-    </div>
-  `;
+  const safeTeamName = escapeHtml(teamName?.trim() || "Tým");
+  const safeMessage = message
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+  const html = emailShell(
+    "Zpráva od administrace",
+    `<p style="${ea.p}">Ahoj,</p>
+<p style="${ea.p}">administrátor ti poslal zprávu k týmu <strong style="${ea.strong}">${safeTeamName}</strong>.</p>
+<div class="ea-box" style="${ea.box};white-space:pre-wrap;">${safeMessage}</div>`,
+    { headerSub: "Sezóna 4 · Zpráva k týmu" }
+  );
   const { error } = await resend.emails.send({
     from,
     to,

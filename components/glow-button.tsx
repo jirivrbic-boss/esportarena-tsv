@@ -20,22 +20,22 @@ export function GlowButton({
   ...rest
 }: Props) {
   const base =
-    "relative inline-flex items-center justify-center rounded-lg px-6 py-3 text-sm font-semibold uppercase tracking-wider transition-shadow focus:outline-none focus-visible:ring-2 focus-visible:ring-[#39FF14] focus-visible:ring-offset-2 focus-visible:ring-offset-[#050505]";
+    "relative box-border inline-flex items-center justify-center whitespace-nowrap rounded-lg px-6 py-3 text-sm font-semibold uppercase leading-tight tracking-wider transition-shadow focus:outline-none focus-visible:ring-2 focus-visible:ring-[#39FF14] focus-visible:ring-offset-2 focus-visible:ring-offset-[#050505]";
   const styles =
     variant === "primary"
-      ? "bg-[#39FF14] text-black shadow-[0_0_24px_rgba(57,255,20,0.35)] hover:shadow-[0_0_36px_rgba(57,255,20,0.55)]"
+      ? "border border-[#39FF14]/40 bg-[#39FF14] text-black shadow-[0_0_14px_rgba(57,255,20,0.28)] hover:shadow-[0_0_22px_rgba(57,255,20,0.42)]"
       : "border border-white/15 bg-white/5 text-white hover:border-[#39FF14]/40 hover:bg-white/10";
 
   const motionProps = {
-    whileHover: { scale: 1.02 },
-    whileTap: { scale: 0.98 },
+    whileHover: { scale: 1.015 },
+    whileTap: { scale: 0.985 },
     transition: { type: "spring" as const, stiffness: 400, damping: 24 },
   };
 
   if ("href" in rest && rest.href) {
     const { href, ...linkRest } = rest;
     return (
-      <motion.span className="inline-block" {...motionProps}>
+      <motion.span className="inline-flex max-w-full" {...motionProps}>
         <Link
           href={href}
           className={`${base} ${styles} ${className}`}
@@ -49,7 +49,7 @@ export function GlowButton({
 
   const buttonRest = rest as ComponentProps<"button">;
   return (
-    <motion.span className="inline-block" {...motionProps}>
+    <motion.span className="inline-flex max-w-full" {...motionProps}>
       <button
         type={buttonRest.type ?? "button"}
         className={`${base} ${styles} ${className}`}

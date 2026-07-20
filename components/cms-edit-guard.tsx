@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/auth-context";
@@ -17,7 +18,7 @@ export function CmsEditGuard({ children }: { children: ReactNode }) {
       return;
     }
     if (!isClientAdminEmail(user.email)) {
-      router.replace("/");
+      router.replace("/zakazano");
     }
   }, [loading, user, router]);
 
@@ -29,5 +30,15 @@ export function CmsEditGuard({ children }: { children: ReactNode }) {
     );
   }
 
-  return <>{children}</>;
+  return (
+    <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6">
+      <Link
+        href="/admin/edit"
+        className="text-sm text-slate-500 transition hover:text-[#39FF14]"
+      >
+        ← Úpravy stránek
+      </Link>
+      <div className="mt-4">{children}</div>
+    </div>
+  );
 }
