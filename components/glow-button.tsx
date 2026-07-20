@@ -32,7 +32,9 @@ export function GlowButton({
     transition: { type: "spring" as const, stiffness: 400, damping: 24 },
   };
 
-  const stretch = /\bw-full\b/.test(className);
+  const stretch =
+    /\bw-full\b/.test(className) &&
+    !/\b(?:sm|md|lg|xl|2xl):w-auto\b/.test(className);
   const wrapClass = stretch ? "flex w-full max-w-full" : "inline-flex max-w-full";
 
   if ("href" in rest && rest.href) {

@@ -181,7 +181,7 @@ export function Hero({
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.45, duration: 0.5 }}
-          className="mt-10 flex w-full max-w-lg flex-col items-center justify-center gap-3 sm:max-w-none sm:flex-row sm:gap-4"
+          className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row sm:gap-4"
         >
           <GlowButton
             href="/tym/registrace"
