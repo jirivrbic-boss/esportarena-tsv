@@ -2,13 +2,13 @@ import type { Metadata } from "next";
 import { pageMetadata } from "@/lib/site-seo";
 
 export const metadata: Metadata = pageMetadata({
-  title: "Turnaje",
+  title: "Registrace kapitána",
   description:
-    "Přehled aktuálních a nadcházejících turnajů ESPORTARENA TSV podle her.",
-  path: "/turnaje",
+    "Založení účtu kapitána pro správu týmů v portálu ESPORTARENA TSV.",
+  path: "/registrace",
 });
 
-export default function TurnajeLayout({
+export default function RegistraceLayout({
   children,
 }: {
   children: React.ReactNode;

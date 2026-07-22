@@ -1,12 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { OfficialDocumentsDownloads } from "@/components/official-documents-downloads";
+import { pageMetadata } from "@/lib/site-seo";
 
-export const metadata: Metadata = {
-  title: "Ochrana údajů (GDPR) · ESPORTARENA TSV",
+export const metadata: Metadata = pageMetadata({
+  title: "Ochrana údajů (GDPR)",
   description:
     "Zpracování citlivých dokumentů při ověření studentského statusu a automatické mazání po 48 hodinách.",
-};
+  path: "/gdpr",
+});
 
 export default function GdprPage() {
   return (

@@ -1,6 +1,11 @@
+import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { AdminShell } from "@/components/admin-shell";
 import { AdminTempProvider } from "@/contexts/admin-temp-context";
+
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+};
 
 export default async function AdminLayout({
   children,

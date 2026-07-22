@@ -17,23 +17,23 @@ export function SiteFooter() {
           </p>
           <SiteSocialLinks className="mt-4" />
         </div>
-        <div className="space-y-3 text-sm">
+        <div className="flex flex-col gap-2 text-sm">
           <p className="font-semibold text-white">Turnaj</p>
           <Link
             href="/hry"
-            className="inline-block text-slate-300 underline-offset-4 hover:text-white hover:underline"
+            className="text-slate-300 underline-offset-4 hover:text-white hover:underline"
           >
             Herní disciplíny
           </Link>
           <Link
             href="/o-nas"
-            className="mt-2 inline-block text-slate-300 underline-offset-4 hover:text-white hover:underline"
+            className="text-slate-300 underline-offset-4 hover:text-white hover:underline"
           >
             O nás
           </Link>
           <Link
             href="/kontakt"
-            className="mt-2 inline-block text-slate-300 underline-offset-4 hover:text-white hover:underline"
+            className="text-slate-300 underline-offset-4 hover:text-white hover:underline"
           >
             Kontakt
           </Link>

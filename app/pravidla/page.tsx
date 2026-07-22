@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 import { GameRulesHub } from "@/components/game-rules-hub";
+import { pageMetadata } from "@/lib/site-seo";
 
-export const metadata: Metadata = {
-  title: "Pravidla podle her · ESPORTARENA TSV S4",
+export const metadata: Metadata = pageMetadata({
+  title: "Pravidla",
   description:
-    "Studentský turnaj ESPORTARENA TSV Sezóna 4 — pravidla Counter-Strike 2 a League of Legends včetně registrace.",
-};
+    "Oficiální pravidla turnaje podle her — formát, soupiska a podmínky účasti.",
+  path: "/pravidla",
+});
 
 export default function PravidlaHubPage() {
   return (

@@ -3,12 +3,13 @@ import Link from "next/link";
 import { GlassCard } from "@/components/glass-card";
 import { SITE_CONTACT } from "@/lib/site-info";
 import { SITE_COPY } from "@/lib/site-copy";
+import { pageMetadata } from "@/lib/site-seo";
 
-export const metadata: Metadata = {
-  title: "Kontakt · ESPORTARENA TSV",
-  description:
-    "Kontakt na organizátory turnaje ESPORTARENA TSV — EsportArena Plzeň.",
-};
+export const metadata: Metadata = pageMetadata({
+  title: "Kontakt",
+  description: `Kontakt na organizátory turnaje — ${SITE_CONTACT.organizer}, e-mail a telefon.`,
+  path: "/kontakt",
+});
 
 export default function KontaktPage() {
   return (

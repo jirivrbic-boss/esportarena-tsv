@@ -2,12 +2,14 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { GamesCatalog } from "@/components/games-catalog";
 import { TOURNAMENT_SCHOOLS_TYPES } from "@/lib/site-info";
+import { pageMetadata } from "@/lib/site-seo";
 
-export const metadata: Metadata = {
-  title: "Hry · ESPORTARENA TSV",
+export const metadata: Metadata = pageMetadata({
+  title: "Hry",
   description:
-    "Disciplíny studentského turnaje ESPORTARENA TSV — CS2, League of Legends, Brawl Stars a EA SPORTS FC 26.",
-};
+    "Herní disciplíny: Counter-Strike 2, League of Legends, Brawl Stars a EA SPORTS FC 26.",
+  path: "/hry",
+});
 
 export default function HryPage() {
   return (

@@ -3,12 +3,14 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { GlowButton } from "@/components/glow-button";
 import { GlassCard } from "@/components/glass-card";
+import { pageMetadata } from "@/lib/site-seo";
 
-export const metadata: Metadata = {
-  title: "Registrace týmu · ESPORTARENA TSV",
+export const metadata: Metadata = pageMetadata({
+  title: "Registrace týmu",
   description:
-    "Registrace týmů do CS2 a League of Legends — co připravit hráči a co řeší kapitán.",
-};
+    "Registrace studentského týmu přes kapitána — soupiska, doklady a odeslání ke schválení.",
+  path: "/tym/registrace",
+});
 
 function Step({
   n,

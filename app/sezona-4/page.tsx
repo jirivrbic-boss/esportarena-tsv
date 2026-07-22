@@ -1,10 +1,13 @@
+import type { Metadata } from "next";
 import { SeasonPageClient } from "@/components/season/season-page-client";
+import { pageMetadata } from "@/lib/site-seo";
 
-export const metadata = {
-  title: "Sezóna 4 · ESPORTARENA TSV",
+export const metadata: Metadata = pageMetadata({
+  title: "Sezóna 4",
   description:
-    "Školní turnaj Sezóna 4 — registrace, kvalifikace CS2 a League of Legends, pavouk a LAN finále.",
-};
+    "Harmonogram Sezóny 4, zápis do sezóny, kvalifikace a pavouk pro CS2 a LoL.",
+  path: "/sezona-4",
+});
 
 export default function Sezona4Page() {
   return <SeasonPageClient seasonSlug="sezona-4" />;

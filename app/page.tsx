@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import dynamic from "next/dynamic";
 import { Hero } from "@/components/home/hero";
 import { HomeAboutSection } from "@/components/home/home-about-section";
@@ -5,6 +6,17 @@ import { HomeTournamentsSection } from "@/components/home/home-tournaments-secti
 import { TwitchHub } from "@/components/home/twitch-embed";
 import { getPageContent } from "@/lib/get-cms-page";
 import type { HomeCms } from "@/lib/cms-defaults";
+import {
+  SITE_DEFAULT_DESCRIPTION,
+  SITE_DEFAULT_TITLE,
+  pageMetadata,
+} from "@/lib/site-seo";
+
+export const metadata: Metadata = pageMetadata({
+  title: SITE_DEFAULT_TITLE,
+  description: SITE_DEFAULT_DESCRIPTION,
+  path: "/",
+});
 
 const heroVideoUrl = process.env.NEXT_PUBLIC_HERO_VIDEO_URL?.trim() || "";
 const heroVideoIsLocalMp4 =

@@ -1,5 +1,6 @@
 /**
- * Absolutní URL webu (pro odkazy v e-mailech). Priorita env, jinak Host z requestu (např. při deploy / localhost).
+ * Absolutní URL webu (pro odkazy v e-mailech). Priorita env, jinak Host z requestu,
+ * nakonec oficiální doména studentskyturnaj.cz.
  */
 export function getSitePublicUrl(request?: Request): string {
   const fromEnv =
@@ -16,5 +17,9 @@ export function getSitePublicUrl(request?: Request): string {
     if (host) return `${proto}://${host}`;
   }
 
-  return "http://localhost:3000";
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL.replace(/\/$/, "")}`;
+  }
+
+  return "https://studentskyturnaj.cz";
 }

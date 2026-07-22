@@ -5,12 +5,14 @@ import { getPageContent } from "@/lib/get-cms-page";
 import type { HomeCms } from "@/lib/cms-defaults";
 import { ABOUT_JOIN, ABOUT_ORGANIZER, ABOUT_SEASON } from "@/lib/site-info";
 import { SITE_COPY } from "@/lib/site-copy";
+import { pageMetadata } from "@/lib/site-seo";
 
-export const metadata: Metadata = {
-  title: "O nás · ESPORTARENA TSV",
+export const metadata: Metadata = pageMetadata({
+  title: "O nás",
   description:
-    "Informace o studentském turnaji ESPORTARENA TSV pro české a slovenské školy — pořadatel EsportArena Plzeň.",
-};
+    "Kdo pořádá ESPORTARENA TSV a jak propojujeme studentský esport s IT vzděláváním.",
+  path: "/o-nas",
+});
 
 const EXTRA_SECTIONS = [ABOUT_ORGANIZER, ABOUT_SEASON, ABOUT_JOIN] as const;
 

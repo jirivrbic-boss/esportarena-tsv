@@ -1,12 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { OfficialDocumentsDownloads } from "@/components/official-documents-downloads";
+import { pageMetadata } from "@/lib/site-seo";
 
-export const metadata: Metadata = {
-  title: "Dokumenty ke stažení · ESPORTARENA TSV",
+export const metadata: Metadata = pageMetadata({
+  title: "Dokumenty",
   description:
-    "Obecná pravidla CS2 a LoL, společná pravidla registrace a souhlas zákonného zástupce — PDF dokumenty portálu ESPORTARENA TSV.",
-};
+    "Ke stažení: pravidla, souhlasy a oficiální dokumenty studentského turnaje.",
+  path: "/dokumenty",
+});
 
 export default function DokumentyPage() {
   return (

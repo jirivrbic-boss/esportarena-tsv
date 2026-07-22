@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 import { SupportCenter } from "@/components/support/support-center";
+import { pageMetadata } from "@/lib/site-seo";
 
-export const metadata: Metadata = {
-  title: "Centrum podpory | ESPORTARENA TSV",
+export const metadata: Metadata = pageMetadata({
+  title: "Centrum podpory",
   description:
-    "Časté dotazy k registraci týmů, účtu kapitána, turnajům a technické nápovědě.",
-};
+    "FAQ, technická nápověda a kontaktní formulář pro kapitány a účastníky.",
+  path: "/podpora",
+});
 
 export default function PodporaPage() {
   return <SupportCenter />;
