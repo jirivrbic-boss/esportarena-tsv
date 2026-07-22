@@ -41,7 +41,7 @@ const nextConfig: NextConfig = {
       {
         key: "Content-Security-Policy",
         value:
-          "default-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://apis.google.com https://www.gstatic.com https://player.twitch.tv https://www.youtube.com https://www.youtube-nocookie.com; frame-src 'self' https://accounts.google.com https://*.firebaseapp.com https://player.twitch.tv https://www.twitch.tv https://www.youtube.com https://www.youtube-nocookie.com; connect-src 'self' https: wss:;",
+          "default-src 'self'; img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://apis.google.com https://www.gstatic.com https://player.twitch.tv https://www.youtube.com https://www.youtube-nocookie.com; frame-src 'self' https://accounts.google.com https://*.firebaseapp.com https://player.twitch.tv https://www.twitch.tv https://www.youtube.com https://www.youtube-nocookie.com; connect-src 'self' https: wss:;",
       },
     ];
     const headers =
