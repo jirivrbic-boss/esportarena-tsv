@@ -3,11 +3,22 @@ import { adminAuth, isFirebaseAdminConfigured } from "@/lib/firebase/admin";
 import { bannedEmailDocPath } from "@/lib/captain-ban";
 import { getDocRest } from "@/lib/firebase/firestore-rest-admin";
 import { sendPasswordResetLinkEmail } from "@/lib/emails/password-reset";
-import { getSitePublicUrl } from "@/lib/site-public-url";
+import { SITE_CANONICAL_ORIGIN } from "@/lib/site-seo";
 import { reportSiteAction } from "@/lib/discord-webhook";
 
 function normalizeEmail(raw: string): string {
   return raw.trim().toLowerCase();
+}
+
+/** Continue URL pro Firebase — vždy oficiální apex (ne www / vercel.app). */
+function passwordResetContinueBase(): string {
+  const fromEnv =
+    process.env.NEXT_PUBLIC_SITE_URL?.trim() ||
+    process.env.NEXT_PUBLIC_APP_URL?.trim();
+  if (fromEnv) {
+    return fromEnv.replace(/\/$/, "").replace("://www.", "://");
+  }
+  return SITE_CANONICAL_ORIGIN;
 }
 
 export async function POST(request: Request) {
@@ -55,7 +66,7 @@ export async function POST(request: Request) {
       /* */
     }
 
-    const site = getSitePublicUrl(request);
+    const site = passwordResetContinueBase();
     const firebaseLink = await adminAuth().generatePasswordResetLink(email, {
       url: `${site}/prihlaseni`,
       handleCodeInApp: false,
@@ -82,11 +93,13 @@ export async function POST(request: Request) {
     });
 
     if (!sent.ok) {
+      // Resend není nastavený / selhal — NEspalovat Firebase klientskou kvótou
       return NextResponse.json(
         {
           ok: false,
           error: sent.error,
-          clientFallback: true,
+          clientFallback: false,
+          resendFailed: true,
         },
         { status: 503 }
       );

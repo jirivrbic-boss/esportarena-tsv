@@ -11,6 +11,7 @@ import {
   readPasswordRecoveryAccount,
   type PasswordRecoveryAccount,
 } from "@/lib/password-recovery";
+import { SITE_CONTACT } from "@/lib/site-info";
 
 export default function ObnovitHesloPage() {
   const { firebaseReady, sendPasswordReset } = useAuth();
@@ -45,11 +46,19 @@ export default function ObnovitHesloPage() {
         ok?: boolean;
         error?: string;
         clientFallback?: boolean;
+        resendFailed?: boolean;
       };
 
       if (res.ok && j.ok) {
         setMsg(
           "Odkaz jsme poslali na e-mail účtu. Otevři ho a nastav nové heslo (zkontroluj i spam)."
+        );
+        return;
+      }
+
+      if (j.resendFailed) {
+        setError(
+          `Odeslání e-mailu ze serveru selhalo. Zkus to za pár minut, nebo napiš na ${SITE_CONTACT.email}.`
         );
         return;
       }

@@ -207,7 +207,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     async (email: string) => {
       if (!firebaseReady) throw new Error("Firebase není nakonfigurováno.");
       const auth = getFirebaseAuth();
-      const origin = window.location.origin;
+      // Apex doména — www musí být v Authorized domains, ale continue URL držíme stabilní
+      const origin =
+        typeof window !== "undefined" &&
+        window.location.hostname.endsWith("studentskyturnaj.cz")
+          ? "https://studentskyturnaj.cz"
+          : window.location.origin;
       await sendPasswordResetEmail(auth, email.trim(), {
         url: `${origin}/heslo/akce`,
         handleCodeInApp: false,
