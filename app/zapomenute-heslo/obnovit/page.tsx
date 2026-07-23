@@ -57,8 +57,11 @@ export default function ObnovitHesloPage() {
       }
 
       if (j.resendFailed) {
+        const detail = j.error?.trim();
         setError(
-          `Odeslání e-mailu ze serveru selhalo. Zkus to za pár minut, nebo napiš na ${SITE_CONTACT.email}.`
+          detail
+            ? `E-mail se nepodařilo odeslat: ${detail}`
+            : `Odesílání e-mailu ze serveru selhalo. Zkus to za pár minut, nebo napiš na ${SITE_CONTACT.email}.`
         );
         return;
       }
