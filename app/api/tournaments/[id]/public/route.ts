@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import type { TournamentRegistrationDocument } from "@/lib/tournaments";
 import {
   isFaceitHubUnlocked,
-  isTournamentPubliclyVisible,
   parseTournamentStartsAtMs,
   resolveFaceitHubUrl,
 } from "@/lib/tournament-faceit";
@@ -71,19 +70,6 @@ export async function GET(request: Request, ctx: Ctx) {
         registrations.some((r) => r.captainId === captainUid)
     );
 
-    const isPublic = isTournamentPubliclyVisible(startsAtMs);
-    const isCaptainView = Boolean(captainUid);
-
-    if (!isPublic && !isCaptainView) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "Turnaj bude veřejně dostupný až po jeho startu.",
-        },
-        { status: 404 }
-      );
-    }
-
     const faceitResolved = resolveFaceitHubUrl(
       t.faceitUrl,
       process.env.NEXT_PUBLIC_FACEIT_HUB_URL
@@ -105,7 +91,7 @@ export async function GET(request: Request, ctx: Ctx) {
         rulesText: String(t.rulesText ?? ""),
         faceitUrl,
         viewerHasRegisteredTeam,
-        isPubliclyVisible: isPublic,
+        isPubliclyVisible: true,
       },
       registrations: registrations.map(({ captainId: _c, ...rest }) => rest),
     });

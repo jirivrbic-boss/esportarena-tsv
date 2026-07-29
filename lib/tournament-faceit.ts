@@ -11,13 +11,12 @@ export function parseTournamentStartsAtMs(value: unknown): number | null {
   return null;
 }
 
-/** Veřejný web zobrazí turnaj až v okamžiku startu (ne dříve). */
+/** Zveřejněný turnaj je na detailu viditelný vždy (nadcházející i proběhlý). */
 export function isTournamentPubliclyVisible(
-  startsAtMs: number | null,
-  now: number = Date.now()
+  _startsAtMs: number | null,
+  _now: number = Date.now()
 ): boolean {
-  if (startsAtMs == null) return false;
-  return now >= startsAtMs;
+  return true;
 }
 
 /** Bez data startu považujeme odkaz za dostupný (admin ho může zveřejnit kdykoli). */
